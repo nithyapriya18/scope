@@ -473,7 +473,13 @@ router.get('/:id', async (req, res) => {
 
     // Fetch related workflow data
     const briefs = await sql`SELECT * FROM briefs WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
-    const gapAnalyses = await sql`SELECT * FROM gap_analyses WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
+
+    // Gap analyses link to briefs, not directly to opportunities
+    let gapAnalyses = [];
+    if (briefs.length > 0) {
+      gapAnalyses = await sql`SELECT * FROM gap_analyses WHERE brief_id = ${briefs[0].id} ORDER BY created_at DESC LIMIT 1`;
+    }
+
     const clarifications = await sql`SELECT * FROM clarifications WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const scopes = await sql`SELECT * FROM scopes WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
 
