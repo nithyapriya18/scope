@@ -96,25 +96,25 @@ export default function HomePage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
             <FeatureCard
-              icon={<FileText className="w-10 h-10 text-ps-primary-600 dark:text-ps-primary-400" />}
+              icon={<FileText className="w-10 h-10" />}
               title="RFP Intake"
               description="Automatically parse and extract requirements from RFP documents, emails, and PDFs"
               gradient="from-ps-primary-500 to-ps-primary-600"
             />
             <FeatureCard
-              icon={<Brain className="w-10 h-10 text-ps-secondary-600 dark:text-ps-secondary-400" />}
+              icon={<Brain className="w-10 h-10" />}
               title="AI Analysis"
               description="Multi-agent AI system identifies gaps, generates clarifications, and validates scope"
               gradient="from-ps-secondary-500 to-ps-secondary-600"
             />
             <FeatureCard
-              icon={<Users className="w-10 h-10 text-success" />}
+              icon={<Users className="w-10 h-10" />}
               title="HCP Matching"
               description="Intelligent matching from 500+ internal HCP database with specialty filtering"
               gradient="from-success to-[#22C55E]"
             />
             <FeatureCard
-              icon={<TrendingUp className="w-10 h-10 text-info" />}
+              icon={<TrendingUp className="w-10 h-10" />}
               title="Smart Pricing"
               description="WBS estimation and pricing calculation with detailed cost breakdown"
               gradient="from-info to-[#06B6D4]"
@@ -231,7 +231,7 @@ function FeatureCard({
 }) {
   return (
     <div className="group bg-white dark:bg-neutral-900 rounded-2xl p-8 shadow-lg hover:shadow-2xl transition-all border border-neutral-200 dark:border-neutral-800 hover:scale-105">
-      <div className={`inline-block p-4 rounded-xl bg-gradient-to-br ${gradient} mb-6`}>
+      <div className={`inline-flex items-center justify-center p-4 rounded-xl bg-gradient-to-br ${gradient} mb-6 text-white`}>
         {icon}
       </div>
       <h3 className="text-xl font-bold text-neutral-900 dark:text-neutral-0 mb-3">{title}</h3>
