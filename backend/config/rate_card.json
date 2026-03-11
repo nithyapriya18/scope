@@ -1,0 +1,96 @@
+{
+  "labor_rates": {
+    "project_manager": 175,
+    "senior_analyst": 150,
+    "research_analyst": 125,
+    "moderator": 150,
+    "survey_programmer": 135,
+    "recruitment_coordinator": 100,
+    "data_analyst": 125,
+    "report_writer": 135,
+    "qa_reviewer": 140,
+    "junior_analyst": 85
+  },
+  "hcp_recruitment_costs": {
+    "easy": 200,
+    "medium": 300,
+    "hard": 400,
+    "very_hard": 500
+  },
+  "hcp_incentives_by_specialty": {
+    "oncologist": {
+      "us": 500,
+      "uk": 450,
+      "germany": 400,
+      "france": 400,
+      "default": 450
+    },
+    "cardiologist": {
+      "us": 450,
+      "uk": 400,
+      "germany": 350,
+      "france": 350,
+      "default": 400
+    },
+    "rare_disease_specialist": {
+      "us": 750,
+      "uk": 650,
+      "germany": 550,
+      "france": 550,
+      "default": 650
+    },
+    "general_specialist": {
+      "us": 350,
+      "uk": 300,
+      "germany": 250,
+      "france": 250,
+      "default": 300
+    }
+  },
+  "patient_incentives": {
+    "survey_short": 10,
+    "survey_long": 25,
+    "interview_30min": 75,
+    "interview_60min": 150,
+    "interview_90min": 225
+  },
+  "transcription_costs": {
+    "per_audio_minute": 2.5,
+    "rush_per_minute": 4.0,
+    "translation_per_minute": 5.0
+  },
+  "survey_costs": {
+    "programming_setup": 1200,
+    "per_complete_panel": 15,
+    "per_complete_list": 8,
+    "data_processing_base": 800
+  },
+  "travel_rates": {
+    "domestic_flight": 500,
+    "international_flight": 1500,
+    "hotel_per_night": 200,
+    "per_diem": 75,
+    "ground_transportation_per_day": 50
+  },
+  "technology_costs": {
+    "video_platform_per_interview": 5,
+    "survey_platform_license": 500,
+    "data_analysis_tools": 300,
+    "reporting_tools": 200
+  },
+  "overhead_markup": {
+    "percentage": 18,
+    "description": "Covers administrative costs, insurance, facilities"
+  },
+  "margin_tiers": {
+    "standard": 25,
+    "rush_project": 30,
+    "complex_methodology": 28,
+    "preferred_client": 20
+  },
+  "discount_rules": {
+    "volume_discount_threshold": 100000,
+    "volume_discount_percentage": 5,
+    "multi_wave_discount": 10
+  }
+}

@@ -1,0 +1,5 @@
+# Python dependencies for document generation
+python-docx>=0.8.11     # Word document generation
+openpyxl>=3.0.10        # Excel spreadsheet generation
+python-pptx>=0.6.21     # PowerPoint presentation generation
+psycopg2-binary>=2.9.5  # PostgreSQL database connection

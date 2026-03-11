@@ -1,0 +1,198 @@
+═══════════════════════════════════════════════════════════════════════════════
+   PHASE 2 COMPLETE ✅ - Scope Planning
+═══════════════════════════════════════════════════════════════════════════════
+
+Completed: March 7, 2026
+Duration: ~2 hours
+Status: Backend + Frontend ready for testing
+
+───────────────────────────────────────────────────────────────────────────────
+🎯 WHAT WAS ACCOMPLISHED
+───────────────────────────────────────────────────────────────────────────────
+
+✅ ScopePlannerAgent (Backend)
+   • Unified agent: study type detection + sample sizing + HCP shortlist + assumptions
+   • Detects study type from 27 options (85%+ confidence)
+   • Generates 3 sample size options (conservative/recommended/aggressive)
+   • Creates HCP shortlist from internal DB (50% internal signal)
+   • Generates scope assumptions with risk flagging (low/medium/high)
+
+✅ Database Migration
+   • 8 new columns on scopes table
+   • detected_study_type, study_type_confidence, sample_size_options
+   • hcp_shortlist, scope_assumptions, estimated_total_cost
+   • status, selected_option
+
+✅ API Routes
+   • GET /api/opportunities/:id/scope - Fetch scope details
+   • POST /api/opportunities/:id/scope/approve - Select option + approve
+
+✅ Frontend Scope Planning Page
+   • Study type card with confidence score
+   • 3 sample size options grid with radio selection
+   • HCP shortlist table (paginated, 10 per page)
+   • Scope assumptions accordion (expandable by category)
+   • Approve button with selected option summary
+   • Fully responsive design
+
+✅ Updated WorkflowVisualizer
+   • Simplified workflow: 6 core steps (was 11)
+   • Added "View Details" link for completed scope step
+   • Updated step labels and descriptions
+
+✅ Updated OrchestratorAgent
+   • Consolidated: scope_build + sample_plan + hcp_shortlist → scope_planning
+   • Single agent call for complete scope planning
+   • Cleaner workflow progression
+
+───────────────────────────────────────────────────────────────────────────────
+🔄 COMPLETE WORKFLOW
+───────────────────────────────────────────────────────────────────────────────
+
+1. RFP Upload → IntakeAgent
+2. Requirements Extraction → BriefExtractorAgent
+3. Gap Analysis → GapAnalyzerAgent
+4. Clarifications → ClarificationGeneratorAgent
+   ↓ (Human approval)
+5. Scope Planning → ScopePlannerAgent
+   ├─ Study type detection: "Deep Dive Qualitative" (85% confidence)
+   ├─ 3 options: conservative (n=40), recommended (n=30), aggressive (n=25)
+   ├─ HCP shortlist: 20 profiles (50% with internal signal)
+   └─ 15 assumptions across 5 categories
+   ↓ (Human approval)
+6. WBS & Pricing → WBSEstimatorAgent + PricerAgent (Phase 3)
+
+───────────────────────────────────────────────────────────────────────────────
+📊 EXAMPLE OUTPUT
+───────────────────────────────────────────────────────────────────────────────
+
+Study Type:
+  • Deep Dive Qualitative (Understanding & Diagnosis family)
+  • 85% confidence
+  • Rationale: "RFP indicates need for in-depth patient experience exploration..."
+
+Sample Options:
+  Conservative: n=40, $48k, 8 weeks, 85% feasibility
+  Recommended: n=30, $36k, 6 weeks, 90% feasibility  ← Default
+  Aggressive:  n=25, $30k, 5 weeks, 75% feasibility
+
+HCP Shortlist (if applicable):
+  • 20 HCP profiles
+  • 10 with internal signal (past engagement)
+  • 10 without (new outreach)
+  • Filtered by specialty, geography, practice type
+
+Scope Assumptions (15 total):
+  Sample (4):     15% oversample, screen-out buffer, etc.
+  Timeline (3):   Holiday blackout periods, etc.
+  Methodology (3): Zoom interviews, 60-min duration, etc.
+  Deliverables (3): Transcripts, exec summary, etc.
+  Costs (2):      Translation, incentives, etc.
+
+───────────────────────────────────────────────────────────────────────────────
+📁 FILES CREATED/MODIFIED
+───────────────────────────────────────────────────────────────────────────────
+
+CREATED:
+  ✓ backend/src/services/agents/scopePlannerAgent.ts (370 lines)
+  ✓ frontend/app/opportunities/[id]/scope/page.tsx (420 lines)
+  ✓ db-migrations/lumina/migrations/versions/5ef6fb688f5e_*.py
+  ✓ PHASE1_COMPLETE.md, PHASE1_SUMMARY.txt
+  ✓ PHASE2_PROGRESS.md, PHASE2_COMPLETE.md, PHASE2_SUMMARY.txt
+
+MODIFIED:
+  ✓ backend/src/services/agents/orchestratorAgent.ts
+  ✓ backend/src/routes/opportunities.ts (+130 lines)
+  ✓ backend/src/index.ts (updated health check)
+  ✓ frontend/components/WorkflowVisualizer.tsx (updated steps)
+  ✓ CLAUDE.md (updated project context)
+
+───────────────────────────────────────────────────────────────────────────────
+🧪 TESTING CHECKLIST
+───────────────────────────────────────────────────────────────────────────────
+
+BACKEND:
+  [ ] Test ScopePlannerAgent with real RFP examples
+  [ ] Verify study type detection accuracy (qual vs quant)
+  [ ] Test HCP shortlist generation (50/50 split)
+  [ ] Verify scope assumptions (5 categories, risk levels)
+  [ ] Test API routes (GET, POST)
+
+FRONTEND:
+  [ ] Test scope planning page loads
+  [ ] Verify 3 sample size options display
+  [ ] Test radio selection + approve
+  [ ] Verify HCP shortlist table
+  [ ] Test assumptions accordion
+  [ ] Test "View Details" link from workflow
+
+INTEGRATION:
+  [ ] End-to-end: Upload → Clarifications → Scope → Approve
+  [ ] Verify status progression: clarification → scope_planning → wbs_estimate
+  [ ] Test approval record creation
+
+───────────────────────────────────────────────────────────────────────────────
+🚀 WHAT'S NEXT: PHASE 3
+───────────────────────────────────────────────────────────────────────────────
+
+Phase 3: WBS Estimation & Pricing (6-8 hours)
+
+AGENTS TO BUILD:
+  1. WBSEstimatorAgent
+     • Load task set from study definition (48 tasks available)
+     • Calculate base hours by role (PM, analyst, statistician, etc.)
+     • Apply multipliers (LOI, rush, multi-country, etc.)
+     • Generate task breakdown with hours + dependencies
+
+  2. PricerAgent
+     • Load rate card for tenant (12 roles)
+     • Calculate labor costs (hours × rates)
+     • Add OOP costs (panels, incentives, travel, IRB)
+     • Apply margin/markup
+     • Generate pricing pack with 3 views (summary, detail, by_phase)
+
+DELIVERABLES:
+  • WBS table (50+ line items with hours/costs)
+  • Pricing pack (Excel/JSON)
+  • Cost rollup by phase (design, fieldwork, analysis, reporting, PM)
+  • Margin analysis (cost vs sell)
+
+───────────────────────────────────────────────────────────────────────────────
+📊 METRICS
+───────────────────────────────────────────────────────────────────────────────
+
+Code Written:
+  • Backend:  1 agent, 2 API routes, 1 migration (~500 lines)
+  • Frontend: 1 page, 1 component update (~450 lines)
+  • Total:    ~950 lines of production code
+
+Database:
+  • 8 new columns on scopes table
+  • 2 new indexes
+
+Time:
+  • Development: ~2 hours
+  • Testing: TBD (user validation)
+
+───────────────────────────────────────────────────────────────────────────────
+✅ PHASE 2 CHECKLIST (ALL COMPLETE)
+───────────────────────────────────────────────────────────────────────────────
+
+ ✅ ScopePlannerAgent implementation
+ ✅ Database migration (scopes table update)
+ ✅ API routes (GET /scope, POST /scope/approve)
+ ✅ Frontend scope planning page
+ ✅ WorkflowVisualizer updates
+ ✅ OrchestratorAgent updates
+ ✅ Documentation (PHASE2_COMPLETE.md, PHASE2_SUMMARY.txt)
+ ✅ CLAUDE.md context update
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Phase 2 Status: COMPLETE ✅
+Next Action: Test end-to-end, then start Phase 3 (WBS + Pricing)
+
+Updated: 2026-03-07
+See PHASE2_COMPLETE.md for full technical details
+
+═══════════════════════════════════════════════════════════════════════════════

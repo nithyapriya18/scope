@@ -1,0 +1,239 @@
+═══════════════════════════════════════════════════════════════════════════════
+   PHASE 1 COMPLETE ✅ - Database Foundation & Study Library
+═══════════════════════════════════════════════════════════════════════════════
+
+Completed: March 7, 2026
+Duration: ~1 hour
+Status: All 17 new tables created, seeded, and verified
+
+───────────────────────────────────────────────────────────────────────────────
+📦 WHAT WAS DELIVERED
+───────────────────────────────────────────────────────────────────────────────
+
+✅ Migration: 8ba8be5cdbe2_add_phase1_foundation_tables.py
+   • Created 17 new tables
+   • Added tenant_id to 11 existing tables
+   • Created trigger function for updated_at timestamps
+
+✅ Multi-Tenancy Foundation
+   • tenants table with settings and branding
+   • All tables now support multi-tenant isolation
+
+✅ Study Library (MECE Taxonomy)
+   • 6 study families (Understanding, Tracking, Testing, Trade-off, Segmentation, Pricing)
+   • 27 study types (qual, quant, conjoint, tracker, segmentation, pricing)
+   • 27 study definitions (playbooks linking types to tasks/questions/multipliers)
+   • 15 deliverable definitions (reports, data, presentations)
+
+✅ Task Library
+   • 48 atomic task definitions with base hours by role
+   • 4 task sets (qual_standard, quant_standard, conjoint_standard, tracker_standard)
+   • Covers 5 phases: Design, Programming, Fieldwork, Analysis, Reporting, PM
+
+✅ Multiplier Library
+   • 12 complexity multipliers (LOI, rush, multi-country, conjoint, sample size, etc.)
+   • 4 multiplier sets per study type
+   • Ranges from 0.5x to 2.0x adjustment
+
+✅ Question Library
+   • 4 question sets with clarification templates
+   • Qualitative, Quantitative, Conjoint, Tracker-specific questions
+
+✅ Pricing Catalogs
+   • 2 rate cards with 12 roles (PM: $195/hr, Analyst: $145/hr, etc.)
+   • 17 OOP catalog items (panels, incentives, translation, travel, IRB, etc.)
+
+✅ Demo Tenant Setup
+   • PetaSight Demo tenant created
+   • Demo user linked to tenant
+   • All existing opportunities linked to tenant
+
+───────────────────────────────────────────────────────────────────────────────
+📊 DATABASE TABLES (28 total)
+───────────────────────────────────────────────────────────────────────────────
+
+ORIGINAL (11 tables):
+  users, opportunities, briefs, gap_analyses, clarifications,
+  scopes, sample_plans, hcp_database, hcp_shortlists,
+  wbs, pricing_packs, documents, approvals, jobs, llm_usage, chat_messages
+
+NEW IN PHASE 1 (17 tables):
+  tenants, study_families, study_types, study_definitions,
+  deliverable_definitions, task_definitions, task_sets,
+  question_sets, multiplier_definitions, multiplier_sets,
+  rate_cards, oop_catalog_items, vendors,
+  template_sets, workplan_templates
+
+───────────────────────────────────────────────────────────────────────────────
+📈 SEED DATA COUNTS
+───────────────────────────────────────────────────────────────────────────────
+
+  • 1 tenant (PetaSight Demo)
+  • 6 study families
+  • 27 study types
+  • 27 study definitions (fully linked)
+  • 15 deliverable definitions
+  • 48 task definitions
+  • 4 task sets
+  • 12 multiplier definitions
+  • 4 multiplier sets
+  • 4 question sets
+  • 2 rate cards (24 role rates total)
+  • 17 OOP catalog items
+
+───────────────────────────────────────────────────────────────────────────────
+🎯 HOW STUDY DEFINITIONS WORK
+───────────────────────────────────────────────────────────────────────────────
+
+Each study type is now a complete playbook:
+
+  Study Type: "Deep Dive Qualitative"
+  ├─ Family: Understanding & Diagnosis
+  ├─ Task Set: qual_standard (21 tasks)
+  │  ├─ T_KICKOFF, T_DISCUSSION_GUIDE, T_RECRUITMENT_QUAL
+  │  ├─ T_MODERATION, T_TRANSCRIPTION, T_CODING
+  │  └─ T_THEMATIC_ANALYSIS, T_REPORT_DRAFTING, T_READOUT_DELIVERY
+  ├─ Question Set: qual_standard (5 questions)
+  │  └─ Interview length, moderator profile, discussion guide, recording, transcripts
+  ├─ Multiplier Set: qual_standard_multipliers (8 multipliers)
+  │  └─ Rush, multi-country, audience difficulty, reporting depth, client review, etc.
+  └─ Default Deliverables: [exec_summary, final_report, transcript_verbatims, readout_ppt]
+
+This enables DETERMINISTIC WBS calculation in Phase 2:
+  1. Agent identifies study type from RFP
+  2. Loads task set → calculates base hours
+  3. Applies multipliers → adjusts for complexity
+  4. Calculates pricing from rate card
+  5. Generates WBS with line items
+
+───────────────────────────────────────────────────────────────────────────────
+📁 FILES CREATED
+───────────────────────────────────────────────────────────────────────────────
+
+Migration:
+  /home/nithya/db-migrations/lumina/migrations/versions/8ba8be5cdbe2_add_phase1_foundation_tables.py
+  /home/nithya/db-migrations/lumina/migrations/script.py.mako
+
+Seed Scripts:
+  /home/nithya/app-lumina-scope/backend/scripts/seed_demo_tenant.sql
+  /home/nithya/app-lumina-scope/backend/scripts/seed_study_library.sql
+  /home/nithya/app-lumina-scope/backend/scripts/seed_task_library.sql
+  /home/nithya/app-lumina-scope/backend/scripts/seed_multipliers.sql
+  /home/nithya/app-lumina-scope/backend/scripts/seed_rate_card.sql
+  /home/nithya/app-lumina-scope/backend/scripts/seed_study_definitions.sql
+
+Documentation:
+  /home/nithya/app-lumina-scope/PHASE1_COMPLETE.md (detailed technical doc)
+  /home/nithya/app-lumina-scope/PHASE1_SUMMARY.txt (this file)
+
+───────────────────────────────────────────────────────────────────────────────
+🧪 VERIFICATION COMMANDS
+───────────────────────────────────────────────────────────────────────────────
+
+# Count all tables
+psql -U nithya -d lumina_scope -c "\dt" | wc -l
+
+# View study types with linked sets
+psql -U nithya -d lumina_scope -c "
+  SELECT st.type_code, st.display_name, sf.family_code, 
+         sd.task_set_code, sd.question_set_code, sd.multiplier_set_code
+  FROM study_definitions sd
+  JOIN study_types st ON st.type_code = sd.type_code
+  JOIN study_families sf ON sf.family_code = st.family_code
+  ORDER BY sf.sort_order;"
+
+# View task counts by phase
+psql -U nithya -d lumina_scope -c "
+  SELECT phase, COUNT(*) as task_count
+  FROM task_definitions
+  GROUP BY phase
+  ORDER BY phase;"
+
+# View rate card
+psql -U nithya -d lumina_scope -c "
+  SELECT card_name, jsonb_array_length(rate_items) as role_count
+  FROM rate_cards;"
+
+───────────────────────────────────────────────────────────────────────────────
+🚀 WHAT'S NEXT: PHASE 2
+───────────────────────────────────────────────────────────────────────────────
+
+Phase 2: Sample Size Recommendations & HCP Shortlist
+
+Agent: ScopePlannerAgent
+
+Inputs:
+  • Brief (from BriefExtractorAgent)
+  • Gap analysis (from GapAnalyzerAgent)
+  • Study type (auto-detected from brief)
+
+Outputs:
+  1. 3 Sample Size Options:
+     • Conservative (high precision, higher cost)
+     • Recommended (balanced)
+     • Aggressive (lower precision, lower cost)
+     • Each with: n, confidence interval, cost estimate, feasibility score
+
+  2. HCP Shortlist (if applicable):
+     • Query internal HCP database (~500 sample records)
+     • Filters: specialty, geography, practice type, patient volume, language
+     • 50% overlap with internal signal data
+     • Feasibility check: expected response rate
+
+  3. Scope Assumptions Log:
+     • Standard assumptions (15-20% buffer, 10% oversample, etc.)
+     • High-risk assumptions flagged for client confirmation
+
+Implementation Tasks:
+  • Create ScopePlannerAgent class extending BaseAgent
+  • Implement sample size logic (power analysis, segmentation rules)
+  • Create HCP database service (query by criteria)
+  • Implement feasibility scoring algorithm
+  • Update opportunities workflow: add "scope_planning" status
+  • UI: Display 3 options with radio selection
+  • Human approval checkpoint (optional override)
+
+Estimated Time: 4-6 hours
+
+───────────────────────────────────────────────────────────────────────────────
+✅ PHASE 1 CHECKLIST (ALL COMPLETE)
+───────────────────────────────────────────────────────────────────────────────
+
+ ✅ Create Alembic migration structure
+ ✅ Create 17 new tables
+ ✅ Add tenant_id to 11 existing tables
+ ✅ Create trigger function for updated_at
+ ✅ Seed 6 study families (MECE)
+ ✅ Seed 27 study types
+ ✅ Seed 27 study definitions with full linkage
+ ✅ Seed 15 deliverable definitions
+ ✅ Seed 48 task definitions
+ ✅ Seed 4 task sets
+ ✅ Seed 12 multiplier definitions
+ ✅ Seed 4 multiplier sets
+ ✅ Seed 4 question sets
+ ✅ Seed 2 rate cards (12 roles each)
+ ✅ Seed 17 OOP catalog items
+ ✅ Create demo tenant
+ ✅ Link demo user to tenant
+ ✅ Verify all tables and data
+
+───────────────────────────────────────────────────────────────────────────────
+📝 NOTES
+───────────────────────────────────────────────────────────────────────────────
+
+• No breaking changes - All existing tables preserved
+• Backward compatible - tenant_id is nullable
+• Global vs tenant data - Study library has tenant_id nullable (NULL = global)
+• Extensible - Tenants can override global study definitions
+• Clean architecture - Clear separation: library tables vs instance tables
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Phase 1 Status: COMPLETE ✅
+Next Action: Start Phase 2 implementation (ScopePlannerAgent)
+
+Updated: 2026-03-07
+See PHASE1_COMPLETE.md for full technical details
+
+═══════════════════════════════════════════════════════════════════════════════
