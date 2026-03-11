@@ -127,10 +127,10 @@ export default function VerticalWorkflowTimeline({
               <div
                 className={`absolute left-6 top-12 bottom-0 w-0.5 -mb-6 ${
                   status === 'completed'
-                    ? 'bg-gradient-to-b from-emerald-500 to-slate-200'
+                    ? 'bg-gradient-to-b from-emerald-500 to-slate-200 dark:to-slate-700'
                     : status === 'in-progress'
-                    ? 'bg-gradient-to-b from-primary to-slate-200'
-                    : 'bg-slate-200'
+                    ? 'bg-gradient-to-b from-primary to-slate-200 dark:to-slate-700'
+                    : 'bg-slate-200 dark:bg-slate-700'
                 }`}
               />
             )}
@@ -141,10 +141,10 @@ export default function VerticalWorkflowTimeline({
                 status === 'completed'
                   ? 'bg-emerald-500 text-white'
                   : status === 'in-progress'
-                  ? 'bg-primary text-white ring-4 ring-primary/20'
+                  ? 'bg-primary text-white ring-4 ring-primary/20 dark:ring-primary/30'
                   : status === 'waiting'
-                  ? 'bg-slate-200 text-slate-500 border-2 border-white'
-                  : 'bg-slate-100 text-slate-400 border-2 border-white'
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-2 border-white dark:border-gray-800'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-2 border-white dark:border-gray-800'
               }`}
             >
               {status === 'completed' ? (
@@ -160,28 +160,28 @@ export default function VerticalWorkflowTimeline({
             <div
               className={`rounded-xl p-6 shadow-sm hover:shadow-md transition-all ${
                 status === 'in-progress'
-                  ? 'bg-white border-2 border-primary'
+                  ? 'bg-white dark:bg-gray-800 border-2 border-primary'
                   : status === 'completed'
-                  ? 'bg-white border border-slate-200'
-                  : 'bg-white border border-slate-200 opacity-70'
+                  ? 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-slate-700'
+                  : 'bg-white dark:bg-gray-800 border border-slate-200 dark:border-slate-700 opacity-70'
               }`}
             >
               {/* Card Header */}
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-base font-bold text-slate-900">
+                    <h4 className="text-base font-bold text-slate-900 dark:text-white">
                       {index + 1}. {step.label}
                     </h4>
                     <span
                       className={`px-2 py-0.5 text-[10px] font-black rounded-lg uppercase tracking-wider ${
                         status === 'completed'
-                          ? 'bg-emerald-100 text-emerald-700'
+                          ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                           : status === 'in-progress'
                           ? 'bg-primary text-white'
                           : status === 'waiting'
-                          ? 'bg-slate-100 text-slate-500'
-                          : 'bg-slate-50 text-slate-400'
+                          ? 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
+                          : 'bg-slate-50 dark:bg-slate-700 text-slate-400'
                       }`}
                     >
                       {status === 'completed'
@@ -193,10 +193,10 @@ export default function VerticalWorkflowTimeline({
                         : 'Locked'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">{step.description}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{step.description}</p>
                 </div>
                 {status === 'completed' && (
-                  <span className="text-[10px] font-medium text-slate-400">
+                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
                     2m ago
                   </span>
                 )}
@@ -210,19 +210,19 @@ export default function VerticalWorkflowTimeline({
 
               {/* Progress Bar for In Progress */}
               {status === 'in-progress' && (
-                <div className="w-full h-2.5 bg-slate-100 rounded-full mb-6 overflow-hidden">
+                <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full mb-6 overflow-hidden">
                   <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: '85%' }} />
                 </div>
               )}
 
               {/* Output Preview - Completed */}
               {status === 'completed' && (
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-100">
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase mb-2 tracking-widest">
+                <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                  <h5 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-2 tracking-widest">
                     Output Preview
                   </h5>
                   <div className="flex items-start gap-4">
-                    <div className="flex-1 text-sm text-slate-600 leading-relaxed italic border-l-2 border-slate-200 pl-4">
+                    <div className="flex-1 text-sm text-slate-600 dark:text-slate-400 leading-relaxed italic border-l-2 border-slate-200 dark:border-slate-700 pl-4">
                       {step.id === 'brief_extract' && opportunity?.brief?.research_objectives && (
                         `Research Objectives: ${opportunity.brief.research_objectives.slice(0, 150)}...`
                       )}
@@ -236,7 +236,7 @@ export default function VerticalWorkflowTimeline({
                         "Step completed. Click View Analysis for details."
                       )}
                     </div>
-                    <button className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-lg hover:border-primary hover:text-primary transition-all">
+                    <button className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:border-primary hover:text-primary transition-all">
                       <Eye size={14} />
                       View Analysis
                     </button>
@@ -247,11 +247,11 @@ export default function VerticalWorkflowTimeline({
               {/* Output Preview - In Progress */}
               {status === 'in-progress' && (
                 <div className="space-y-4">
-                  <div className="bg-primary/5 rounded-lg p-4 border border-primary/10">
-                    <h5 className="text-[10px] font-bold text-primary/60 uppercase mb-2 tracking-widest">
+                  <div className="bg-primary/5 dark:bg-primary/10 rounded-lg p-4 border border-primary/10 dark:border-primary/20">
+                    <h5 className="text-[10px] font-bold text-primary/60 dark:text-primary/70 uppercase mb-2 tracking-widest">
                       Current Task
                     </h5>
-                    <div className="text-sm text-slate-700 leading-relaxed bg-white/50 p-3 rounded-lg border border-white/50">
+                    <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed bg-white/50 dark:bg-gray-800/50 p-3 rounded-lg border border-white/50 dark:border-gray-700/50">
                       {step.id === 'brief_extract' && "Extracting research objectives, target audience, study requirements, and deliverables from RFP..."}
                       {step.id === 'gap_analysis' && "Analyzing requirements for completeness. Identifying missing fields, ambiguous terms, and gaps..."}
                       {step.id === 'clarification' && "Drafting clarification questions for client based on identified gaps and ambiguities..."}
