@@ -10,72 +10,113 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // PetaSight Brand Colors
+        // PetaSight Brand Colors (from Figma Design System)
         'ps-primary': {
-          DEFAULT: '#da365c', // Magenta (main brand color)
-          50: '#fef2f3',
-          100: '#fde6e8',
-          200: '#fbd0d5',
-          300: '#f7aab3',
-          400: '#f17a8a',
-          500: '#e65170',
-          600: '#da365c', // Main
-          700: '#b52548',
-          800: '#981f3f',
-          900: '#821d3a',
+          DEFAULT: '#DA365C', // Primary brand color
+          50: '#FDEBEE',
+          100: '#F9C7D3',
+          200: '#F49FB1',
+          300: '#EE6E8A',
+          400: '#E24E72',
+          500: '#DA365C', // Main
+          600: '#C12E52',
+          700: '#8F2443',
+          800: '#7E1B35',
+          900: '#5B1226',
         },
         'ps-secondary': {
-          DEFAULT: '#1e40af', // Blue-800
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93bbfd',
-          400: '#609dfa',
-          500: '#3b7ef6',
-          600: '#2563eb',
-          700: '#1d4ed8',
-          800: '#1e40af', // Main
-          900: '#1e3a8a',
+          DEFAULT: '#4F73CD', // Secondary brand color
+          50: '#E9EFFB',
+          100: '#CCD8F5',
+          200: '#CCD8F5',
+          300: '#CCD8F5',
+          400: '#6386D9',
+          500: '#4F73CD', // Main
+          600: '#3F5FB2',
+          700: '#3F5FB2',
+          800: '#3F5FB2',
+          900: '#3F5FB2',
         },
-        'ps-accent': {
-          DEFAULT: '#34d399', // Emerald-400
-          50: '#ecfdf5',
-          100: '#d1fae5',
-          200: '#a7f3d0',
-          300: '#6ee7b7',
-          400: '#34d399', // Main
-          500: '#10b981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065f46',
-          900: '#064e3b',
+        // Status/Alerts Colors
+        success: {
+          DEFAULT: '#16A34A',
+          foreground: '#ffffff',
+        },
+        warning: {
+          DEFAULT: '#F59E0B',
+          foreground: '#000000',
+        },
+        error: {
+          DEFAULT: '#DA365C', // Using primary as focus/error
+          foreground: '#ffffff',
+        },
+        info: {
+          DEFAULT: '#02B4C7',
+          foreground: '#ffffff',
+        },
+        // Neutral Colors (Grays)
+        neutral: {
+          0: '#FFFFFF',
+          50: '#F9FAFB',
+          100: '#F3F4F6',
+          200: '#E5E7EB',
+          300: '#D1D5DB',
+          400: '#9CA3AF',
+          500: '#6B7280',
+          600: '#4B5563',
+          700: '#374151',
+          800: '#1F2937',
+          900: '#111827',
+          950: '#0B0F19',
         },
         // Semantic colors for easy theming
         primary: {
-          DEFAULT: '#da365c',
-          foreground: '#ffffff',
+          DEFAULT: '#DA365C',
+          foreground: '#FFFFFF',
         },
         secondary: {
-          DEFAULT: '#1e40af',
-          foreground: '#ffffff',
+          DEFAULT: '#4F73CD',
+          foreground: '#FFFFFF',
         },
         accent: {
-          DEFAULT: '#34d399',
-          foreground: '#000000',
+          DEFAULT: '#16A34A',
+          foreground: '#FFFFFF',
         },
-        background: '#ffffff',
-        foreground: '#0f172a',
+        // Background colors
+        background: {
+          DEFAULT: '#FFFFFF', // Primary background
+          secondary: '#F9FAFB', // Secondary background
+          surface: '#F3F4F6', // Surface
+          elevated: '#FFFFFF', // Elevated
+        },
+        // Text colors
+        foreground: {
+          DEFAULT: '#111827', // Text Primary
+          secondary: '#4B5563', // Text Secondary
+          tertiary: '#6B7280', // Text Tertiary
+        },
         card: {
-          DEFAULT: '#ffffff',
-          foreground: '#0f172a',
+          DEFAULT: '#FFFFFF',
+          foreground: '#111827',
         },
-        border: '#e2e8f0',
-        input: '#e2e8f0',
-        ring: '#da365c',
+        border: '#E5E7EB', // Neutral-200
+        input: '#E5E7EB',
+        ring: '#DA365C', // Primary
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         display: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
+      fontSize: {
+        // Typography from Figma Design System
+        'heading-1': ['64px', { lineHeight: '140%', fontWeight: '700' }], // Bold 64px/140%
+        'heading-2': ['48px', { lineHeight: '140%', fontWeight: '600' }], // Semi Bold 48px/140%
+        'heading-3': ['36px', { lineHeight: '140%', fontWeight: '600' }], // Semi Bold 36px/140%
+        'subtitle': ['18px', { lineHeight: '140%', fontWeight: '700' }], // Bold 18px/140%
+        'paragraph': ['16px', { lineHeight: '140%', fontWeight: '400' }], // Regular 16px/140%
+        'button-lg': ['18px', { lineHeight: '140%', fontWeight: '500' }], // Medium 18px/140%
+        'button': ['16px', { lineHeight: '140%', fontWeight: '500' }], // Medium 16px/140%
+        'button-sm': ['14px', { lineHeight: '140%', fontWeight: '400' }], // Regular 14px/140%
       },
       borderRadius: {
         DEFAULT: '0.375rem',

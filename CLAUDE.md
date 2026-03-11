@@ -1,24 +1,47 @@
 # CLAUDE.md - Lumina Scope Project Context
 
-**Last Updated**: 2026-03-07
+**Last Updated**: 2026-03-11
 **Current Phase**: Phase 2 Complete ✅ (Scope Planning)
 **Next Phase**: Phase 3 - WBS Estimation & Pricing
 
-## 🎨 UI Revamp Complete (2026-03-03)
+## 🎨 Figma Design System Integration Complete (2026-03-11)
 
-**ALL components now use semantic CSS variables for colors:**
-- ✅ Login page with PetaSight branding
-- ✅ Header, Footer with semantic colors
-- ✅ WorkflowVisualizer - **FIXED** - now shows PetaSight magenta (#da365c)
-- ✅ ChatInterface with floating button and slide-in animation
-- ✅ Dashboard with compact design
-- ✅ StatusBadge component with color-coding
+**Complete PetaSight brand design system integrated from Figma:**
+- ✅ All brand colors synced with Figma design system
+- ✅ Typography scale (Heading 1-3, Subtitle, Paragraph, Buttons)
+- ✅ Status/Alert colors (Success, Warning, Error, Info)
+- ✅ Complete neutral grayscale palette (Neutral 0-950)
+- ✅ CSS custom properties for dark mode support
+- ✅ All components use semantic color classes
+
+**Figma Design File**: https://www.figma.com/design/LqVdvmkBMQ8slIJt1xrvdW/PetaSight-Brand
+
+**Brand Colors** (from Figma):
+- **Primary**: `#DA365C` (Magenta) - Main brand color
+- **Secondary**: `#4F73CD` (Blue) - Secondary brand color
+- **Success**: `#16A34A` (Green) - Positive actions
+- **Warning**: `#F59E0B` (Orange) - Warnings
+- **Error/Focus**: `#DA365C` (Primary) - Errors and focus states
+- **Info**: `#02B4C7` (Cyan) - Informational messages
+
+**Typography** (Inter font from Google Fonts):
+- Heading 1: Bold 64px / 140% line-height → `text-heading-1`
+- Heading 2: Semi Bold 48px / 140% → `text-heading-2`
+- Heading 3: Semi Bold 36px / 140% → `text-heading-3`
+- Subtitle: Bold 18px / 140% → `text-subtitle`
+- Paragraph: Regular 16px / 140% → `text-paragraph`
+- Button Large: Medium 18px / 140% → `text-button-lg`
+- Button Default: Medium 16px / 140% → `text-button`
+- Button Small: Regular 14px / 140% → `text-button-sm`
 
 **CRITICAL**: Always use semantic color classes:
-- `bg-primary` (NOT `bg-primary-500`) - Shows PetaSight magenta
+- `bg-primary` (NOT `bg-primary-500`) - Shows PetaSight magenta (#DA365C)
 - `text-foreground` (NOT `text-gray-900 dark:text-white`)
+- `text-foreground-secondary`, `text-foreground-tertiary` for text hierarchy
 - `bg-card` (NOT `bg-white dark:bg-neutral-900`)
 - `border-border` (NOT `border-gray-200 dark:border-gray-800`)
+- `bg-success`, `bg-warning`, `bg-error`, `bg-info` for status colors
+- `text-success`, `text-warning`, `text-error`, `text-info` for status text
 - See [REVAMP_COMPLETE.md](REVAMP_COMPLETE.md) for full details
 
 ---

@@ -7,45 +7,84 @@
 
 @layer base {
   :root {
-    /* PetaSight Brand Colors (Light Mode) */
-    --color-primary: 218 54 92; /* #da365c */
-    --color-primary-foreground: 255 255 255;
-    --color-secondary: 30 64 175; /* #1e40af */
-    --color-secondary-foreground: 255 255 255;
-    --color-accent: 52 211 153; /* #34d399 */
-    --color-accent-foreground: 0 0 0;
+    /* PetaSight Brand Colors (from Figma Design System) */
+    --color-primary: 218 54 92; /* #DA365C */
+    --color-primary-foreground: 255 255 255; /* #FFFFFF */
+    --color-secondary: 79 115 205; /* #4F73CD */
+    --color-secondary-foreground: 255 255 255; /* #FFFFFF */
 
-    /* Semantic Colors (Light Mode) */
-    --color-background: 255 255 255;
-    --color-foreground: 15 23 42; /* slate-900 */
+    /* Status/Alert Colors */
+    --color-success: 22 163 74; /* #16A34A */
+    --color-success-foreground: 255 255 255;
+    --color-warning: 245 158 11; /* #F59E0B */
+    --color-warning-foreground: 0 0 0;
+    --color-error: 218 54 92; /* #DA365C - same as primary/focus */
+    --color-error-foreground: 255 255 255;
+    --color-info: 2 180 199; /* #02B4C7 */
+    --color-info-foreground: 255 255 255;
+
+    /* Accent (using success green) */
+    --color-accent: 22 163 74; /* #16A34A */
+    --color-accent-foreground: 255 255 255;
+
+    /* Background Colors (Light Mode) */
+    --color-background: 255 255 255; /* #FFFFFF */
+    --color-background-secondary: 249 250 251; /* #F9FAFB */
+    --color-background-surface: 243 244 246; /* #F3F4F6 */
+
+    /* Text Colors (Light Mode) */
+    --color-foreground: 17 24 39; /* #111827 - Text Primary */
+    --color-foreground-secondary: 75 85 99; /* #4B5563 - Text Secondary */
+    --color-foreground-tertiary: 107 114 128; /* #6B7280 - Text Tertiary */
+
+    /* Card & UI Elements */
     --color-card: 255 255 255;
-    --color-card-foreground: 15 23 42;
-    --color-border: 226 232 240; /* slate-200 */
-    --color-input: 226 232 240;
-    --color-ring: 218 54 92;
-    --color-muted: 241 245 249; /* slate-100 */
-    --color-muted-foreground: 100 116 139; /* slate-500 */
+    --color-card-foreground: 17 24 39;
+    --color-border: 229 231 235; /* #E5E7EB - Neutral 200 */
+    --color-input: 229 231 235;
+    --color-ring: 218 54 92; /* Primary */
+    --color-muted: 243 244 246; /* #F3F4F6 */
+    --color-muted-foreground: 107 114 128; /* #6B7280 */
   }
 
   .dark {
     /* PetaSight Brand Colors (Dark Mode - same as light) */
-    --color-primary: 218 54 92;
+    --color-primary: 218 54 92; /* #DA365C */
     --color-primary-foreground: 255 255 255;
-    --color-secondary: 30 64 175;
+    --color-secondary: 79 115 205; /* #4F73CD */
     --color-secondary-foreground: 255 255 255;
-    --color-accent: 52 211 153;
-    --color-accent-foreground: 0 0 0;
 
-    /* Semantic Colors (Dark Mode) */
-    --color-background: 15 23 42; /* slate-900 */
-    --color-foreground: 248 250 252; /* slate-50 */
-    --color-card: 30 41 59; /* slate-800 */
-    --color-card-foreground: 248 250 252;
-    --color-border: 51 65 85; /* slate-700 */
-    --color-input: 51 65 85;
-    --color-ring: 218 54 92;
-    --color-muted: 30 41 59; /* slate-800 */
-    --color-muted-foreground: 148 163 184; /* slate-400 */
+    /* Status/Alert Colors (same as light) */
+    --color-success: 22 163 74;
+    --color-success-foreground: 255 255 255;
+    --color-warning: 245 158 11;
+    --color-warning-foreground: 0 0 0;
+    --color-error: 218 54 92;
+    --color-error-foreground: 255 255 255;
+    --color-info: 2 180 199;
+    --color-info-foreground: 255 255 255;
+
+    --color-accent: 22 163 74;
+    --color-accent-foreground: 255 255 255;
+
+    /* Background Colors (Dark Mode) */
+    --color-background: 11 15 25; /* #0B0F19 - Neutral 950 */
+    --color-background-secondary: 17 24 39; /* #111827 - Neutral 900 */
+    --color-background-surface: 31 41 55; /* #1F2937 - Neutral 800 */
+
+    /* Text Colors (Dark Mode) */
+    --color-foreground: 255 255 255; /* #FFFFFF - inverted */
+    --color-foreground-secondary: 156 163 175; /* #9CA3AF - Neutral 400 */
+    --color-foreground-tertiary: 107 114 128; /* #6B7280 - Neutral 500 */
+
+    /* Card & UI Elements (Dark Mode) */
+    --color-card: 31 41 55; /* #1F2937 - Neutral 800 */
+    --color-card-foreground: 255 255 255;
+    --color-border: 75 85 99; /* #4B5563 - Neutral 600 */
+    --color-input: 75 85 99;
+    --color-ring: 218 54 92; /* Primary */
+    --color-muted: 31 41 55; /* #1F2937 */
+    --color-muted-foreground: 156 163 175; /* #9CA3AF */
   }
 
   * {
