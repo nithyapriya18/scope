@@ -22,9 +22,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${inter.className} bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased`}>
+      <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-white antialiased`}>
         <ThemeProvider>
-          <div className="flex h-screen overflow-hidden">
+          <div className="flex flex-col h-screen overflow-hidden">
             <ConditionalLayout>{children}</ConditionalLayout>
           </div>
         </ThemeProvider>

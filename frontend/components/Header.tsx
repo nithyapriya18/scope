@@ -3,17 +3,21 @@
 import Link from 'next/link';
 import { Menu, X, LogOut, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { getCurrentUser, logout } from '@/lib/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import Image from 'next/image';
 
 export default function Header() {
+  const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
 
   useEffect(() => {
     setUser(getCurrentUser());
   }, []);
+
+  const isLandingPage = pathname === '/';
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm transition-colors">
@@ -45,22 +49,40 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          {user && (
-            <nav className="hidden md:flex items-center gap-1">
-              <Link
-                href="/dashboard"
-                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                href="/intelligence"
-                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Intelligence
-              </Link>
-            </nav>
-          )}
+          <nav className="hidden md:flex items-center gap-1">
+            {isLandingPage && (
+              <>
+                <a
+                  href="#features"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  Features
+                </a>
+                <a
+                  href="#contact"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  Contact
+                </a>
+              </>
+            )}
+            {user && !isLandingPage && (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/intelligence"
+                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
+                >
+                  Intelligence
+                </Link>
+              </>
+            )}
+          </nav>
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
@@ -104,7 +126,31 @@ export default function Header() {
         {/* Mobile Menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gray-200 dark:border-gray-700 py-4">
-            {user ? (
+            {isLandingPage ? (
+              <>
+                <a
+                  href="#features"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg mx-2 mb-1"
+                >
+                  Features
+                </a>
+                <a
+                  href="#contact"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg mx-2 mb-1"
+                >
+                  Contact
+                </a>
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="block px-4 py-2 text-sm font-medium text-ps-primary-600 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg mx-2 mt-2"
+                >
+                  Log In
+                </Link>
+              </>
+            ) : user ? (
               <>
                 <div className="px-4 py-2 mb-2 border-b border-gray-100 dark:border-gray-700">
                   <div className="text-sm font-medium text-gray-900 dark:text-white">{user.email}</div>
@@ -134,7 +180,7 @@ export default function Header() {
               <Link
                 href="/login"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block px-4 py-2 text-sm font-medium text-ps-primary-600 hover:bg-gray-50"
+                className="block px-4 py-2 text-sm font-medium text-ps-primary-600 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg mx-2"
               >
                 Log In
               </Link>

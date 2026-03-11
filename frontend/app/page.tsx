@@ -38,57 +38,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen overflow-y-auto">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link href="/" className="flex flex-col items-center hover:opacity-80 transition-opacity">
-              <div className="flex items-center gap-2">
-                <Image
-                  src="/petasight.png"
-                  alt="PetaSight"
-                  width={26}
-                  height={26}
-                  className="object-contain"
-                  priority
-                  unoptimized
-                />
-                <span className="text-sm tracking-widest text-gray-900 dark:text-white">
-                  <span className="font-normal">PETA</span>
-                  <span className="font-bold">SIGHT</span>
-                </span>
-              </div>
-              <span className="text-sm font-bold tracking-wide text-gray-900 dark:text-white">
-                Lumina Scope
-              </span>
-            </Link>
-
-            {/* Nav Items */}
-            <div className="flex items-center gap-4">
-              <a
-                href="#features"
-                className="hidden sm:block text-sm text-gray-700 dark:text-gray-300 hover:text-ps-primary-600 dark:hover:text-ps-primary-400 transition-colors"
-              >
-                Features
-              </a>
-              <a
-                href="#contact"
-                className="hidden sm:block text-sm text-gray-700 dark:text-gray-300 hover:text-ps-primary-600 dark:hover:text-ps-primary-400 transition-colors"
-              >
-                Contact
-              </a>
-              <Link
-                href="/login"
-                className="px-4 py-2 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Log In
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="flex-1 overflow-y-auto">{/* Content sections */}
 
       {/* Hero Section with Gradient Background */}
       <section className="relative min-h-[90vh] flex items-center bg-gradient-to-br from-ps-secondary-700 via-ps-primary-600 to-ps-primary-500 dark:from-ps-secondary-900 dark:via-ps-primary-800 dark:to-ps-primary-700">
@@ -458,38 +408,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 transition-colors">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            {/* Copyright */}
-            <div className="text-sm text-gray-500 dark:text-gray-400">
-              © 2026 <span className="font-semibold text-gray-900 dark:text-white">PetaSight Inc</span>.
-            </div>
-
-            {/* Links */}
-            <div className="flex items-center gap-6">
-              <a
-                href="https://www.petasight.com/legal/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Privacy Policy
-              </a>
-              <a
-                href="https://www.petasight.com/legal/terms"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
-              >
-                Terms of Service
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -10,14 +10,34 @@ export function ThemeToggle() {
 
   // Avoid hydration mismatch
   useEffect(() => setMounted(true), []);
-  if (!mounted) return <div className="h-8 w-8" />;
+  if (!mounted) return <div className="w-[73px] h-[29px]" />;
+
+  const isDark = theme === 'dark';
 
   return (
-    <button
-      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-      className="flex h-8 w-8 items-center justify-center rounded-md text-gray-600 dark:text-gray-400 transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-white"
-    >
-      {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-    </button>
+    <div className="flex items-center rounded-full overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+      <button
+        onClick={() => setTheme('light')}
+        aria-label="Light mode"
+        className={`flex items-center justify-center w-[36px] h-[29px] transition-colors ${
+          !isDark
+            ? 'bg-white text-ps-primary-600'
+            : 'bg-gray-800 text-gray-500 hover:text-gray-300'
+        }`}
+      >
+        <Sun className="w-[15px] h-[15px]" />
+      </button>
+      <button
+        onClick={() => setTheme('dark')}
+        aria-label="Dark mode"
+        className={`flex items-center justify-center w-[36px] h-[29px] transition-colors ${
+          isDark
+            ? 'bg-gray-900 text-ps-primary-400'
+            : 'bg-gray-100 text-gray-400 hover:text-gray-600'
+        }`}
+      >
+        <Moon className="w-[15px] h-[15px]" />
+      </button>
+    </div>
   );
 }

@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
+import Header from './Header';
+import Footer from './Footer';
 import { isAuthenticated } from '@/lib/auth';
 
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
@@ -27,15 +29,25 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
 
   if (!mounted) {
     // Prevent flash of sidebar on initial load
-    return <main className="flex-1 flex flex-col min-w-0 overflow-hidden">{children}</main>;
+    return (
+      <div className="flex flex-col h-screen">
+        <Header />
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">{children}</main>
+        <Footer />
+      </div>
+    );
   }
 
   return (
     <>
-      {showSidebar && <Sidebar />}
-      <main className={`flex-1 flex flex-col min-w-0 ${showSidebar ? 'overflow-hidden' : ''}`}>
-        {children}
-      </main>
+      <Header />
+      <div className="flex flex-1 overflow-hidden">
+        {showSidebar && <Sidebar />}
+        <main className={`flex-1 flex flex-col min-w-0 ${showSidebar ? 'overflow-hidden' : ''}`}>
+          {children}
+        </main>
+      </div>
+      <Footer />
     </>
   );
 }
