@@ -1,10 +1,12 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
   FileText,
   TrendingUp,
   Users,
-  Zap,
   CheckCircle2,
   ArrowRight,
   Sparkles,
@@ -13,11 +15,81 @@ import {
   Shield,
   BarChart3,
   Brain,
+  Mail,
+  Building2,
+  Phone,
 } from 'lucide-react';
 
 export default function HomePage() {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    company: '',
+    phone: '',
+    message: '',
+  });
+  const [formSubmitted, setFormSubmitted] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    // TODO: Implement actual form submission
+    setFormSubmitted(true);
+    setTimeout(() => setFormSubmitted(false), 3000);
+  };
+
   return (
     <div className="min-h-screen overflow-y-auto">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            {/* Logo */}
+            <Link href="/" className="flex flex-col items-center hover:opacity-80 transition-opacity">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/petasight.png"
+                  alt="PetaSight"
+                  width={26}
+                  height={26}
+                  className="object-contain"
+                  priority
+                  unoptimized
+                />
+                <span className="text-sm tracking-widest text-gray-900 dark:text-white">
+                  <span className="font-normal">PETA</span>
+                  <span className="font-bold">SIGHT</span>
+                </span>
+              </div>
+              <span className="text-sm font-bold tracking-wide text-gray-900 dark:text-white">
+                Lumina Scope
+              </span>
+            </Link>
+
+            {/* Nav Items */}
+            <div className="flex items-center gap-4">
+              <a
+                href="#features"
+                className="hidden sm:block text-sm text-gray-700 dark:text-gray-300 hover:text-ps-primary-600 dark:hover:text-ps-primary-400 transition-colors"
+              >
+                Features
+              </a>
+              <a
+                href="#contact"
+                className="hidden sm:block text-sm text-gray-700 dark:text-gray-300 hover:text-ps-primary-600 dark:hover:text-ps-primary-400 transition-colors"
+              >
+                Contact
+              </a>
+              <Link
+                href="/login"
+                className="px-4 py-2 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
+              >
+                Log In
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section with Gradient Background */}
       <section className="relative min-h-[90vh] flex items-center bg-gradient-to-br from-ps-secondary-700 via-ps-primary-600 to-ps-primary-500 dark:from-ps-secondary-900 dark:via-ps-primary-800 dark:to-ps-primary-700">
         {/* Decorative Elements */}
@@ -42,9 +114,13 @@ export default function HomePage() {
               <span className="text-ps-primary-100">RFP Response Process</span>
             </h1>
 
-            <p className="text-xl lg:text-2xl text-ps-primary-50 mb-12 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-xl lg:text-2xl text-ps-primary-50 mb-4 max-w-3xl mx-auto leading-relaxed">
               AI-powered RFP automation for pharmaceutical primary market research.
               Win more bids with intelligent proposals, faster turnaround, and precision pricing.
+            </p>
+
+            <p className="text-lg text-ps-primary-100/80 mb-12 max-w-2xl mx-auto">
+              Part of <span className="font-bold">PetaSight</span>'s AI-powered PMR platform
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -83,7 +159,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Grid */}
-      <section className="py-24 bg-neutral-0 dark:bg-neutral-950">
+      <section id="features" className="py-24 bg-neutral-0 dark:bg-neutral-950">
         <div className="container mx-auto px-6 lg:px-12">
           <div className="text-center mb-16">
             <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 dark:text-neutral-0 mb-4">
@@ -198,19 +274,219 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 bg-neutral-950 dark:bg-neutral-950 border-t border-neutral-800">
+      {/* Contact Section */}
+      <section id="contact" className="py-24 bg-white dark:bg-neutral-900">
         <div className="container mx-auto px-6 lg:px-12">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center gap-3 mb-4 md:mb-0">
-              <div className="size-10 bg-ps-primary-600 rounded-xl flex items-center justify-center">
-                <Sparkles className="text-white" size={20} />
-              </div>
-              <span className="text-xl font-bold text-white">Lumina Scope</span>
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl lg:text-5xl font-bold text-neutral-900 dark:text-neutral-0 mb-4">
+                Get in Touch
+              </h2>
+              <p className="text-xl text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
+                Join leading pharmaceutical research firms using Lumina Scope.
+                Part of the <span className="font-semibold text-ps-primary-600 dark:text-ps-primary-400">PetaSight</span> family of products.
+              </p>
             </div>
-            <p className="text-neutral-400 text-sm">
-              © 2026 PetaSight. All rights reserved. | Powered by AI
-            </p>
+
+            <div className="grid lg:grid-cols-2 gap-12">
+              {/* Contact Info */}
+              <div className="space-y-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-neutral-900 dark:text-neutral-0 mb-6">
+                    About PetaSight
+                  </h3>
+                  <p className="text-neutral-600 dark:text-neutral-400 mb-4 leading-relaxed">
+                    PetaSight is a cloud-based software platform designed to orchestrate Primary Market Research (PMR) execution end-to-end.
+                  </p>
+                  <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    <span className="font-semibold">Our mission:</span> Run PMR Delivery Like a Governed AI Operating System
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 size-12 rounded-xl bg-ps-primary-50 dark:bg-ps-primary-900/20 flex items-center justify-center">
+                      <Building2 className="text-ps-primary-600 dark:text-ps-primary-400" size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-neutral-900 dark:text-neutral-0 mb-1">
+                        PetaSight Inc.
+                      </h4>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                        Cloud-based PMR software platform
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 size-12 rounded-xl bg-ps-primary-50 dark:bg-ps-primary-900/20 flex items-center justify-center">
+                      <Mail className="text-ps-primary-600 dark:text-ps-primary-400" size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-neutral-900 dark:text-neutral-0 mb-1">
+                        Email
+                      </h4>
+                      <a
+                        href="mailto:sales@petasight.com"
+                        className="text-sm text-ps-primary-600 dark:text-ps-primary-400 hover:underline"
+                      >
+                        sales@petasight.com
+                      </a>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0 size-12 rounded-xl bg-ps-primary-50 dark:bg-ps-primary-900/20 flex items-center justify-center">
+                      <Target className="text-ps-primary-600 dark:text-ps-primary-400" size={24} />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-neutral-900 dark:text-neutral-0 mb-1">
+                        Learn More
+                      </h4>
+                      <a
+                        href="https://www.petasight.com"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-ps-primary-600 dark:text-ps-primary-400 hover:underline"
+                      >
+                        Visit petasight.com →
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Contact Form */}
+              <div className="bg-neutral-50 dark:bg-neutral-800 rounded-2xl p-8 border border-neutral-200 dark:border-neutral-700">
+                <h3 className="text-xl font-bold text-neutral-900 dark:text-neutral-0 mb-6">
+                  Request a Demo
+                </h3>
+
+                {formSubmitted ? (
+                  <div className="py-12 text-center">
+                    <div className="inline-flex items-center justify-center size-16 rounded-full bg-success/10 mb-4">
+                      <CheckCircle2 className="text-success" size={32} />
+                    </div>
+                    <h4 className="text-xl font-semibold text-neutral-900 dark:text-neutral-0 mb-2">
+                      Thank you!
+                    </h4>
+                    <p className="text-neutral-600 dark:text-neutral-400">
+                      We'll be in touch soon.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        placeholder="Your name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        placeholder="your.email@company.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Company
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.company}
+                        onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        placeholder="Your company"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        placeholder="+1 (555) 000-0000"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1">
+                        Message *
+                      </label>
+                      <textarea
+                        required
+                        rows={4}
+                        value={formData.message}
+                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all resize-none"
+                        placeholder="Tell us about your needs..."
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full px-6 py-3 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                    >
+                      Send Message
+                      <ArrowRight size={20} />
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 transition-colors">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Copyright */}
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              © 2026 <span className="font-semibold text-gray-900 dark:text-white">PetaSight Inc</span>.
+            </div>
+
+            {/* Links */}
+            <div className="flex items-center gap-6">
+              <a
+                href="https://www.petasight.com/legal/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Privacy Policy
+              </a>
+              <a
+                href="https://www.petasight.com/legal/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+              >
+                Terms of Service
+              </a>
+            </div>
           </div>
         </div>
       </footer>
