@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import Sidebar from '@/components/Sidebar';
+import ConditionalLayout from '@/components/ConditionalLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -25,8 +25,7 @@ export default function RootLayout({
       <body className={`${inter.className} bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased`}>
         <ThemeProvider>
           <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden">{children}</main>
+            <ConditionalLayout>{children}</ConditionalLayout>
           </div>
         </ThemeProvider>
       </body>

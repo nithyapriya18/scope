@@ -1,0 +1,41 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import Sidebar from './Sidebar';
+import { isAuthenticated } from '@/lib/auth';
+
+export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [mounted, setMounted] = useState(false);
+  const [showSidebar, setShowSidebar] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    // Public routes that should never show sidebar
+    const publicRoutes = ['/', '/login'];
+    const isPublicRoute = publicRoutes.includes(pathname);
+
+    // Only show sidebar if user is authenticated AND not on a public route
+    setShowSidebar(!isPublicRoute && isAuthenticated());
+  }, [pathname, mounted]);
+
+  if (!mounted) {
+    // Prevent flash of sidebar on initial load
+    return <main className="flex-1 flex flex-col min-w-0 overflow-hidden">{children}</main>;
+  }
+
+  return (
+    <>
+      {showSidebar && <Sidebar />}
+      <main className={`flex-1 flex flex-col min-w-0 ${showSidebar ? 'overflow-hidden' : ''}`}>
+        {children}
+      </main>
+    </>
+  );
+}
