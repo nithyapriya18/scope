@@ -201,9 +201,9 @@ export default function OpportunityDetailPage() {
               </span>
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Budget</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Therapeutic Area</span>
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                $250,000
+                {opportunity.therapeuticArea || 'Not Specified'}
               </span>
             </div>
             <div className="flex flex-col">
