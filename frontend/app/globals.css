@@ -1,20 +1,58 @@
 /* Google Fonts - Inter */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    /* PetaSight Brand Colors (Light Mode) */
+    --color-primary: 218 54 92; /* #da365c */
+    --color-primary-foreground: 255 255 255;
+    --color-secondary: 30 64 175; /* #1e40af */
+    --color-secondary-foreground: 255 255 255;
+    --color-accent: 52 211 153; /* #34d399 */
+    --color-accent-foreground: 0 0 0;
+
+    /* Semantic Colors (Light Mode) */
+    --color-background: 255 255 255;
+    --color-foreground: 15 23 42; /* slate-900 */
+    --color-card: 255 255 255;
+    --color-card-foreground: 15 23 42;
+    --color-border: 226 232 240; /* slate-200 */
+    --color-input: 226 232 240;
+    --color-ring: 218 54 92;
+    --color-muted: 241 245 249; /* slate-100 */
+    --color-muted-foreground: 100 116 139; /* slate-500 */
+  }
+
+  .dark {
+    /* PetaSight Brand Colors (Dark Mode - same as light) */
+    --color-primary: 218 54 92;
+    --color-primary-foreground: 255 255 255;
+    --color-secondary: 30 64 175;
+    --color-secondary-foreground: 255 255 255;
+    --color-accent: 52 211 153;
+    --color-accent-foreground: 0 0 0;
+
+    /* Semantic Colors (Dark Mode) */
+    --color-background: 15 23 42; /* slate-900 */
+    --color-foreground: 248 250 252; /* slate-50 */
+    --color-card: 30 41 59; /* slate-800 */
+    --color-card-foreground: 248 250 252;
+    --color-border: 51 65 85; /* slate-700 */
+    --color-input: 51 65 85;
+    --color-ring: 218 54 92;
+    --color-muted: 30 41 59; /* slate-800 */
+    --color-muted-foreground: 148 163 184; /* slate-400 */
+  }
+
   * {
-    @apply border-gray-200;
+    @apply border-border;
   }
 
   body {
-    @apply bg-white text-gray-900 font-sans;
-  }
-
-  .dark body {
-    @apply bg-gray-900 text-gray-100;
+    @apply bg-background text-foreground font-sans antialiased;
   }
 }
