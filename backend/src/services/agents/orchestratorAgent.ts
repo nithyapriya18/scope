@@ -10,8 +10,9 @@ import { BriefExtractorAgent } from './briefExtractorAgent';
 import { GapAnalyzerAgent } from './gapAnalyzerAgent';
 import { ClarificationGeneratorAgent } from './clarificationGeneratorAgent';
 import { ScopePlannerAgent } from './scopePlannerAgent';
+import { HCPMatcherAgent } from './hcpMatcherAgent';
 // Phase 3+ agents (to be implemented)
-// import { WBSEstimatorAgent } from './wbsEstimatorAgent';
+// import { WBSEstimatorAgent} from './wbsEstimatorAgent';
 // import { PricerAgent } from './pricerAgent';
 // import { DocumentGeneratorAgent } from './documentGeneratorAgent';
 
@@ -21,7 +22,8 @@ export type WorkflowStatus =
   | 'gap_analysis'
   | 'clarification'
   | 'clarification_response'
-  | 'scope_planning'  // Phase 2: Combined scope + sample + HCP
+  | 'scope_planning'  // Phase 2: Research design (methodology, sample, delivery plan)
+  | 'feasibility'     // Phase 2: HCP matching and recruitment feasibility (runs parallel to scope_planning)
   | 'wbs_estimate'    // Phase 3: Work breakdown structure
   | 'pricing'         // Phase 3: Pricing calculation
   | 'document_gen'    // Phase 3: Document generation
@@ -80,7 +82,8 @@ Your role is to coordinate agent execution based on the current workflow state.`
           return await this.executeScopePlanning(context);
 
         case 'scope_planning':
-          // Scope planning complete, proceed to WBS estimation
+        case 'feasibility':
+          // Both research design and feasibility complete, proceed to WBS estimation
           return await this.proceedToWBSEstimation(context);
 
         case 'wbs_estimate':
@@ -185,27 +188,47 @@ Your role is to coordinate agent execution based on the current workflow state.`
   }
 
   private async executeScopePlanning(context: AgentContext): Promise<AgentResult> {
-    console.log('🎯 Executing Scope Planning (Phase 2)...');
-    console.log('   - Study type detection');
-    console.log('   - 3 sample size options');
-    console.log('   - HCP shortlist (if applicable)');
-    console.log('   - Scope assumptions');
+    console.log('🎯 Executing Research Design & Feasibility (Phase 2) - Running in parallel...');
+    console.log('   📋 Research Design: Study type, methodology, sample size, delivery plan');
+    console.log('   👥 Feasibility: HCP matching and recruitment assessment');
 
     const sql = getSql();
-    const agent = new ScopePlannerAgent();
-    const result = await agent.execute(context);
+
+    // Execute both agents in parallel
+    const scopeAgent = new ScopePlannerAgent();
+    const hcpAgent = new HCPMatcherAgent();
+
+    const [scopeResult, hcpResult] = await Promise.all([
+      scopeAgent.execute(context),
+      hcpAgent.execute(context)
+    ]);
+
+    // Check if both succeeded
+    const bothSucceeded = scopeResult.success && hcpResult.success;
 
     // Update opportunity status on success
-    if (result.success) {
+    if (bothSucceeded) {
       await sql`
         UPDATE opportunities
         SET status = 'scope_planning', updated_at = now()
         WHERE id = ${context.opportunityId}
       `;
-      console.log(`✅ Opportunity status updated to: scope_planning`);
+      console.log(`✅ Research Design & Feasibility complete`);
     }
 
-    return result;
+    return {
+      success: bothSucceeded,
+      data: {
+        scopePlanning: scopeResult.data,
+        feasibility: hcpResult.data,
+        message: bothSucceeded
+          ? 'Research design and feasibility analysis complete'
+          : 'One or more agents failed',
+      },
+      error: !bothSucceeded
+        ? `Scope: ${scopeResult.error || 'OK'}, HCP: ${hcpResult.error || 'OK'}`
+        : undefined,
+    };
   }
 
   private async proceedToWBSEstimation(context: AgentContext): Promise<AgentResult> {

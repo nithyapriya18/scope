@@ -43,7 +43,7 @@ export default function ConditionalLayout({ children }: { children: React.ReactN
       <Header />
       <div className="flex flex-1 overflow-hidden">
         {showSidebar && <Sidebar />}
-        <main className={`flex-1 flex flex-col min-w-0 ${showSidebar ? 'overflow-hidden' : ''}`}>
+        <main className={`flex-1 flex flex-col min-w-0 bg-gray-50 dark:bg-slate-950 ${showSidebar ? 'overflow-hidden shadow-inner' : ''}`}>
           {children}
         </main>
       </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, Users, BookOpen, BarChart3, Settings, Package, User } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BookOpen, BarChart3, Settings, Package, User, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
 
 const navigation = [
@@ -18,6 +18,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [mounted, setMounted] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -25,13 +26,27 @@ export default function Sidebar() {
   }, []);
 
   return (
-    <aside className="w-64 bg-navy-sidebar flex-shrink-0 flex flex-col rounded-r-2xl">
+    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-pink-50 to-pink-100 dark:from-slate-800 dark:to-slate-900 flex-shrink-0 flex flex-col border-r border-pink-200 dark:border-slate-700 relative transition-all duration-300`}>
+      {/* Collapse Toggle Button */}
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="absolute -right-3 top-6 z-10 bg-white dark:bg-slate-700 hover:bg-pink-100 dark:hover:bg-slate-600 text-primary dark:text-white rounded-full p-1.5 shadow-lg border border-pink-200 dark:border-slate-600 transition-colors"
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      </button>
+
       {/* Logo */}
       <div className="p-6 flex items-center gap-3">
-        <div className="size-8 bg-primary rounded-xl flex items-center justify-center">
-          <Package className="text-white" size={20} />
+        <div className="size-10 bg-primary rounded-xl flex items-center justify-center flex-shrink-0">
+          <Package className="text-white" size={22} />
         </div>
-        <h1 className="text-white text-xl font-bold tracking-tight">Lumina</h1>
+        {!collapsed && (
+          <div>
+            <h1 className="text-primary dark:text-white text-xl font-bold tracking-tight">Lumina</h1>
+            <p className="text-xs text-pink-700 dark:text-slate-400">Scope</p>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
@@ -44,63 +59,71 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                 isActive
-                  ? 'text-white bg-primary'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'text-white bg-primary shadow-lg'
+                  : 'text-pink-900 dark:text-slate-300 hover:text-primary dark:hover:text-white hover:bg-pink-200/50 dark:hover:bg-slate-700/50'
               }`}
+              title={collapsed ? item.name : undefined}
             >
-              <Icon size={20} />
-              <span className="text-sm font-medium">{item.name}</span>
+              <Icon size={20} className="flex-shrink-0" />
+              {!collapsed && <span className="text-sm font-semibold">{item.name}</span>}
             </Link>
           );
         })}
 
         {/* Settings - moved here */}
         <div className="pt-4">
-          <div className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 mb-2">
-            System
-          </div>
+          {!collapsed && (
+            <div className="text-[10px] font-bold text-pink-600 dark:text-slate-500 uppercase tracking-wider px-3 mb-2">
+              System
+            </div>
+          )}
           <Link
             href="/settings"
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
               pathname === '/settings'
-                ? 'text-white bg-primary'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'text-white bg-primary shadow-lg'
+                : 'text-pink-900 dark:text-slate-300 hover:text-primary dark:hover:text-white hover:bg-pink-200/50 dark:hover:bg-slate-700/50'
             }`}
+            title={collapsed ? 'Settings' : undefined}
           >
-            <Settings size={20} />
-            <span className="text-sm font-medium">Settings</span>
+            <Settings size={20} className="flex-shrink-0" />
+            {!collapsed && <span className="text-sm font-semibold">Settings</span>}
           </Link>
         </div>
       </nav>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-4 border-t border-pink-200 dark:border-slate-700">
         {mounted && user ? (
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="size-8 rounded-full bg-gradient-to-br from-primary to-cyan-600 flex items-center justify-center flex-shrink-0">
-              <User className="text-white" size={16} />
+          <div className={`flex items-center gap-3 px-3 py-2 ${collapsed ? 'justify-center' : ''}`}>
+            <div className="size-10 rounded-full bg-gradient-to-br from-primary to-pink-600 flex items-center justify-center flex-shrink-0">
+              <User className="text-white" size={18} />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">
-                {user.name || 'User'}
-              </p>
-              <p className="text-xs text-slate-400 truncate">
-                {user.email}
-              </p>
-            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-pink-900 dark:text-white truncate">
+                  {user.name || 'User'}
+                </p>
+                <p className="text-xs text-pink-700 dark:text-slate-400 truncate">
+                  {user.email}
+                </p>
+              </div>
+            )}
           </div>
         ) : (
-          <div className="flex items-center gap-3 px-3 py-2">
-            <div className="size-8 rounded-full bg-slate-700 flex items-center justify-center flex-shrink-0">
-              <User className="text-slate-400" size={16} />
+          <div className={`flex items-center gap-3 px-3 py-2 ${collapsed ? 'justify-center' : ''}`}>
+            <div className="size-10 rounded-full bg-pink-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+              <User className="text-pink-700 dark:text-slate-400" size={18} />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-400 truncate">
-                Not logged in
-              </p>
-            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-pink-700 dark:text-slate-400 truncate">
+                  Not logged in
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>

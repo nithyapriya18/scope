@@ -169,7 +169,7 @@ export default function NewOpportunityModal({ isOpen, onClose, onSuccess }: NewO
             >
               <div className="flex items-center justify-center gap-2">
                 <Upload className="w-4 h-4" />
-                Upload PDF
+                Upload RFP
               </div>
             </button>
           </div>
@@ -316,11 +316,11 @@ export default function NewOpportunityModal({ isOpen, onClose, onSuccess }: NewO
                     <div>
                       <Upload className="w-10 h-10 text-gray-400 mx-auto mb-2" />
                       <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        Drag and drop or click to upload
+                        Drag and drop or click to upload (PDF, DOC, DOCX)
                       </p>
                       <input
                         type="file"
-                        accept=".pdf"
+                        accept=".pdf,.doc,.docx"
                         onChange={(e) => {
                           const selectedFile = e.target.files?.[0];
                           if (selectedFile) setFile(selectedFile);
@@ -332,7 +332,7 @@ export default function NewOpportunityModal({ isOpen, onClose, onSuccess }: NewO
                         htmlFor="file-upload"
                         className="inline-block px-4 py-2 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg cursor-pointer text-sm font-medium transition-colors"
                       >
-                        Select PDF
+                        Select File
                       </label>
                     </div>
                   )}

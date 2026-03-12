@@ -36,8 +36,60 @@ router.get(
 
       console.log(`✅ OAuth callback successful for user ${(req.user as any).email}`);
 
-      // Redirect to frontend with token
-      res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?token=${token}`;
+      console.log(`🔄 Redirecting to: ${redirectUrl}`);
+
+      // Use HTML with JavaScript redirect for Safari compatibility
+      res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta http-equiv="refresh" content="0; url=${redirectUrl}">
+          <title>Redirecting...</title>
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              background: #f9fafb;
+            }
+            .container {
+              text-align: center;
+              padding: 2rem;
+            }
+            .spinner {
+              border: 3px solid #f3f4f6;
+              border-top: 3px solid #da365c;
+              border-radius: 50%;
+              width: 40px;
+              height: 40px;
+              animation: spin 1s linear infinite;
+              margin: 0 auto 1rem;
+            }
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            h2 { color: #111827; margin-bottom: 0.5rem; }
+            p { color: #6b7280; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="spinner"></div>
+            <h2>Sign in successful!</h2>
+            <p>Redirecting to Lumina Scope...</p>
+          </div>
+          <script>
+            // Immediate redirect
+            window.location.replace('${redirectUrl}');
+          </script>
+        </body>
+        </html>
+      `);
     } catch (error) {
       console.error('OAuth callback error:', error);
       res.redirect(`${process.env.FRONTEND_URL}/login?error=token_generation_failed`);

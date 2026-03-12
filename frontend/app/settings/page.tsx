@@ -103,7 +103,7 @@ export default function SettingsPage() {
                   <div>
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">{user?.name}</h3>
                     <p className="text-sm text-slate-600 dark:text-slate-400">{user?.email}</p>
-                    <p className="text-xs text-slate-500 mt-1">{user?.role}</p>
+                    <p className="text-xs text-slate-500 mt-1">Proposal Manager</p>
                   </div>
                 </div>
 
@@ -136,7 +136,7 @@ export default function SettingsPage() {
                     </label>
                     <input
                       type="text"
-                      defaultValue={user?.role}
+                      defaultValue="Proposal Manager"
                       className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                     />
                   </div>
