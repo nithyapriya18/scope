@@ -150,6 +150,10 @@ export default function VerticalWorkflowTimeline({
     if (stepIndex < currentStepIndex && !isCurrentStep) return 'completed';
 
     if (isCurrentStep || stepIndex === currentStepIndex) {
+      // Special case for clarification: Mark completed when questions are generated
+      if (backendStatus === 'clarification' && opportunity?.clarification) {
+        return 'completed';
+      }
       // Special case: If clarification is sent/approved, mark as completed
       if (backendStatus === 'clarification' && opportunity?.clarification?.status === 'sent') {
         return 'completed';
@@ -164,6 +168,10 @@ export default function VerticalWorkflowTimeline({
 
   // Get actual progress for the current step
   const getCurrentProgress = () => {
+    // Special case: If clarification exists (questions generated), show 100%
+    if (backendStatus === 'clarification' && opportunity?.clarification) {
+      return 100;
+    }
     // Special case: If clarification is sent/approved, show 100% even if job is still processing
     if (backendStatus === 'clarification' && opportunity?.clarification?.status === 'sent') {
       return 100;
