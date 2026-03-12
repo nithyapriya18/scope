@@ -203,7 +203,7 @@ export default function NewOpportunityPage() {
 
               {/* Form Content */}
               {mode === 'text' ? (
-                <form onSubmit={handleTextSubmit} className="space-y-4">
+                <form key="text-form" onSubmit={handleTextSubmit} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       RFP Title *
@@ -283,7 +283,7 @@ export default function NewOpportunityPage() {
                   </div>
                 </form>
               ) : (
-                <form onSubmit={handleFileSubmit} className="space-y-4">
+                <form key="file-form" onSubmit={handleFileSubmit} className="space-y-4">
                   {file && (
                     <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg p-3 mb-4">
                       <p className="text-sm text-blue-800 dark:text-blue-300">
@@ -294,11 +294,11 @@ export default function NewOpportunityPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      PDF File *
+                      RFP File (PDF, DOC, DOCX) *
                     </label>
                     <input
                       type="file"
-                      accept=".pdf"
+                      accept=".pdf,.doc,.docx"
                       onChange={(e) => {
                         const selectedFile = e.target.files?.[0];
                         if (selectedFile) handleFileSelection(selectedFile);
@@ -311,13 +311,17 @@ export default function NewOpportunityPage() {
                       className="block border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-ps-primary-400 dark:hover:border-ps-primary-500 transition-colors bg-white dark:bg-gray-900"
                     >
                       {file ? (
-                        <div className="flex items-center justify-center gap-3">
-                          <FileText className="w-8 h-8 text-ps-primary-600 dark:text-ps-primary-400" />
-                          <div className="text-left">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">{file.name}</p>
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
-                              {(file.size / 1024 / 1024).toFixed(2)} MB
-                            </p>
+                        <div className="flex items-center justify-between gap-3 w-full">
+                          <div className="flex items-center gap-3 min-w-0 flex-1">
+                            <FileText className="w-8 h-8 text-ps-primary-600 dark:text-ps-primary-400 shrink-0" />
+                            <div className="text-left min-w-0 flex-1">
+                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={file.name}>
+                                {file.name}
+                              </p>
+                              <p className="text-xs text-gray-600 dark:text-gray-400">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
                           </div>
                           <button
                             type="button"
@@ -339,7 +343,7 @@ export default function NewOpportunityPage() {
                             Drag and drop or click to upload
                           </p>
                           <span className="inline-block px-4 py-2 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
-                            Select PDF
+                            Select File
                           </span>
                         </div>
                       )}
