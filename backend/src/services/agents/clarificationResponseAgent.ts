@@ -90,12 +90,11 @@ Respond with valid JSON containing:
     try {
       const sql = getSql();
 
-      // Get clarification questions, assumptions, and client response
+      // Get clarification questions and client response
       const clarifications = await sql`
         SELECT
           c.id,
           c.questions,
-          c.assumptions,
           c.client_response_text as "clientResponseText",
           c.client_response_file as "clientResponseFile",
           ga.missing_fields as "missingFields",

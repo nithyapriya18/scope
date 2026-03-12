@@ -1451,8 +1451,17 @@ router.post('/:id/redo/:step', async (req, res) => {
     }
 
     if (stepIndex <= workflowSteps.indexOf('clarification')) {
-      // Clear clarifications and everything after
-      await sql`DELETE FROM clarifications WHERE opportunity_id = ${id}`;
+      // For clarification step specifically: just reset status to allow resending
+      if (step === 'clarification') {
+        await sql`
+          UPDATE clarifications
+          SET status = 'pending_approval', sent_at = null, updated_at = now()
+          WHERE opportunity_id = ${id}
+        `;
+      } else {
+        // For earlier steps: clear clarifications and everything after
+        await sql`DELETE FROM clarifications WHERE opportunity_id = ${id}`;
+      }
     }
 
     if (stepIndex <= workflowSteps.indexOf('scope_planning')) {
