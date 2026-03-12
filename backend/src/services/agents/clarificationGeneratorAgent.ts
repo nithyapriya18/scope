@@ -7,7 +7,7 @@ import { BaseAgent, AgentContext, AgentResult } from './baseAgent';
 import { getSql } from '../../lib/sql';
 
 export class ClarificationGeneratorAgent extends BaseAgent {
-  protected agentType = 'clarification_generation';
+  protected agentType = 'clarification';
 
   protected getSystemPrompt(context: AgentContext): string {
     return `You are a PMR Clarification Specialist.
@@ -72,6 +72,16 @@ Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosin
 
       const gapData = gaps[0];
 
+      // Get job ID for progress tracking
+      const { jobQueueService } = await import('../jobQueue');
+      const jobs = await jobQueueService.getJobsByOpportunity(context.opportunityId);
+      const currentJob = jobs.find(j => j.jobType === this.agentType && j.status === 'processing');
+
+      // Update progress: 30% - Preparing questions
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 30, 'Analyzing gaps and preparing questions');
+      }
+
       const systemPrompt = this.getSystemPrompt(context);
       const userMessage = `Generate professional clarification questions for this RFP:
 
@@ -91,7 +101,17 @@ Generate 3-8 clarification questions with category, priority, context, and optio
 
 Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosing.`;
 
+      // Update progress: 40% - Generating clarifications
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 40, 'Generating clarification questions with AI');
+      }
+
       const response = await this.invokeAI(systemPrompt, userMessage, context);
+
+      // Update progress: 70% - Formatting questions
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 70, 'Formatting clarification email');
+      }
 
       // Parse JSON response
       let clarificationData;
@@ -108,6 +128,11 @@ Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosin
           success: false,
           error: 'Failed to parse clarification response',
         };
+      }
+
+      // Update progress: 80% - Saving to database
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 80, 'Saving clarification questions to database');
       }
 
       // Store clarification

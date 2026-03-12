@@ -17,6 +17,10 @@ export class BedrockService implements AIService {
     // Initialize Bedrock client
     const clientConfig: any = {
       region: process.env.AWS_REGION || 'us-east-1',
+      requestHandler: {
+        requestTimeout: 30000, // 30 second timeout
+      },
+      maxAttempts: 3, // Retry up to 3 times
     };
 
     // Only add explicit credentials if provided (not using AWS_PROFILE)
@@ -49,7 +53,7 @@ export class BedrockService implements AIService {
 
     const requestBody = {
       anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: systemPrompt,
       messages,
     };
@@ -93,7 +97,7 @@ export class BedrockService implements AIService {
 
     const requestBody = {
       anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: systemPrompt,
       messages,
       tools,

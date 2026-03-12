@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import VerticalWorkflowTimeline from '@/components/VerticalWorkflowTimeline';
 import ChatInterface from '@/components/ChatInterface';
-import { Loader2, ArrowLeft, Bell, Zap, Settings, Users } from 'lucide-react';
+import { Loader2, Settings } from 'lucide-react';
 import { getWorkflowMode, getCurrentUser } from '@/lib/auth';
 
 export default function OpportunityDetailPage() {
@@ -17,12 +17,29 @@ export default function OpportunityDetailPage() {
   const [processing, setProcessing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+
+  // Settings form state
+  const [editedRfpTitle, setEditedRfpTitle] = useState('');
+  const [editedClientName, setEditedClientName] = useState('');
+  const [editedTherapeuticArea, setEditedTherapeuticArea] = useState('');
+  const [editedDueDate, setEditedDueDate] = useState('');
 
   useEffect(() => {
     fetchOpportunity();
     const interval = setInterval(fetchOpportunity, 3000); // Poll every 3 seconds
     return () => clearInterval(interval);
   }, [opportunityId]);
+
+  // Initialize form fields when opportunity loads
+  useEffect(() => {
+    if (opportunity) {
+      setEditedRfpTitle(opportunity.rfpTitle || '');
+      setEditedClientName(opportunity.clientName || '');
+      setEditedTherapeuticArea(opportunity.therapeuticArea || '');
+      setEditedDueDate(opportunity.rfpDeadline ? opportunity.rfpDeadline.split('T')[0] : '');
+    }
+  }, [opportunity]);
 
   // Auto-process in automated mode (or always for intake step)
   useEffect(() => {
@@ -31,11 +48,11 @@ export default function OpportunityDetailPage() {
     const status = opportunity.status;
     const workflowMode = getWorkflowMode();
 
-    // Step 1 → Step 2 always auto-advances (no approval needed)
-    const alwaysAutoAdvance = ['intake'];
+    // Steps that always auto-advance (no approval needed)
+    const alwaysAutoAdvance = ['intake', 'brief_extract', 'gap_analysis'];
 
     // Other steps respect workflow mode setting
-    const conditionalAutoAdvance = ['brief_extract', 'gap_analysis'];
+    const conditionalAutoAdvance: string[] = [];
 
     const shouldAutoAdvance =
       alwaysAutoAdvance.includes(status) ||
@@ -121,6 +138,39 @@ export default function OpportunityDetailPage() {
     }
   };
 
+  const handleSaveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunityId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            rfpTitle: editedRfpTitle,
+            clientName: editedClientName,
+            therapeuticArea: editedTherapeuticArea,
+            rfpDeadline: editedDueDate ? new Date(editedDueDate).toISOString() : null,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        await fetchOpportunity(); // Refresh data
+        setSettingsOpen(false);
+      } else {
+        const error = await response.json();
+        console.error('Error saving settings:', error);
+        alert('Failed to save changes. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-white dark:bg-gray-900">
@@ -146,54 +196,22 @@ export default function OpportunityDetailPage() {
 
   return (
     <>
-      {/* Top Header */}
-      <header className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-between px-8 shrink-0">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="flex items-center gap-1 text-slate-500 hover:text-primary transition-colors"
-          >
-            <ArrowLeft size={20} />
-            <span className="text-sm font-medium">Dashboard</span>
-          </button>
-          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
-          <div className="flex flex-col">
-            <h2 className="text-sm font-bold text-slate-900 dark:text-white leading-none">
-              Bid Detail: {getBidId()} - {opportunity.clientName || 'Client'}
-            </h2>
-            <span className="text-[10px] text-slate-500">Pipeline Orchestration Hub</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 mr-4">
-            <span className="text-[10px] text-slate-400 font-bold uppercase">System Status</span>
-            <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] font-bold rounded-full flex items-center gap-1">
-              <span className="w-1 h-1 bg-primary rounded-full animate-pulse" />
-              Auto-Pilot Active
-            </span>
-          </div>
-          <button
-            onClick={() => alert('Generate Proposal')}
-            className="px-4 py-1.5 bg-primary text-white text-xs font-bold rounded-lg shadow-sm hover:bg-primary/90 transition-colors"
-          >
-            Generate Proposal
-          </button>
-          <button className="p-2 text-slate-400 hover:text-primary transition-colors relative">
-            <Bell size={20} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
-          </button>
-        </div>
-      </header>
-
-      {/* Project Info Bar - Compact */}
-      <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-6">
-          <div>
+      {/* Single Consolidated Header */}
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-8 py-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex flex-col">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-white leading-none">
+                Bid Detail: {getBidId()}
+              </h2>
+              <span className="text-[10px] text-slate-500">Pipeline Orchestration Hub</span>
+            </div>
+            <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 mx-2" />
             <h1 className="text-base font-bold tracking-tight text-slate-900 dark:text-white">
               {opportunity.rfpTitle || 'RFP Title Not Available'}
             </h1>
           </div>
-          <div className="flex gap-5 border-l border-slate-200 dark:border-slate-700 pl-5">
+          <div className="flex items-center gap-5">
             <div className="flex flex-col">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Client</span>
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -206,9 +224,9 @@ export default function OpportunityDetailPage() {
                 {opportunity.therapeuticArea || 'Not Specified'}
               </span>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col min-w-[140px]">
               <span className="text-[10px] font-bold text-slate-400 uppercase">Due Date</span>
-              <span className="text-xs font-bold text-primary">
+              <span className="text-sm font-bold text-primary">
                 {opportunity.rfpDeadline
                   ? new Date(opportunity.rfpDeadline).toLocaleDateString('en-US', {
                       month: 'short',
@@ -218,28 +236,15 @@ export default function OpportunityDetailPage() {
                   : 'Not Set'}
               </span>
             </div>
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="p-1.5 text-slate-400 hover:text-primary transition-colors"
+            >
+              <Settings size={18} />
+            </button>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex -space-x-2">
-            <div className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-500">
-              JD
-            </div>
-            <div className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-              SJ
-            </div>
-            <div className="w-7 h-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 flex items-center justify-center text-[10px] font-bold text-slate-500">
-              +2
-            </div>
-          </div>
-          <button
-            onClick={() => setSettingsOpen(true)}
-            className="p-1.5 text-slate-400 hover:text-primary transition-colors"
-          >
-            <Settings size={18} />
-          </button>
-        </div>
-      </div>
+      </header>
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto bg-slate-50/50 dark:bg-slate-900/50">
@@ -247,14 +252,26 @@ export default function OpportunityDetailPage() {
           opportunity={opportunity}
           onProcessNext={handleProcessNext}
           onApprove={handleProcessNext}
-          onRequestRevision={() => alert('Request revision')}
+          onRefresh={fetchOpportunity}
           processing={processing}
         />
       </main>
 
       {/* Footer */}
       <footer className="h-10 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">
-        <div>Status: Research Phase Active</div>
+        <div className="flex gap-4">
+          <span>Status: Research Phase Active</span>
+          <span>Completion %: {(() => {
+            // Calculate overall progress
+            const workflowSteps = ['intake', 'brief_extract', 'gap_analysis', 'clarification', 'scope_planning', 'workplan', 'wbs_estimate', 'proposal', 'approvals'];
+            const currentStepIndex = workflowSteps.indexOf(opportunity?.status || 'intake');
+            const totalSteps = workflowSteps.length;
+            const completedSteps = currentStepIndex;
+            const currentJob = opportunity?.currentJob;
+            const currentStepProgress = (currentJob && currentJob.status === 'processing' ? currentJob.progress || 0 : 0) / 100;
+            return Math.round(((completedSteps + currentStepProgress) / totalSteps) * 100);
+          })()}%</span>
+        </div>
         <div className="flex gap-4">
           <span>Bid ID: {getBidId()}</span>
           <span>Region: Global (Focus EU/US)</span>
@@ -300,8 +317,9 @@ export default function OpportunityDetailPage() {
                 </label>
                 <input
                   type="text"
-                  defaultValue={opportunity.rfpTitle || ''}
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                  value={editedRfpTitle}
+                  onChange={(e) => setEditedRfpTitle(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
                 />
               </div>
 
@@ -312,8 +330,9 @@ export default function OpportunityDetailPage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue={opportunity.clientName || ''}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                    value={editedClientName}
+                    onChange={(e) => setEditedClientName(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
                   />
                 </div>
 
@@ -323,86 +342,67 @@ export default function OpportunityDetailPage() {
                   </label>
                   <input
                     type="text"
-                    defaultValue={opportunity.therapeuticArea || ''}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Budget
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue="$250,000"
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                    Due Date
-                  </label>
-                  <input
-                    type="date"
-                    defaultValue={opportunity.rfpDeadline ? opportunity.rfpDeadline.split('T')[0] : ''}
-                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                    value={editedTherapeuticArea}
+                    onChange={(e) => setEditedTherapeuticArea(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                  Region
+                  Due Date <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={editedDueDate}
+                  onChange={(e) => setEditedDueDate(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-primary focus:outline-none"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  * Important: This is the final submission deadline for the proposal
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+                  Budget
                 </label>
                 <input
                   type="text"
-                  defaultValue="Global (Focus EU/US)"
-                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                  defaultValue="$250,000"
+                  disabled
+                  className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-white opacity-50 cursor-not-allowed"
                 />
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Budget will be calculated based on scope and pricing
+                </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                  Team Members
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex -space-x-2">
-                    <div className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
-                      JD
-                    </div>
-                    <div className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-900 bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
-                      SJ
-                    </div>
-                    <div className="w-10 h-10 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
-                      +2
-                    </div>
-                  </div>
-                  <button className="ml-2 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/10 rounded-lg transition-colors">
-                    Manage Team
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* Modal Footer */}
             <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3">
               <button
                 onClick={() => setSettingsOpen(false)}
-                className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                disabled={savingSettings}
+                className="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  alert('Save changes functionality coming soon');
-                  setSettingsOpen(false);
-                }}
-                className="px-4 py-2 text-sm font-semibold bg-primary hover:bg-cyan-800 text-white rounded-lg transition-colors"
+                onClick={handleSaveSettings}
+                disabled={savingSettings}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary hover:bg-cyan-800 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Save Changes
+                {savingSettings ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
               </button>
             </div>
           </div>

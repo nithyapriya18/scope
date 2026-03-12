@@ -8,137 +8,71 @@ import { getSql } from '../../lib/sql';
 import { Tool } from '../aiServiceTypes';
 
 export class BriefExtractorAgent extends BaseAgent {
-  protected agentType = 'brief_extraction';
+  protected agentType = 'brief_extract';
 
   protected getSystemPrompt(context: AgentContext): string {
-    return `You are a PMR Brief Extraction Specialist with deep expertise in pharmaceutical market research RFPs.
+    return `You are a PMR Brief Extraction Specialist. Extract key requirements from RFP documents in a CONCISE format.
 
-Your task is to analyze RFP documents and extract comprehensive, structured requirements. You MUST extract information even from incomplete, poorly formatted, or ambiguous RFPs. Always provide your best interpretation.
+**CRITICAL**: Keep responses SHORT. Maximum 1-2 sentences per field. Use bullet points where appropriate.
 
-**CRITICAL RULES**:
-1. Never fail - Always return complete JSON even if RFP is incomplete
-2. Use "Not specified" for missing fields, not null
-3. Infer reasonable values when explicit data is missing
-4. Extract ALL information, even if partially mentioned
+Extract these sections:
 
-Extract the following sections (matching standard pharma RFP structure):
+**1. coverInformation**: {rfpTitle, issuedBy, submissionDeadline, budgetRange}
+**2. executiveSummary**: {therapeuticAreaContext (1 sentence), oneLinerSummary (1 sentence)}
+**3. researchObjectives**: Array of 2-5 brief objectives
+**4. scopeOfWork**: {studyType, methodologyDetails (2-3 sentences max), geographicCoverage (array), interviewDuration, dataCollectionMode}
+**5. targetAudience**: {primaryRespondents, selectionCriteria (array of 3-5 items), minimumExperience, minimumPatientVolume}
+**6. sampleSpecifications**: {totalSampleSize, sampleBreakdown (brief object), quotas (brief string)}
+**7. keyDeliverables**: Array of 5-8 deliverable names (no descriptions)
+**8. timelineAndMilestones**: {projectDuration, proposalDueDate, finalReportDate, keyMilestones (array of 3-5 brief items)}
+**9. budgetAndPricing**: {totalBudget, pricingStructureExpected (brief)}
+**10. evaluationCriteria**: {keyFactors (array of 3-5 brief items)}
+**11. regulatoryCompliance**: {gdprRequired (boolean), hipaaRequired (boolean), otherCompliance (array of 2-3 items)}
+**12. confidenceScores**: {overall, objectives, methodology, sample, timeline, budget} (all 0-1)
 
-**1. coverInformation** (object):
-   - rfpTitle: RFP title/subject line (or infer from content)
-   - issuedBy: Company name (extract from context)
-   - contactPerson: Contact name (or "Not specified")
-   - contactEmail: Email address (or "Not specified")
-   - contactPhone: Phone number (or "Not specified")
-   - submissionDeadline: Proposal due date (or "Not specified")
-   - budgetRange: Budget mentioned (e.g., "$80,000 - $120,000" or "Not specified")
-
-**2. executiveSummary** (object):
-   - companyOverview: Brief about the issuing company (or "Not specified")
-   - therapeuticAreaContext: Therapeutic area background (e.g., "Oncology - NSCLC market")
-   - marketChallenges: Why research is needed (or "Not specified")
-   - strategicImportance: Business rationale (or "Not specified")
-   - oneLinerSummary: 1-sentence summary of the RFP (ALWAYS provide)
-
-**3. researchObjectives** (array of strings):
-   - Extract 2-5 specific, measurable objectives
-   - If not explicit, infer from context (e.g., ["Understand treatment patterns", "Identify barriers"])
-   - MUST provide at least 1 objective
-
-**4. scopeOfWork** (object):
-   - studyType: "Qualitative", "Quantitative", "Mixed Methods", or "Not specified"
-   - methodologyDetails: Specific methods (e.g., "40 in-depth interviews, 60 min phone")
-   - geographicCoverage: Countries/regions (e.g., ["United States", "United Kingdom", "Germany"])
-   - interviewDuration: Duration mentioned (e.g., "60 minutes" or "Not specified")
-   - surveyLength: For quant studies (e.g., "15 minutes" or "Not specified")
-   - dataCollectionMode: "Telephone", "Online", "In-person", "Mixed", or "Not specified"
-
-**5. targetAudience** (object):
-   - primaryRespondents: Who to interview (e.g., "Medical Oncologists")
-   - selectionCriteria: Array of requirements (e.g., ["Board-certified", "5+ years experience", "Treating NSCLC"])
-   - practiceSettings: Array (e.g., ["Academic Medical Center 40%", "Private Practice 40%", "Community Hospital 20%"])
-   - minimumExperience: Years required (e.g., "5 years" or "Not specified")
-   - minimumPatientVolume: Patients per month (e.g., "10 NSCLC patients/month" or "Not specified")
-   - exclusionCriteria: Array (e.g., ["Pharma employees", "Recent study participants"])
-   - geographicDistribution: Regional mix (e.g., "Northeast 30%, South 30%, Midwest 20%, West 20%")
-
-**6. sampleSpecifications** (object):
-   - totalSampleSize: Total respondents (number or "Not specified")
-   - sampleBreakdown: By country/region (e.g., {"US": 30, "UK": 20, "Germany": 20})
-   - quotas: Quota requirements (e.g., "50% academic, 50% community; Min 30% female")
-   - segmentation: Any subgroup splits (or "Not specified")
-
-**7. keyDeliverables** (array of strings):
-   - List all expected outputs
-   - Standard pharma deliverables include:
-     * "Executive Summary (5-10 pages)"
-     * "Detailed Findings Report (30-50 pages)"
-     * "PowerPoint Presentation (20-30 slides)"
-     * "Verbatim Transcripts" (for qual)
-     * "Raw Data File" (Excel/SPSS for quant)
-     * "Discussion Guide / Survey Instrument"
-     * "Respondent Demographics Table"
-   - If none mentioned, provide reasonable defaults
-
-**8. timelineAndMilestones** (object):
-   - projectDuration: Overall timeline (e.g., "10 weeks" or "Not specified")
-   - proposalDueDate: Submission deadline (or "Not specified")
-   - kickoffDate: Start date (or "Not specified")
-   - fieldworkWindow: Data collection period (e.g., "Weeks 4-6" or "Not specified")
-   - draftReportDate: Draft delivery (or "Not specified")
-   - finalReportDate: Final delivery (or "Not specified")
-   - keyMilestones: Array of dates/phases (e.g., ["Week 1: Kickoff", "Weeks 2-3: Guide dev"])
-
-**9. budgetAndPricing** (object):
-   - totalBudget: Budget amount or range (or "Not specified")
-   - pricingStructureExpected: Format expected (e.g., "Itemized by phase" or "Not specified")
-   - paymentTerms: Milestone-based, NET 30/60 (or "Not specified")
-   - budgetConstraints: Any limitations (or "Not specified")
-
-**10. evaluationCriteria** (object):
-   - scoringWeights: How proposals scored (e.g., {"Experience": "25%", "Methodology": "25%", "Cost": "20%"})
-   - keyFactors: What they value (e.g., ["Therapeutic area expertise", "HCP recruitment track record"])
-   - referenceRequirements: References needed (or "Not specified")
-
-**11. regulatoryCompliance** (object):
-   - gdprRequired: true/false (if EU countries involved)
-   - hipaaRequired: true/false (if US patient data)
-   - otherCompliance: Array (e.g., ["FDA guidance adherence", "FCPA compliance"])
-   - dataSecurity: Requirements mentioned (or "Not specified")
-
-**12. additionalContext** (object):
-   - backgroundInformation: Market/competitive context
-   - priorResearch: Previous studies mentioned
-   - assumptionsMade: Key assumptions you made during extraction
-   - missingInformation: Critical gaps you identified
-
-**13. confidenceScores** (object):
-   - overall: 0-1 (how complete is this RFP?)
-   - objectives: 0-1
-   - methodology: 0-1
-   - sample: 0-1
-   - timeline: 0-1
-   - budget: 0-1
-
-Respond ONLY with valid JSON. No markdown code blocks, no explanation. Just the JSON object starting with { and ending with }.`;
+**RULES**:
+- Use "Not specified" for missing info
+- Keep ALL text concise - no long explanations
+- Respond with ONLY valid JSON (no markdown, no explanation)`;
   }
 
   protected async process(context: AgentContext): Promise<AgentResult> {
     try {
       const { rfpText, fileName } = context.data;
 
+      // Get job ID for progress tracking
+      const { jobQueueService } = await import('../jobQueue');
+      const jobs = await jobQueueService.getJobsByOpportunity(context.opportunityId);
+      const currentJob = jobs.find(j => j.jobType === this.agentType && j.status === 'processing');
+
+      // Update progress: 30% - Analyzing RFP content
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 30, 'Analyzing RFP structure and content');
+      }
+
       const systemPrompt = this.getSystemPrompt(context);
-      const userMessage = `Extract comprehensive requirements from this RFP document.
+      const userMessage = `Extract requirements from this RFP. Keep responses BRIEF and CONCISE.
 
 Document: ${fileName}
 
 RFP Content:
 ${rfpText}
 
-Extract ALL sections as specified. If information is missing, use "Not specified". Make reasonable inferences when needed.
+Extract ALL sections. Be CONCISE - maximum 1-2 sentences per field. Use "Not specified" for missing info.
 
-Respond with ONLY the JSON object (no markdown, no code blocks).`;
+Respond with ONLY JSON (no markdown).`;
+
+      // Update progress: 40% - Sending to AI
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 40, 'Deep analysis: Extracting objectives, deliverables, and sample specifications');
+      }
 
       const response = await this.invokeAI(systemPrompt, userMessage, context);
+
+      // Update progress: 70% - Parsing AI response
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 70, 'Processing comprehensive requirements brief');
+      }
 
       // Parse JSON response
       let extractedData;
@@ -155,6 +89,11 @@ Respond with ONLY the JSON object (no markdown, no code blocks).`;
           success: false,
           error: 'Failed to parse AI response',
         };
+      }
+
+      // Update progress: 80% - Saving to database
+      if (currentJob) {
+        await jobQueueService.updateProgress(currentJob.id, 80, 'Saving extracted data to database');
       }
 
       // Store in briefs table - map new structure to existing columns
@@ -251,7 +190,6 @@ Respond with ONLY the JSON object (no markdown, no code blocks).`;
         },
         metadata: {
           confidence: result[0].confidenceScore,
-          extractionTimestamp: new Date().toISOString(),
         },
       };
     } catch (error: any) {

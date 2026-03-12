@@ -93,24 +93,35 @@ router.post('/extract-metadata', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'file is required' });
     }
 
-    // Extract text from PDF using pdftotext
-    let pdfText = '';
-    try {
-      const outputPath = `${file.path}.txt`;
-      execSync(`pdftotext "${file.path}" "${outputPath}"`);
-      pdfText = fs.readFileSync(outputPath, 'utf-8');
+    // Extract text from file based on type
+    let extractedText = '';
+    const ext = path.extname(file.originalname).toLowerCase();
 
-      // Clean up temp files
-      fs.unlinkSync(outputPath);
+    try {
+      if (ext === '.pdf') {
+        // Use pdftotext (from poppler-utils)
+        const outputPath = `${file.path}.txt`;
+        execSync(`pdftotext "${file.path}" "${outputPath}"`);
+        extractedText = fs.readFileSync(outputPath, 'utf-8');
+        fs.unlinkSync(outputPath);
+      } else if (ext === '.docx' || ext === '.doc') {
+        // Use pandoc to convert Word to text
+        extractedText = execSync(`pandoc "${file.path}" -t plain`, { encoding: 'utf8' });
+      } else {
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
+      }
+
+      // Clean up temp file
       fs.unlinkSync(file.path);
-    } catch (pdfError) {
-      console.error('PDF extraction error:', pdfError);
+    } catch (extractError) {
+      console.error('File extraction error:', extractError);
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ error: 'Failed to extract text from PDF' });
+      return res.status(400).json({ error: 'Failed to extract text from file' });
     }
 
-    if (!pdfText.trim()) {
-      return res.status(400).json({ error: 'No text content found in PDF' });
+    if (!extractedText.trim()) {
+      return res.status(400).json({ error: 'No text content found in file' });
     }
 
     // Use AI to extract title and client name
@@ -135,7 +146,7 @@ Provide your response in structured JSON format.`;
     const userMessage = `Please analyze this RFP document and extract the metadata:
 
 RFP Document content:
-${pdfText}
+${extractedText}
 
 Respond with a JSON object containing:
 - rfpTitle (string)
@@ -156,7 +167,7 @@ Respond with a JSON object containing:
       console.error('Failed to parse AI response:', response);
       // Fallback: use filename as title
       extracted = {
-        rfpTitle: file.originalname.replace('.pdf', ''),
+        rfpTitle: file.originalname.replace(/\.(pdf|docx?|doc)$/i, ''),
         clientName: null,
         therapeuticArea: null,
         rfpDeadline: null
@@ -164,11 +175,11 @@ Respond with a JSON object containing:
     }
 
     res.json({
-      rfpTitle: extracted.rfpTitle || file.originalname.replace('.pdf', ''),
+      rfpTitle: extracted.rfpTitle || file.originalname.replace(/\.(pdf|docx?|doc)$/i, ''),
       clientName: extracted.clientName || null,
       therapeuticArea: extracted.therapeuticArea || null,
       rfpDeadline: extracted.rfpDeadline || null,
-      textPreview: pdfText.slice(0, 500)
+      textPreview: extractedText.slice(0, 500)
     });
   } catch (error: any) {
     console.error('Error extracting metadata:', error);
@@ -189,25 +200,35 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'userId and file are required' });
     }
 
-    // Extract text from PDF using pdftotext
-    let pdfText = '';
-    try {
-      const outputPath = `${file.path}.txt`;
-      execSync(`pdftotext "${file.path}" "${outputPath}"`);
-      pdfText = fs.readFileSync(outputPath, 'utf-8');
+    // Extract text from file based on type
+    let extractedText = '';
+    const ext = path.extname(file.originalname).toLowerCase();
 
-      // Clean up temp files
-      fs.unlinkSync(outputPath);
+    try {
+      if (ext === '.pdf') {
+        // Use pdftotext (from poppler-utils)
+        const outputPath = `${file.path}.txt`;
+        execSync(`pdftotext "${file.path}" "${outputPath}"`);
+        extractedText = fs.readFileSync(outputPath, 'utf-8');
+        fs.unlinkSync(outputPath);
+      } else if (ext === '.docx' || ext === '.doc') {
+        // Use pandoc to convert Word to text
+        extractedText = execSync(`pandoc "${file.path}" -t plain`, { encoding: 'utf8' });
+      } else {
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
+      }
+
+      // Clean up temp file
       fs.unlinkSync(file.path);
-    } catch (pdfError) {
-      console.error('PDF extraction error:', pdfError);
-      // Clean up
+    } catch (extractError) {
+      console.error('File extraction error:', extractError);
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ error: 'Failed to extract text from PDF' });
+      return res.status(400).json({ error: 'Failed to extract text from file' });
     }
 
-    if (!pdfText.trim()) {
-      return res.status(400).json({ error: 'No text content found in PDF' });
+    if (!extractedText.trim()) {
+      return res.status(400).json({ error: 'No text content found in file' });
     }
 
     const sql = getSql();
@@ -228,7 +249,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       ) VALUES (
         ${userId},
         ${emailSubject || file.originalname},
-        ${pdfText},
+        ${extractedText},
         ${clientName || null},
         ${rfpTitle || file.originalname},
         ${therapeuticArea || null},
@@ -248,7 +269,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       opportunityId: opportunity.id,
       userId,
       data: {
-        rfpText: pdfText,
+        rfpText: extractedText,
         fileName: rfpTitle || file.originalname,
       },
     });
@@ -288,32 +309,42 @@ router.post('/:id/re-upload', upload.single('file'), async (req, res) => {
       return res.status(404).json({ error: 'Opportunity not found' });
     }
 
-    // Extract text from PDF using pdftotext
-    let pdfText = '';
-    try {
-      const outputPath = `${file.path}.txt`;
-      execSync(`pdftotext "${file.path}" "${outputPath}"`);
-      pdfText = fs.readFileSync(outputPath, 'utf-8');
+    // Extract text from file based on type
+    let extractedText = '';
+    const ext = path.extname(file.originalname).toLowerCase();
 
-      // Clean up temp files
-      fs.unlinkSync(outputPath);
+    try {
+      if (ext === '.pdf') {
+        // Use pdftotext (from poppler-utils)
+        const outputPath = `${file.path}.txt`;
+        execSync(`pdftotext "${file.path}" "${outputPath}"`);
+        extractedText = fs.readFileSync(outputPath, 'utf-8');
+        fs.unlinkSync(outputPath);
+      } else if (ext === '.docx' || ext === '.doc') {
+        // Use pandoc to convert Word to text
+        extractedText = execSync(`pandoc "${file.path}" -t plain`, { encoding: 'utf8' });
+      } else {
+        fs.unlinkSync(file.path);
+        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
+      }
+
+      // Clean up temp file
       fs.unlinkSync(file.path);
-    } catch (pdfError) {
-      console.error('PDF extraction error:', pdfError);
-      // Clean up
+    } catch (extractError) {
+      console.error('File extraction error:', extractError);
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ error: 'Failed to extract text from PDF' });
+      return res.status(400).json({ error: 'Failed to extract text from file' });
     }
 
-    if (!pdfText.trim()) {
-      return res.status(400).json({ error: 'No text content found in PDF' });
+    if (!extractedText.trim()) {
+      return res.status(400).json({ error: 'No text content found in file' });
     }
 
     // Update opportunity with new RFP text and reset status to intake
     await sql`
       UPDATE opportunities
       SET
-        email_body = ${pdfText},
+        email_body = ${extractedText},
         email_subject = ${file.originalname},
         status = 'intake',
         updated_at = now()
@@ -326,7 +357,7 @@ router.post('/:id/re-upload', upload.single('file'), async (req, res) => {
       opportunityId: id,
       userId,
       data: {
-        rfpText: pdfText,
+        rfpText: extractedText,
         fileName: file.originalname,
       },
     });
@@ -483,19 +514,232 @@ router.get('/:id', async (req, res) => {
     const clarifications = await sql`SELECT * FROM clarifications WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const scopes = await sql`SELECT * FROM scopes WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
 
+    // Fetch current job progress (include recently completed jobs for 60 seconds)
+    const currentJobs = await sql`
+      SELECT id, job_type, status, progress, progress_message, created_at, updated_at
+      FROM jobs
+      WHERE opportunity_id = ${id}
+      AND (
+        status IN ('pending', 'processing')
+        OR (status = 'completed' AND updated_at > now() - interval '60 seconds')
+      )
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+
+    // Parse JSON strings in brief and gap analysis
+    let parsedBrief = null;
+    if (briefs.length > 0) {
+      parsedBrief = { ...briefs[0] };
+      if (parsedBrief.raw_extraction && typeof parsedBrief.raw_extraction === 'string') {
+        try {
+          parsedBrief.raw_extraction = JSON.parse(parsedBrief.raw_extraction);
+        } catch (e) {
+          console.error('Failed to parse brief raw_extraction:', e);
+        }
+      }
+    }
+
+    let parsedGapAnalysis = null;
+    if (gapAnalyses.length > 0) {
+      parsedGapAnalysis = { ...gapAnalyses[0] };
+
+      // Parse llm_analysis field first (has the complete data)
+      let llmData = null;
+      if (parsedGapAnalysis.llm_analysis) {
+        if (typeof parsedGapAnalysis.llm_analysis === 'string') {
+          try {
+            llmData = JSON.parse(parsedGapAnalysis.llm_analysis);
+          } catch (e) {
+            console.error('Failed to parse llm_analysis:', e);
+          }
+        } else {
+          llmData = parsedGapAnalysis.llm_analysis;
+        }
+      }
+
+      // Check if the separate columns have valid data or corrupted "[object Object]" strings
+      const isCorrupted = (data: any) => {
+        if (Array.isArray(data)) {
+          return data.length > 0 && data[0] === '[object Object]';
+        }
+        if (typeof data === 'string') {
+          return data.includes('[object Object]');
+        }
+        return false;
+      };
+
+      // Parse missing_fields - use llm_analysis if corrupted
+      if (isCorrupted(parsedGapAnalysis.missing_fields) && llmData?.missingFields) {
+        parsedGapAnalysis.missing_fields = llmData.missingFields;
+      } else if (parsedGapAnalysis.missing_fields && typeof parsedGapAnalysis.missing_fields === 'string') {
+        try {
+          parsedGapAnalysis.missing_fields = JSON.parse(parsedGapAnalysis.missing_fields);
+        } catch (e) {
+          console.error('Failed to parse gap analysis missing_fields:', e);
+          parsedGapAnalysis.missing_fields = llmData?.missingFields || [];
+        }
+      }
+
+      // Parse ambiguous_requirements - use llm_analysis if corrupted
+      if (isCorrupted(parsedGapAnalysis.ambiguous_requirements) && llmData?.ambiguousRequirements) {
+        parsedGapAnalysis.ambiguous_requirements = llmData.ambiguousRequirements;
+      } else if (parsedGapAnalysis.ambiguous_requirements && typeof parsedGapAnalysis.ambiguous_requirements === 'string') {
+        try {
+          parsedGapAnalysis.ambiguous_requirements = JSON.parse(parsedGapAnalysis.ambiguous_requirements);
+        } catch (e) {
+          console.error('Failed to parse gap analysis ambiguous_requirements:', e);
+          parsedGapAnalysis.ambiguous_requirements = llmData?.ambiguousRequirements || [];
+        }
+      }
+
+      // Parse conflicting_info - use llm_analysis if corrupted
+      if (isCorrupted(parsedGapAnalysis.conflicting_info) && llmData?.conflictingInfo) {
+        parsedGapAnalysis.conflicting_info = llmData.conflictingInfo;
+      } else if (parsedGapAnalysis.conflicting_info && typeof parsedGapAnalysis.conflicting_info === 'string') {
+        try {
+          parsedGapAnalysis.conflicting_info = JSON.parse(parsedGapAnalysis.conflicting_info);
+        } catch (e) {
+          console.error('Failed to parse gap analysis conflicting_info:', e);
+          parsedGapAnalysis.conflicting_info = llmData?.conflictingInfo || [];
+        }
+      }
+
+      // Parse assumptions_made - always use llm_analysis as it's not stored in separate column
+      if (llmData?.assumptionsMade || llmData?.assumptions_made) {
+        parsedGapAnalysis.assumptions_made = llmData.assumptionsMade || llmData.assumptions_made || [];
+      } else {
+        parsedGapAnalysis.assumptions_made = [];
+      }
+
+      // Extract completeness metrics from llm_analysis field
+      if (llmData && typeof llmData === 'object') {
+        parsedGapAnalysis.overall_completeness = llmData.overall_completeness || llmData.overallCompleteness || 0;
+        parsedGapAnalysis.critical_gaps_count = llmData.critical_gaps_count || llmData.criticalGapsCount || 0;
+        parsedGapAnalysis.high_priority_gaps_count = llmData.high_priority_gaps_count || llmData.highPriorityGapsCount || 0;
+      }
+    }
+
+    // Parse clarification client_responses if present
+    let parsedClarification = null;
+    if (clarifications.length > 0) {
+      parsedClarification = { ...clarifications[0] };
+
+      // Parse client_responses JSONB field
+      if (parsedClarification.client_responses && typeof parsedClarification.client_responses === 'string') {
+        try {
+          parsedClarification.client_responses = JSON.parse(parsedClarification.client_responses);
+        } catch (e) {
+          console.error('Failed to parse client_responses:', e);
+        }
+      }
+
+      // Parse questions JSONB field
+      if (parsedClarification.questions && typeof parsedClarification.questions === 'string') {
+        try {
+          parsedClarification.questions = JSON.parse(parsedClarification.questions);
+        } catch (e) {
+          console.error('Failed to parse questions:', e);
+        }
+      }
+    }
+
     // Attach workflow data to opportunity
     const response = {
       ...opportunity,
-      brief: briefs.length > 0 ? briefs[0] : null,
-      gapAnalysis: gapAnalyses.length > 0 ? gapAnalyses[0] : null,
-      clarification: clarifications.length > 0 ? clarifications[0] : null,
+      brief: parsedBrief,
+      gapAnalysis: parsedGapAnalysis,
+      clarification: parsedClarification,
       scope: scopes.length > 0 ? scopes[0] : null,
+      currentJob: currentJobs.length > 0 ? currentJobs[0] : null,
     };
 
     res.json(response);
   } catch (error: any) {
     console.error('Error fetching opportunity:', error);
     res.status(500).json({ error: 'Failed to fetch opportunity', message: error.message });
+  }
+});
+
+/**
+ * PATCH /api/opportunities/:id
+ * Update opportunity basic information (title, client, therapeutic area, deadline)
+ */
+router.patch('/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rfpTitle, clientName, therapeuticArea, rfpDeadline } = req.body;
+    const sql = getSql();
+
+    // Validate opportunity exists
+    const opportunities = await sql`
+      SELECT id FROM opportunities WHERE id = ${id}
+    `;
+
+    if (opportunities.length === 0) {
+      return res.status(404).json({ error: 'Opportunity not found' });
+    }
+
+    // Build update query dynamically based on provided fields
+    const updates: string[] = [];
+    const params: any[] = [];
+
+    if (rfpTitle !== undefined) {
+      updates.push(`rfp_title = $${params.length + 1}`);
+      params.push(rfpTitle);
+    }
+
+    if (clientName !== undefined) {
+      updates.push(`client_name = $${params.length + 1}`);
+      params.push(clientName);
+    }
+
+    if (therapeuticArea !== undefined) {
+      updates.push(`therapeutic_area = $${params.length + 1}`);
+      params.push(therapeuticArea);
+    }
+
+    if (rfpDeadline !== undefined) {
+      updates.push(`rfp_deadline = $${params.length + 1}`);
+      params.push(rfpDeadline ? new Date(rfpDeadline) : null);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({
+        error: 'No fields to update',
+        message: 'Please provide at least one field to update',
+      });
+    }
+
+    // Add updated_at to all updates
+    updates.push('updated_at = now()');
+
+    // Execute update
+    const query = `
+      UPDATE opportunities
+      SET ${updates.join(', ')}
+      WHERE id = $${params.length + 1}
+      RETURNING id, rfp_title as "rfpTitle", client_name as "clientName",
+                therapeutic_area as "therapeuticArea", rfp_deadline as "rfpDeadline",
+                updated_at as "updatedAt"
+    `;
+
+    const result = await sql.unsafe(query, [...params, id]);
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Opportunity not found' });
+    }
+
+    res.json({
+      message: 'Opportunity updated successfully',
+      opportunity: result[0],
+    });
+  } catch (error: any) {
+    console.error('Error updating opportunity:', error);
+    res.status(500).json({
+      error: 'Failed to update opportunity',
+      message: error.message,
+    });
   }
 });
 
@@ -797,6 +1041,485 @@ router.delete('/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Error deleting opportunity:', error);
     res.status(500).json({ error: 'Failed to delete opportunity', message: error.message });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/documents/brief
+ * Save brief as a document file
+ */
+router.post('/:id/documents/brief', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { content, filename } = req.body;
+
+    if (!content || !filename) {
+      return res.status(400).json({ error: 'content and filename are required' });
+    }
+
+    const sql = getSql();
+
+    // Check if opportunity exists
+    const opps = await sql`
+      SELECT id FROM opportunities WHERE id = ${id}
+    `;
+
+    if (opps.length === 0) {
+      return res.status(404).json({ error: 'Opportunity not found' });
+    }
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = process.env.FILE_STORAGE_PATH || './uploads';
+    const briefsDir = path.join(uploadsDir, 'briefs');
+
+    if (!fs.existsSync(briefsDir)) {
+      fs.mkdirSync(briefsDir, { recursive: true });
+    }
+
+    // Save file to filesystem
+    const safeFilename = filename.replace(/[^a-z0-9._-]/gi, '_');
+    const filePath = path.join(briefsDir, `${id}_${safeFilename}`);
+    fs.writeFileSync(filePath, content, 'utf8');
+
+    const fileSize = Buffer.byteLength(content, 'utf8');
+
+    // Save document record to database
+    // Note: Using 'clarification' as document_type since 'brief' is not in the constraint
+    // TODO: Add 'brief' to document_type check constraint
+    const doc = await sql`
+      INSERT INTO documents (
+        opportunity_id,
+        document_type,
+        filename,
+        file_path,
+        file_size,
+        format,
+        status
+      ) VALUES (
+        ${id},
+        'clarification',
+        ${safeFilename},
+        ${filePath},
+        ${fileSize},
+        'txt',
+        'draft'
+      )
+      RETURNING id, filename, file_path, file_size, created_at
+    `;
+
+    res.json({
+      message: 'Brief saved successfully',
+      document: doc[0],
+    });
+  } catch (error: any) {
+    console.error('Error saving brief:', error);
+    res.status(500).json({ error: 'Failed to save brief', message: error.message });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/clarification-response
+ * Upload and parse client's response to clarification questions
+ */
+router.post('/:id/clarification-response', upload.single('responseFile'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { responseText, skipResponses } = req.body;
+    const sql = getSql();
+
+    // Validate opportunity exists
+    const opportunities = await sql`
+      SELECT id, rfp_title as "rfpTitle", status
+      FROM opportunities
+      WHERE id = ${id}
+    `;
+
+    if (opportunities.length === 0) {
+      return res.status(404).json({ error: 'Opportunity not found' });
+    }
+
+    const opportunity = opportunities[0];
+
+    // If skipping responses, just proceed to next step with assumptions
+    if (skipResponses === true || skipResponses === 'true') {
+      await sql`
+        UPDATE clarifications
+        SET
+          status = 'skipped',
+          updated_at = now()
+        WHERE id = (
+          SELECT id FROM clarifications
+          WHERE opportunity_id = ${id}
+          ORDER BY created_at DESC
+          LIMIT 1
+        )
+      `;
+
+      // Skip response processing and go directly to scope planning
+      await sql`
+        UPDATE opportunities
+        SET
+          status = 'scope_planning',
+          updated_at = now()
+        WHERE id = ${id}
+      `;
+
+      // Trigger orchestrator to process scope planning
+      const { OrchestratorAgent } = await import('../services/agents/orchestratorAgent');
+      const orchestrator = new OrchestratorAgent();
+      orchestrator.execute({
+        opportunityId: id,
+        userId: req.body.userId || 'system',
+      }).catch((err) => console.error('Error triggering scope planning:', err));
+
+      return res.json({
+        message: 'Proceeding to Research Design with assumptions (skipped response processing)',
+        skipped: true,
+      });
+    }
+
+    // Extract text from uploaded file if provided
+    let extractedText = responseText || '';
+
+    if (req.file) {
+      const filePath = req.file.path;
+      const ext = path.extname(req.file.originalname).toLowerCase();
+
+      try {
+        // Extract text based on file type
+        if (ext === '.pdf') {
+          // Use pdftotext (from poppler-utils)
+          const output = execSync(`pdftotext "${filePath}" -`, { encoding: 'utf8' });
+          extractedText += '\n\n' + output;
+        } else if (ext === '.txt' || ext === '.eml') {
+          extractedText += '\n\n' + fs.readFileSync(filePath, 'utf8');
+        } else if (ext === '.docx') {
+          // Use pandoc to convert docx to text
+          const output = execSync(`pandoc "${filePath}" -t plain`, { encoding: 'utf8' });
+          extractedText += '\n\n' + output;
+        } else if (ext === '.xlsx' || ext === '.xls') {
+          // For Excel, we'll store the file and mention it contains data
+          extractedText += `\n\n[Excel file uploaded: ${req.file.originalname} - contains structured data]`;
+        }
+      } catch (extractError) {
+        console.error('Error extracting text from file:', extractError);
+        return res.status(400).json({
+          error: 'Failed to extract text from file',
+          message: 'Please ensure the file is valid and not corrupted',
+        });
+      }
+
+      // Clean up uploaded file
+      fs.unlinkSync(filePath);
+    }
+
+    if (!extractedText.trim()) {
+      return res.status(400).json({
+        error: 'No response text provided',
+        message: 'Please provide response text or upload a file',
+      });
+    }
+
+    // Store response text in clarification record
+    const clarificationUpdate = await sql`
+      UPDATE clarifications
+      SET
+        client_response_text = ${extractedText},
+        client_response_file = ${req.file?.originalname || null},
+        status = 'processing',
+        updated_at = now()
+      WHERE id = (
+        SELECT id FROM clarifications
+        WHERE opportunity_id = ${id}
+        ORDER BY created_at DESC
+        LIMIT 1
+      )
+      RETURNING id
+    `;
+
+    if (clarificationUpdate.length === 0) {
+      return res.status(404).json({
+        error: 'No clarification record found for this opportunity',
+      });
+    }
+
+    // Trigger clarification response parsing agent
+    const { jobQueueService } = await import('../services/jobQueue');
+    const { ClarificationResponseAgent } = await import('../services/agents/clarificationResponseAgent');
+
+    const job = await jobQueueService.createJob({
+      opportunityId: id,
+      agentType: 'clarification_response',
+      jobType: 'clarification_response',
+      status: 'pending',
+      progress: 0,
+      message: 'Queued for response parsing',
+      createdBy: req.body.userId || 'system',
+    });
+
+    // Execute agent in background
+    const agent = new ClarificationResponseAgent();
+    agent.execute({ opportunityId: id, userId: req.body.userId || 'system' })
+      .then(() => console.log(`Clarification response parsed for opportunity ${id}`))
+      .catch((err) => console.error('Error parsing clarification response:', err));
+
+    res.json({
+      message: 'Response uploaded successfully, parsing in progress',
+      jobId: job.id,
+      opportunityId: id,
+    });
+  } catch (error: any) {
+    console.error('Error handling clarification response:', error);
+    res.status(500).json({
+      error: 'Failed to process clarification response',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/reset-clarification-decision
+ * Reset the upload/skip decision to make buttons active again without redoing step 4
+ */
+router.post('/:id/reset-clarification-decision', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sql = getSql();
+
+    // Validate opportunity exists and is past clarification step
+    const opportunities = await sql`
+      SELECT id, status
+      FROM opportunities
+      WHERE id = ${id}
+    `;
+
+    if (opportunities.length === 0) {
+      return res.status(404).json({ error: 'Opportunity not found' });
+    }
+
+    const opportunity = opportunities[0];
+
+    // Only allow reset if we're past clarification step
+    const validStatuses = ['clarification_response', 'scope_planning', 'feasibility', 'wbs_estimate', 'proposal'];
+    if (!validStatuses.includes(opportunity.status)) {
+      return res.status(400).json({
+        error: 'Cannot reset decision',
+        message: `Opportunity must be past clarification step. Current status: ${opportunity.status}`,
+      });
+    }
+
+    // Clear the clarification response data and reset status to 'clarification'
+    await sql`
+      UPDATE clarifications
+      SET
+        client_response_text = null,
+        client_response_file = null,
+        client_responses = null,
+        status = 'sent',
+        updated_at = now()
+      WHERE opportunity_id = ${id}
+    `;
+
+    // Reset opportunity status to clarification (decision point)
+    await sql`
+      UPDATE opportunities
+      SET
+        status = 'clarification',
+        updated_at = now()
+      WHERE id = ${id}
+    `;
+
+    // Delete any jobs and data from steps after clarification
+    await sql`
+      DELETE FROM jobs
+      WHERE opportunity_id = ${id}
+        AND agent_type IN ('clarification_response', 'scope_planning', 'feasibility', 'wbs_estimate', 'proposal')
+    `;
+
+    res.json({
+      message: 'Decision reset successfully. Upload/skip buttons are now active.',
+      opportunityId: id,
+      newStatus: 'clarification',
+    });
+  } catch (error: any) {
+    console.error('Error resetting clarification decision:', error);
+    res.status(500).json({
+      error: 'Failed to reset decision',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * PATCH /api/opportunities/:opportunityId/clarifications/:clarificationId
+ * Update clarification questions and gap analysis assumptions (for manual edits)
+ */
+router.patch('/:opportunityId/clarifications/:clarificationId', async (req, res) => {
+  try {
+    const { opportunityId, clarificationId } = req.params;
+    const { questions, assumptions, approved } = req.body;
+    const sql = getSql();
+
+    if (!questions || !Array.isArray(questions)) {
+      return res.status(400).json({
+        error: 'Invalid request',
+        message: 'Questions array is required',
+      });
+    }
+
+    // Update clarification questions and mark as sent if approved
+    const updated = await sql`
+      UPDATE clarifications
+      SET
+        questions = ${JSON.stringify(questions)}::jsonb,
+        status = ${approved ? 'sent' : 'draft'},
+        sent_at = ${approved ? sql`now()` : null},
+        updated_at = now()
+      WHERE id = ${clarificationId}
+        AND opportunity_id = ${opportunityId}
+      RETURNING id, questions, status, sent_at, gap_analysis_id, updated_at
+    `;
+
+    if (updated.length === 0) {
+      return res.status(404).json({
+        error: 'Clarification not found',
+      });
+    }
+
+    // Note: Assumptions are read-only display data from gap_analysis
+    // They don't need to be persisted separately when edited in the modal
+
+    res.json({
+      message: approved ? 'Clarification questions approved and sent' : 'Clarification questions updated successfully',
+      clarification: updated[0],
+    });
+  } catch (error: any) {
+    console.error('Error updating clarification questions:', error);
+    res.status(500).json({
+      error: 'Failed to update clarification questions',
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/redo/:step
+ * Redo a workflow step and clear all succeeding steps
+ */
+router.post('/:id/redo/:step', async (req, res) => {
+  try {
+    const { id, step } = req.params;
+    const { userId } = req.body;
+    const sql = getSql();
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // Define the workflow order and what to clear for each step
+    const workflowSteps = [
+      'intake',
+      'brief_extract',
+      'gap_analysis',
+      'clarification',
+      'scope_planning',
+      'workplan',
+      'wbs_estimate',
+      'proposal',
+      'approvals'
+    ];
+
+    const stepIndex = workflowSteps.indexOf(step);
+    if (stepIndex === -1) {
+      return res.status(400).json({ error: 'Invalid step name' });
+    }
+
+    // Clear data based on which step is being redone
+    if (stepIndex <= workflowSteps.indexOf('brief_extract')) {
+      // Clear briefs and everything after
+      await sql`DELETE FROM briefs WHERE opportunity_id = ${id}`;
+    }
+
+    if (stepIndex <= workflowSteps.indexOf('gap_analysis')) {
+      // Clear gap analyses and everything after
+      await sql`
+        DELETE FROM gap_analyses
+        WHERE brief_id IN (
+          SELECT id FROM briefs WHERE opportunity_id = ${id}
+        )
+      `;
+    }
+
+    if (stepIndex <= workflowSteps.indexOf('clarification')) {
+      // Clear clarifications and everything after
+      await sql`DELETE FROM clarifications WHERE opportunity_id = ${id}`;
+    }
+
+    if (stepIndex <= workflowSteps.indexOf('scope_planning')) {
+      // Clear scopes and sample plans
+      await sql`DELETE FROM scopes WHERE opportunity_id = ${id}`;
+      await sql`
+        DELETE FROM sample_plans
+        WHERE scope_id IN (
+          SELECT id FROM scopes WHERE opportunity_id = ${id}
+        )
+      `;
+    }
+
+    if (stepIndex <= workflowSteps.indexOf('wbs_estimate')) {
+      // Clear WBS and pricing
+      await sql`
+        DELETE FROM wbs
+        WHERE scope_id IN (
+          SELECT id FROM scopes WHERE opportunity_id = ${id}
+        )
+      `;
+      await sql`DELETE FROM pricing_packs WHERE opportunity_id = ${id}`;
+    }
+
+    if (stepIndex <= workflowSteps.indexOf('proposal')) {
+      // Clear documents
+      await sql`DELETE FROM documents WHERE opportunity_id = ${id}`;
+    }
+
+    if (stepIndex <= workflowSteps.indexOf('approvals')) {
+      // Clear approvals
+      await sql`DELETE FROM approvals WHERE opportunity_id = ${id}`;
+    }
+
+    // Cancel any in-progress jobs (set to failed since cancelled is not in check constraint)
+    await sql`
+      UPDATE jobs
+      SET status = 'failed', error = 'Cancelled due to step redo', updated_at = now()
+      WHERE opportunity_id = ${id}
+        AND status IN ('pending', 'processing')
+    `;
+
+    // Reset opportunity status to the step being redone
+    await sql`
+      UPDATE opportunities
+      SET status = ${step}, updated_at = now()
+      WHERE id = ${id}
+    `;
+
+    // Trigger the orchestrator to process the step
+    const orchestrator = new OrchestratorAgent();
+    await orchestrator.execute({
+      opportunityId: id,
+      userId,
+      triggerStep: step,
+    });
+
+    res.json({
+      message: `Step ${step} will be reprocessed`,
+      opportunityId: id,
+    });
+  } catch (error: any) {
+    console.error('Error redoing step:', error);
+    res.status(500).json({
+      error: 'Failed to redo step',
+      message: error.message,
+    });
   }
 });
 
