@@ -1,6 +1,8 @@
 # CLAUDE.md - Lumina Scope Project Context
 
-**Last Updated**: 2026-03-11
+**⚡ IMPORTANT: Claude CLI & Extension should use Claude Sonnet 4.6 for all work on this project.**
+
+**Last Updated**: 2026-03-16
 **Current Phase**: Phase 2 Complete ✅ (Scope Planning)
 **Next Phase**: Phase 3 - WBS Estimation & Pricing
 
@@ -53,7 +55,8 @@
 **Key Architecture**:
 - **Frontend**: Next.js 16 + React 19 + TypeScript + Tailwind CSS (Port 3000)
 - **Backend**: Express.js + TypeScript + PostgreSQL (Port 3038)
-- **AI**: AWS Bedrock (Claude Haiku 4.5) - `global.anthropic.claude-haiku-4-5-20251001-v1:0`
+- **AI**: AWS Bedrock (Claude Sonnet 4.6) - `global.anthropic.claude-sonnet-4-6`
+- **Claude CLI/Extension**: Use **Sonnet 4.6** for all work on this project
 - **Database**: PostgreSQL database `lumina_scope` with 28 tables (17 new in Phase 1)
 - **Brand**: PetaSight colors (magenta #da365c primary)
 
@@ -315,9 +318,9 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:3038
 - **No Google OAuth yet** - planned for Phase 1 completion
 
 ### **2. LLM Model**
-- **Always use Claude Haiku 4.5**: `global.anthropic.claude-haiku-4-5-20251001-v1:0`
-- Do NOT switch to Sonnet/Opus unless explicitly requested
-- Haiku is fast (~2-3s), cheap ($0.80/$4.00 per M tokens), and sufficient for extraction tasks
+- **Always use Claude Sonnet 4.6**: `global.anthropic.claude-sonnet-4-6`
+- Do NOT switch to Opus or other models unless explicitly requested
+- Sonnet 4.6 is more capable (~5-10s), slightly more expensive ($3/$15 per M tokens), and provides better reasoning
 
 ### **3. Database Connection**
 - Uses TCP connection (`127.0.0.1`) instead of Unix socket to avoid peer authentication issues
