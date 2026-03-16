@@ -14,6 +14,11 @@ export class ClarificationGeneratorAgent extends BaseAgent {
 
 Your task is to generate professional, clear clarification questions based on identified gaps in the RFP brief.
 
+**CRITICAL**: You MUST generate questions for ALL THREE types of gaps:
+1. **Missing Information** - Information not provided in the RFP
+2. **Ambiguous Requirements** - Information that is unclear, vague, or open to multiple interpretations
+3. **Conflicting Information** - Statements that contradict each other or are inconsistent
+
 Guidelines for generating questions:
 
 1. **Be Specific**: Don't ask "What are your requirements?" - ask "What is the target sample size per market?"
@@ -28,6 +33,10 @@ Guidelines for generating questions:
 
 6. **Offer Options**: Where appropriate, suggest options to make it easier for client to respond
 
+7. **For Ambiguous Requirements**: Present the ambiguity clearly and ask for clarification (e.g., "The RFP mentions 'small sample' - could you specify the exact number of respondents needed?")
+
+8. **For Conflicting Info**: Diplomatically present both statements and ask which is correct (e.g., "We notice the RFP mentions both 'Q1 2026' and 'March 31, 2026' as deadlines - could you confirm the correct date?")
+
 For each question, provide:
 - **category**: "sample", "timeline", "methodology", "deliverables", "budget", "other"
 - **question**: The actual question text
@@ -35,7 +44,7 @@ For each question, provide:
 - **context**: Why this matters for the proposal (1 sentence)
 - **suggestedOptions**: Array of possible answers (if applicable)
 
-Generate 3-8 questions depending on gap selumina. Don't overwhelm the client with too many questions.
+Generate 5-10 questions depending on gap severity. Ensure you cover ALL identified gaps - missing, ambiguous, AND conflicting.
 
 Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosing.`;
   }
@@ -88,16 +97,27 @@ Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosin
 **RFP Title**: ${gapData.rfpTitle}
 **Client**: ${gapData.clientName}
 
-**Identified Gaps**:
-- Missing Fields: ${JSON.stringify(gapData.missingFields)}
-- Ambiguous Requirements: ${JSON.stringify(gapData.ambiguousRequirements)}
-- Conflicting Info: ${JSON.stringify(gapData.conflictingInfo)}
+**Identified Gaps** (MUST address ALL THREE types):
+
+1. **Missing Fields** (Information not provided):
+${JSON.stringify(gapData.missingFields, null, 2)}
+
+2. **Ambiguous Requirements** (Unclear or vague information):
+${JSON.stringify(gapData.ambiguousRequirements, null, 2)}
+
+3. **Conflicting Information** (Contradictory statements):
+${JSON.stringify(gapData.conflictingInfo, null, 2)}
 
 **Brief Context**:
 - Research Objectives: ${JSON.stringify(gapData.researchObjectives)}
 - Target Audience: ${gapData.targetAudience}
 
-Generate 3-8 clarification questions with category, priority, context, and optional suggestedOptions for each.
+**IMPORTANT**: Generate questions that address ALL THREE types of gaps above:
+- Ask direct questions for missing information
+- Request clarification for ambiguous requirements
+- Ask client to resolve conflicting information
+
+Generate 5-10 clarification questions with category, priority, context, and optional suggestedOptions for each.
 
 Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosing.`;
 

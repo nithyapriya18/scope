@@ -784,10 +784,10 @@ export default function ClarificationModal({
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                  {(clarification.status === 'sent' || isCompleted) ? 'Already sent to client' : 'Ready to send to client?'}
+                  {clarification.status === 'sent' ? 'Already sent to client' : 'Ready to send to client?'}
                 </p>
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  {(clarification.status === 'sent' || isCompleted)
+                  {clarification.status === 'sent'
                     ? 'Email has been sent. Use the refresh button to resend if needed.'
                     : 'This will mark clarifications as approved and proceed to the next step'}
                 </p>
@@ -801,9 +801,9 @@ export default function ClarificationModal({
                 </button>
                 <button
                   onClick={handleApproveAndSend}
-                  disabled={approving || clarification.status === 'sent' || isCompleted}
+                  disabled={approving || clarification.status === 'sent'}
                   className={`flex items-center gap-2 px-6 py-2.5 text-sm font-bold rounded-lg shadow-lg transition-all ${
-                    approving || clarification.status === 'sent' || isCompleted
+                    approving || clarification.status === 'sent'
                       ? 'bg-gray-400 dark:bg-gray-600 text-gray-100 cursor-not-allowed'
                       : 'bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white hover:shadow-xl'
                   }`}
@@ -813,7 +813,7 @@ export default function ClarificationModal({
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                       Approving...
                     </>
-                  ) : (clarification.status === 'sent' || isCompleted) ? (
+                  ) : clarification.status === 'sent' ? (
                     <>
                       <CheckCircle className="w-4 h-4" />
                       Already Sent

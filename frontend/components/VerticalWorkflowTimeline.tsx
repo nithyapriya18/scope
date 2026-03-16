@@ -217,11 +217,32 @@ export default function VerticalWorkflowTimeline({
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) {
-      console.log('No file selected');
+      console.log('❌ No file selected');
       return;
     }
 
-    console.log('File selected:', file.name, 'Size:', file.size, 'Type:', file.type);
+    console.log('📁 File selected:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      opportunityId: opportunity?.id,
+      backendStatus: backendStatus,
+    });
+
+    if (backendStatus !== 'clarification') {
+      alert(`⚠️ Cannot upload file. Opportunity must be in "clarification" status.\n\nCurrent status: ${backendStatus}`);
+      console.error('❌ Wrong status for upload:', backendStatus);
+      event.target.value = '';
+      return;
+    }
+
+    if (!opportunity?.id) {
+      alert('⚠️ No opportunity ID found. Please refresh the page and try again.');
+      console.error('❌ No opportunity ID');
+      event.target.value = '';
+      return;
+    }
+
     setUploadingResponse(true);
     setShowUploadDialog(false);
 
@@ -230,35 +251,91 @@ export default function VerticalWorkflowTimeline({
       formData.append('responseFile', file);
       formData.append('userId', 'a14bc04f-7d40-4ad2-bcb8-ec0ea08b7da0'); // Demo user UUID
 
-      console.log('Uploading to:', `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity?.id}/clarification-response`);
+      const uploadUrl = `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity.id}/clarification-response`;
+      console.log('🚀 Uploading to:', uploadUrl);
+      console.log('📦 FormData contents:', {
+        file: file.name,
+        userId: 'a14bc04f-7d40-4ad2-bcb8-ec0ea08b7da0',
+      });
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity?.id}/clarification-response`, {
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         body: formData,
       });
 
-      console.log('Response status:', response.status);
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
-        const error = await response.json();
-        console.error('Upload error:', error);
-        throw new Error(error.message || 'Upload failed');
+        const contentType = response.headers.get('content-type');
+        let error;
+
+        if (contentType && contentType.includes('application/json')) {
+          error = await response.json();
+        } else {
+          const text = await response.text();
+          error = { message: text || 'Upload failed', status: response.status };
+        }
+
+        console.error('❌ Upload error:', error);
+        throw new Error(error.message || error.error || 'Upload failed');
       }
 
       const result = await response.json();
       console.log('✅ Response uploaded successfully:', result);
-      alert('Client response uploaded successfully! Processing...');
 
-      // Refresh opportunity data
-      if (onRefresh) {
-        setTimeout(() => onRefresh(), 2000);
-      }
+      // Show success message but keep processing state
+      alert(`✅ File "${file.name}" uploaded successfully!\n\n⏳ Parsing client responses with AI... This may take 15-30 seconds.\n\nThe buttons will re-enable automatically once processing completes.`);
+
+      // Keep refreshing and check if processing is complete
+      let checkCount = 0;
+      const maxChecks = 20; // 20 checks * 3s = 60 seconds max
+
+      const refreshInterval = setInterval(async () => {
+        checkCount++;
+        console.log(`🔄 Polling check ${checkCount}/${maxChecks}`);
+
+        if (onRefresh) {
+          await onRefresh();
+        }
+
+        // Re-fetch opportunity status to check if it's changed
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity.id}`);
+          if (response.ok) {
+            const updatedOpp = await response.json();
+            console.log(`📊 Current status: ${updatedOpp.status}`);
+
+            // Check if status has changed from 'clarification'
+            if (updatedOpp.status !== 'clarification') {
+              console.log('✅ Processing complete, status changed to:', updatedOpp.status);
+              clearInterval(refreshInterval);
+              setUploadingResponse(false);
+              alert('✅ Client responses parsed successfully!\n\nYou can now proceed to the next step.');
+              return;
+            }
+          }
+        } catch (err) {
+          console.error('Error checking opportunity status:', err);
+        }
+
+        // Timeout after max checks
+        if (checkCount >= maxChecks) {
+          clearInterval(refreshInterval);
+          setUploadingResponse(false);
+          console.log('⏱️ Stopped polling after', maxChecks * 3, 'seconds');
+          alert('⏱️ Processing is taking longer than expected.\n\nPlease check back in a moment or refresh the page.');
+        }
+      }, 3000);
+
     } catch (error) {
       console.error('❌ Error uploading response:', error);
       alert(`Failed to upload response file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
       setUploadingResponse(false);
     }
+
+    // Reset file input
+    event.target.value = '';
   };
 
   const handleSkipResponses = async () => {
@@ -849,7 +926,7 @@ export default function VerticalWorkflowTimeline({
                     {uploadingResponse ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Processing...
+                        Parsing Responses...
                       </>
                     ) : (
                       <>
@@ -891,7 +968,7 @@ export default function VerticalWorkflowTimeline({
                   {uploadingResponse ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing...
+                      Parsing Responses...
                     </>
                   ) : (
                     <>

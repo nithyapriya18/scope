@@ -11,6 +11,14 @@ function AuthCallbackContent() {
 
   useEffect(() => {
     const token = searchParams.get('token');
+    const error = searchParams.get('error');
+
+    // Check for auth errors from backend
+    if (error) {
+      console.error('OAuth error from backend:', error);
+      router.push(`/login?error=${error}`);
+      return;
+    }
 
     if (!token) {
       console.error('No token received from OAuth callback');
@@ -18,30 +26,55 @@ function AuthCallbackContent() {
       return;
     }
 
+    console.log('🔐 Received token, fetching user data...');
+    console.log('🔗 Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL);
+
+    // Safety timeout - if auth takes > 10 seconds, something is wrong
+    const timeoutId = setTimeout(() => {
+      console.error('⏱️ Auth callback timeout - backend not responding');
+      router.push('/login?error=timeout');
+    }, 10000);
+
     // Fetch user data with token
     fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     })
-      .then((res) => {
+      .then(async (res) => {
+        const responseText = await res.text();
+        console.log('Auth response status:', res.status, 'body:', responseText);
+
         if (!res.ok) {
-          throw new Error('Failed to fetch user data');
+          throw new Error(`HTTP ${res.status}: ${responseText}`);
         }
-        return res.json();
+
+        try {
+          return JSON.parse(responseText);
+        } catch (e) {
+          throw new Error(`Invalid JSON: ${responseText}`);
+        }
       })
       .then((data) => {
+        clearTimeout(timeoutId);
+        console.log('✅ Auth response received:', data);
+
         if (data.user) {
           console.log('✅ OAuth login successful:', data.user.email);
           setAuth(token, data.user);
-          router.push('/dashboard');
+
+          // Small delay to ensure localStorage is set before redirect
+          setTimeout(() => {
+            router.push('/dashboard');
+          }, 100);
         } else {
-          console.error('No user data in response');
+          console.error('No user data in response:', data);
           router.push('/login?error=invalid_user');
         }
       })
       .catch((error) => {
-        console.error('Auth error:', error);
+        clearTimeout(timeoutId);
+        console.error('Auth error:', error.message || error);
         router.push('/login?error=fetch_failed');
       });
   }, [router, searchParams]);
@@ -52,6 +85,7 @@ function AuthCallbackContent() {
         <Loader2 className="w-12 h-12 text-ps-primary-600 animate-spin mx-auto mb-4" />
         <p className="text-gray-600 text-lg">Completing sign in...</p>
         <p className="text-gray-500 text-sm mt-2">Please wait while we authenticate you</p>
+        <p className="text-gray-400 text-xs mt-4">Check browser console for details if this takes too long</p>
       </div>
     </div>
   );

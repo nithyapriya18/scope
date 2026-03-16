@@ -8,6 +8,7 @@ import { getSql } from '../../lib/sql';
 import { IntakeAgent } from './intakeAgent';
 import { BriefExtractorAgent } from './briefExtractorAgent';
 import { GapAnalyzerAgent } from './gapAnalyzerAgent';
+import { AssumptionAnalyzerAgent } from './assumptionAnalyzerAgent';
 import { ClarificationGeneratorAgent } from './clarificationGeneratorAgent';
 import { ScopePlannerAgent } from './scopePlannerAgent';
 import { HCPMatcherAgent } from './hcpMatcherAgent';
@@ -20,6 +21,7 @@ export type WorkflowStatus =
   | 'intake'
   | 'brief_extract'
   | 'gap_analysis'
+  | 'assumption_analysis'
   | 'clarification'
   | 'clarification_response'
   | 'scope_planning'  // Phase 2: Research design (methodology, sample, delivery plan)
@@ -64,7 +66,11 @@ Your role is to coordinate agent execution based on the current workflow state.`
           return await this.executeGapAnalysis(context);
 
         case 'gap_analysis':
-          // Gap analysis complete, move to clarification generation
+          // Gap analysis complete, move to assumption analysis
+          return await this.executeAssumptionAnalysis(context);
+
+        case 'assumption_analysis':
+          // Assumption analysis complete, move to clarification generation
           return await this.executeClarificationGeneration(context);
 
         case 'clarification':
@@ -162,6 +168,26 @@ Your role is to coordinate agent execution based on the current workflow state.`
         WHERE id = ${context.opportunityId}
       `;
       console.log(`✅ Opportunity status updated to: gap_analysis`);
+    }
+
+    return result;
+  }
+
+  private async executeAssumptionAnalysis(context: AgentContext): Promise<AgentResult> {
+    console.log('🤔 Executing Assumption & Clash Analysis...');
+
+    const sql = getSql();
+    const agent = new AssumptionAnalyzerAgent();
+    const result = await agent.execute(context);
+
+    // Update opportunity status on success
+    if (result.success) {
+      await sql`
+        UPDATE opportunities
+        SET status = 'assumption_analysis', updated_at = now()
+        WHERE id = ${context.opportunityId}
+      `;
+      console.log(`✅ Opportunity status updated to: assumption_analysis`);
     }
 
     return result;

@@ -1244,28 +1244,16 @@ router.post('/:id/clarification-response', upload.single('responseFile'), async 
     }
 
     // Trigger clarification response parsing agent
-    const { jobQueueService } = await import('../services/jobQueue');
     const { ClarificationResponseAgent } = await import('../services/agents/clarificationResponseAgent');
 
-    const job = await jobQueueService.createJob({
-      opportunityId: id,
-      agentType: 'clarification_response',
-      jobType: 'clarification_response',
-      status: 'pending',
-      progress: 0,
-      message: 'Queued for response parsing',
-      createdBy: req.body.userId || 'system',
-    });
-
-    // Execute agent in background
+    // Execute agent in background (agent will create its own job for tracking)
     const agent = new ClarificationResponseAgent();
     agent.execute({ opportunityId: id, userId: req.body.userId || 'system' })
-      .then(() => console.log(`Clarification response parsed for opportunity ${id}`))
-      .catch((err) => console.error('Error parsing clarification response:', err));
+      .then(() => console.log(`✅ Clarification response parsed for opportunity ${id}`))
+      .catch((err) => console.error('❌ Error parsing clarification response:', err));
 
     res.json({
       message: 'Response uploaded successfully, parsing in progress',
-      jobId: job.id,
       opportunityId: id,
     });
   } catch (error: any) {

@@ -74,36 +74,27 @@ export default function Header() {
                 >
                   Dashboard
                 </Link>
-                <Link
-                  href="/intelligence"
-                  className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
-                >
-                  Intelligence
-                </Link>
               </>
             )}
           </nav>
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
-            {user ? (
-              <button
-                onClick={logout}
-                className="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
-              >
-                <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  {user.name?.split(' ')[0] || user.email.split('@')[0]}
-                </span>
-                <LogOut className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-              </button>
-            ) : (
-              <Link
-                href="/login"
-                className="hidden md:block px-4 py-2 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
-              >
-                Log In
-              </Link>
+            {!user && isLandingPage && (
+              <div className="hidden md:flex items-center gap-2">
+                <Link
+                  href="/login"
+                  className="px-4 py-2 text-ps-primary-600 hover:bg-ps-primary-50 dark:hover:bg-ps-primary-950 rounded-lg text-sm font-medium transition-colors"
+                >
+                  Log In
+                </Link>
+                <Link
+                  href="/login"
+                  className="px-4 py-2 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  Sign Up
+                </Link>
+              </div>
             )}
 
             {/* Theme Toggle */}
@@ -142,13 +133,22 @@ export default function Header() {
                 >
                   Contact
                 </a>
-                <Link
-                  href="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-2 text-sm font-medium text-ps-primary-600 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg mx-2 mt-2"
-                >
-                  Log In
-                </Link>
+                <div className="flex gap-2 px-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-ps-primary-600 border border-ps-primary-600 hover:bg-ps-primary-50 dark:hover:bg-ps-primary-950 rounded-lg text-center"
+                  >
+                    Log In
+                  </Link>
+                  <Link
+                    href="/login"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex-1 px-4 py-2 text-sm font-medium text-white bg-ps-primary-600 hover:bg-ps-primary-700 rounded-lg text-center"
+                  >
+                    Sign Up
+                  </Link>
+                </div>
               </>
             ) : user ? (
               <>
@@ -161,13 +161,6 @@ export default function Header() {
                   className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg mx-2 mb-1"
                 >
                   Dashboard
-                </Link>
-                <Link
-                  href="/intelligence"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg mx-2 mb-1"
-                >
-                  Intelligence
                 </Link>
                 <button
                   onClick={logout}

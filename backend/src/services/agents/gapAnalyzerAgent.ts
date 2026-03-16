@@ -10,52 +10,67 @@ export class GapAnalyzerAgent extends BaseAgent {
   protected agentType = 'gap_analysis';
 
   protected getSystemPrompt(context: AgentContext): string {
-    return `You are a PMR Gap Analysis Specialist. Identify critical information gaps in RFPs.
+    return `You are a PMR Gap Analysis Specialist. Analyze RFP completeness against the 13-section template.
 
-Analyze the brief and categorize gaps. **BE CONCISE** - keep descriptions under 100 characters:
+**TEMPLATE SECTIONS**:
+1. Contact & Issuer Information
+2. Introduction & Company Overview
+3. Confidentiality & Legal Terms
+4. Project Background & Context
+5. Business & Research Objectives
+6. Methodology & Scope
+7. Markets & Geography
+8. Target Audience & Sample
+9. Timeline & Key Dates
+10. Deliverables
+11. Budget & Cost Requirements
+12. Proposal Submission Requirements
+13. Evaluation Criteria
 
-**1. Missing Critical Fields**:
+**YOUR TASK**: Identify FOUR gap categories (concise, max 80 chars each):
+
+**1. Missing Template Sections** (entire sections absent):
 {
-  "field": "Brief field name (e.g., 'Sample Size')",
-  "priority": "critical" | "high" | "medium",
-  "description": "What's missing (MAX 80 chars)",
-  "impact": "Why it matters (MAX 80 chars)"
+  "section": "Section name + number (e.g., 'Section 7: Markets & Geography')",
+  "impact": "Why needed (80 chars max)",
+  "priority": "critical" | "high" | "medium"
 }
 
-**2. Ambiguous Requirements**:
+**2. Incomplete Sections** (section present but key fields missing):
 {
-  "requirement": "Requirement name",
-  "severity": "high" | "medium" | "low",
-  "issue": "What's unclear (MAX 80 chars)",
-  "possibleInterpretations": ["option 1 (MAX 50 chars)", "option 2", "option 3"]
+  "section": "Section name",
+  "missingField": "Specific field name",
+  "priority": "critical" | "high" | "medium"
 }
 
-**3. Conflicting Information**:
+**3. Ambiguous Requirements** (unclear language, vague terms):
+Examples: "small sample" (size?), "experienced docs" (years?), "ASAP" (exact date?), "major markets" (which?)
 {
-  "area": "Conflict topic",
-  "conflict": "Brief description (MAX 100 chars)",
-  "statement1": "First statement (MAX 60 chars)",
-  "statement2": "Second statement (MAX 60 chars)"
+  "section": "Section name",
+  "field": "Field name",
+  "ambiguity": "What's unclear (80 chars max)",
+  "possibleInterpretations": ["A", "B", "C"]
 }
 
-**4. Assumptions Made**:
+**4. Conflicting Information** (contradictions within or across sections):
 {
-  "assumption": "Brief assumption (MAX 80 chars)",
-  "basedOn": "Reasoning (MAX 60 chars)",
-  "needsValidation": true | false
+  "section": "Section name",
+  "conflict": "Brief description (100 chars max)",
+  "statement1": "First value",
+  "statement2": "Second value (conflicting)"
 }
 
-**Limits**: Max 10 missing fields, 8 ambiguous requirements, 5 conflicts, 8 assumptions.
+**LIMITS**: Max 10 per category
 
 Respond with valid JSON:
 {
-  "missingFields": [],
+  "missingSections": [],
+  "incompleteFields": [],
   "ambiguousRequirements": [],
-  "conflictingInfo": [],
-  "assumptionsMade": [],
-  "overallCompleteness": 0.75,
-  "criticalGapsCount": 2,
-  "highPriorityGapsCount": 5
+  "conflicts": [],
+  "sectionsPresent": 7,
+  "sectionsMissing": 6,
+  "overallCompletenessPercent": 54
 }`;
   }
 
@@ -101,17 +116,26 @@ Respond with valid JSON:
       }
 
       const systemPrompt = this.getSystemPrompt(context);
-      const userMessage = `Analyze this extracted brief and identify all information gaps:
+      const userMessage = `Analyze this template-mapped RFP extraction and identify ALL gaps:
 
 ${JSON.stringify(brief, null, 2)}
 
-Identify:
-1. What information is completely MISSING (not in the RFP at all)
-2. What information is AMBIGUOUS (present but unclear/vague)
-3. Any CONFLICTS or contradictions
-4. What ASSUMPTIONS you must make due to missing information
+**TASK**: Analyze completeness against the 13-section template
 
-Respond with JSON containing: missingFields[], ambiguousRequirements[], conflictingInfo[], assumptionsMade[], overallCompleteness, criticalGapsCount, highPriorityGapsCount.`;
+For each section status (COMPLETE/PARTIAL/MISSING):
+1. If MISSING: Entire section absent → HIGH/CRITICAL priority
+2. If PARTIAL: Some fields missing → Map which specific fields
+3. If COMPLETE: Look for ambiguous language, vague terms, conflicting values
+
+Look for:
+- Vague terms: "small sample" (how many?), "ASAP" (exact date?), "major markets" (which?)
+- Conflicting values: Budget "$50K" vs "$75K", deadline "Q1" vs "March 31"
+- Incomplete specifications: Methodology mentioned but not detailed
+- Missing standard fields: No timeline, budget range not stated, etc.
+
+Return structured gap analysis by section.
+
+Respond with ONLY JSON.`;
 
       // Update progress: 40% - Running AI analysis
       if (currentJob) {
@@ -134,14 +158,14 @@ Respond with JSON containing: missingFields[], ambiguousRequirements[], conflict
         } else {
           gapAnalysis = JSON.parse(response);
         }
-      } catch (parseError) {
+      } catch (parseError: any) {
         console.error('Failed to parse gap analysis response');
         console.error('Parse error:', parseError);
         console.error('AI Response (first 500 chars):', response.substring(0, 500));
         console.error('AI Response (last 500 chars):', response.substring(Math.max(0, response.length - 500)));
         return {
           success: false,
-          error: `Failed to parse gap analysis: ${parseError.message}`,
+          error: `Failed to parse gap analysis: ${parseError?.message || 'Unknown error'}`,
         };
       }
 
@@ -150,15 +174,21 @@ Respond with JSON containing: missingFields[], ambiguousRequirements[], conflict
         await jobQueueService.updateProgress(currentJob.id, 80, 'Saving gap analysis to database');
       }
 
-      // Convert to snake_case for database storage
+      // Convert to snake_case for database storage (template-aware)
       const dbData = {
-        missing_fields: gapAnalysis.missingFields || [],
+        missing_sections: gapAnalysis.missingSections || [],
+        incomplete_fields: gapAnalysis.incompleteFields || [],
+        ambiguous_requirements_new: gapAnalysis.ambiguousRequirements || [],
+        conflicting_info: gapAnalysis.conflicts || [],
+        sections_present: gapAnalysis.sectionsPresent || 0,
+        sections_missing: gapAnalysis.sectionsMissing || 0,
+        overall_completeness: Math.max(0, Math.min(1, (gapAnalysis.overallCompletenessPercent || 0) / 100)),
+        // Backward compatibility
+        missing_fields: gapAnalysis.incompleteFields || [],
         ambiguous_requirements: gapAnalysis.ambiguousRequirements || [],
-        conflicting_info: gapAnalysis.conflictingInfo || [],
-        assumptions_made: gapAnalysis.assumptionsMade || [],
-        overall_completeness: gapAnalysis.overallCompleteness || 0,
-        critical_gaps_count: gapAnalysis.criticalGapsCount || 0,
-        high_priority_gaps_count: gapAnalysis.highPriorityGapsCount || 0,
+        assumptions_made: [],
+        critical_gaps_count: gapAnalysis.missingSections?.length || 0,
+        high_priority_gaps_count: (gapAnalysis.incompleteFields?.length || 0) + (gapAnalysis.ambiguousRequirements?.length || 0),
       };
 
       // Store gap analysis
@@ -191,10 +221,16 @@ Respond with JSON containing: missingFields[], ambiguousRequirements[], conflict
       `;
 
       // Determine next recommended step
-      const hasCriticalGaps = dbData.critical_gaps_count > 0 || dbData.high_priority_gaps_count > 0;
+      const hasCriticalGaps = dbData.sections_missing > 0 || dbData.critical_gaps_count > 0 || dbData.high_priority_gaps_count > 0;
       const nextStatus = hasCriticalGaps ? 'clarification' : 'scope_build';
 
-      console.log(`✅ Gap analysis complete: ${dbData.critical_gaps_count} critical, ${dbData.high_priority_gaps_count} high priority gaps`);
+      console.log(`✅ Gap analysis complete (template-aware)`);
+      console.log(`   Sections Present: ${dbData.sections_present}/13`);
+      console.log(`   Sections Missing: ${dbData.sections_missing}`);
+      console.log(`   Incomplete Fields: ${dbData.incomplete_fields.length}`);
+      console.log(`   Ambiguous Requirements: ${dbData.ambiguous_requirements.length}`);
+      console.log(`   Conflicting Info: ${dbData.conflicting_info.length}`);
+      console.log(`   Overall Completeness: ${Math.round(dbData.overall_completeness * 100)}%`);
 
       return {
         success: true,

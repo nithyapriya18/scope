@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Plus, Bell, TrendingUp, Calendar, Trash2, Download, FileText } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
+import * as XLSX from 'xlsx';
 
 interface Opportunity {
   id: string;
@@ -80,6 +81,8 @@ export default function DashboardPage() {
   const [search, setSearch] = useState('');
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchOpportunities = async () => {
     try {
@@ -122,6 +125,116 @@ export default function DashboardPage() {
     };
   }, [opportunities]);
 
+  // Selection handlers
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(new Set(filtered.map(o => o.id)));
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const isAllSelected = filtered.length > 0 && filtered.every(o => selectedIds.has(o.id));
+  const isSomeSelected = filtered.some(o => selectedIds.has(o.id)) && !isAllSelected;
+
+  // Bulk export to Excel
+  const handleBulkExport = () => {
+    const selectedOpportunities = opportunities.filter(o => selectedIds.has(o.id));
+
+    if (selectedOpportunities.length === 0) {
+      alert('No bids selected for export');
+      return;
+    }
+
+    const exportData = selectedOpportunities.map(opp => ({
+      'Bid ID': `BID-${opp.id.substring(0, 3).toUpperCase()}`,
+      'Client Name': opp.clientName || 'Unknown Client',
+      'Study Title': opp.rfpTitle || 'Untitled Study',
+      'Therapeutic Area': opp.therapeuticArea || 'N/A',
+      'Status': getStatusLabel(opp.status),
+      'Progress %': getProgressPercent(opp.status),
+      'Due Date': opp.rfpDeadline ? new Date(opp.rfpDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
+      'Days Until Deadline': opp.rfpDeadline ? getDaysUntilDeadline(opp.rfpDeadline) : 'N/A',
+      'Created At': new Date(opp.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Bids');
+
+    // Auto-size columns
+    const maxWidth = 50;
+    const colWidths = Object.keys(exportData[0] || {}).map(key => ({
+      wch: Math.min(
+        maxWidth,
+        Math.max(
+          key.length,
+          ...exportData.map(row => String(row[key as keyof typeof row]).length)
+        )
+      )
+    }));
+    worksheet['!cols'] = colWidths;
+
+    XLSX.writeFile(workbook, `Lumina_Bids_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+
+    alert(`${selectedOpportunities.length} bid(s) exported successfully`);
+  };
+
+  // Bulk delete
+  const handleBulkDelete = async () => {
+    const selectedOpportunities = opportunities.filter(o => selectedIds.has(o.id));
+
+    if (selectedOpportunities.length === 0) {
+      alert('No bids selected for deletion');
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to delete ${selectedOpportunities.length} bid(s)?\n\n${selectedOpportunities.map(o => `- ${o.clientName}: ${o.rfpTitle}`).join('\n')}\n\nThis action cannot be undone.`;
+
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    setIsDeleting(true);
+
+    try {
+      const deletePromises = Array.from(selectedIds).map(id =>
+        fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${id}`, {
+          method: 'DELETE',
+        })
+      );
+
+      const results = await Promise.allSettled(deletePromises);
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (failed > 0) {
+        alert(`Deleted ${successful} bid(s). ${failed} deletion(s) failed.`);
+      } else {
+        alert(`Successfully deleted ${successful} bid(s)`);
+      }
+
+      // Refresh the list
+      setSelectedIds(new Set());
+      await fetchOpportunities();
+    } catch (error) {
+      console.error('Bulk delete failed:', error);
+      alert('Failed to delete bids. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-white dark:bg-slate-900">
@@ -136,16 +249,49 @@ export default function DashboardPage() {
       <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 z-10 flex-shrink-0">
         <div className="flex items-center gap-6">
           <h2 className="text-xl font-bold text-slate-900 dark:text-white">Bid Pipeline</h2>
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-              placeholder="Search bids..."
-              type="text"
-            />
-          </div>
+          {selectedIds.size === 0 ? (
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-1.5 bg-slate-100 dark:bg-slate-800 border-none rounded-lg text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                placeholder="Search bids..."
+                type="text"
+              />
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 bg-primary/10 px-4 py-2 rounded-lg">
+              <span className="text-sm font-semibold text-primary">
+                {selectedIds.size} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleBulkExport}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                  title="Export to Excel"
+                >
+                  <Download size={14} />
+                  Export
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isDeleting}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete selected"
+                >
+                  <Trash2 size={14} />
+                  {isDeleting ? 'Deleting...' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 px-2 py-1.5 text-sm font-medium"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-4">
           <button className="p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full relative">
@@ -154,7 +300,7 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => router.push('/opportunities/new')}
-            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-lg-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
           >
             <Plus size={16} />
             New Bid
@@ -209,6 +355,19 @@ export default function DashboardPage() {
             <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                  <th className="px-4 py-4 w-12">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(input) => {
+                        if (input) {
+                          input.indeterminate = isSomeSelected;
+                        }
+                      }}
+                      onChange={(e) => handleSelectAll(e.target.checked)}
+                      className="w-4 h-4 text-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary cursor-pointer"
+                    />
+                  </th>
                   <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-28">Bid ID</th>
                   <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[300px]">Client & Study Title</th>
                   <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Study Type</th>
@@ -222,7 +381,7 @@ export default function DashboardPage() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-6 py-12 text-center text-sm text-slate-600 dark:text-slate-400">
+                    <td colSpan={9} className="px-6 py-12 text-center text-sm text-slate-600 dark:text-slate-400">
                       No bids found
                     </td>
                   </tr>
@@ -233,12 +392,21 @@ export default function DashboardPage() {
                     const progress = getProgressPercent(opp.status);
                     const isUrgent = daysLeft <= 2;
                     const statusLabel = getStatusLabel(opp.status);
+                    const isSelected = selectedIds.has(opp.id);
 
                     return (
                       <tr
                         key={opp.id}
-                        className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                        className={`transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
                       >
+                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => handleSelectOne(opp.id, e.target.checked)}
+                            className="w-4 h-4 text-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary cursor-pointer"
+                          />
+                        </td>
                         <td
                           className="px-6 py-4 text-sm font-mono text-slate-500 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
@@ -363,11 +531,11 @@ export default function DashboardPage() {
             <div className="w-64 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary"
-                style={{ width: opportunities.length > 0 ? `${Math.round((opportunities.filter(o => o.status === 'proposal' || o.status === 'approvals').length / opportunities.length) * 100)}%` : '0%' }}
+                style={{ width: opportunities.length > 0 ? `${Math.round(opportunities.reduce((sum, o) => sum + getProgressPercent(o.status), 0) / opportunities.length)}%` : '0%' }}
               ></div>
             </div>
             <span className="text-sm font-bold text-slate-900 dark:text-white">
-              {opportunities.length > 0 ? Math.round((opportunities.filter(o => o.status === 'proposal' || o.status === 'approvals').length / opportunities.length) * 100) : 0}%
+              {opportunities.length > 0 ? Math.round(opportunities.reduce((sum, o) => sum + getProgressPercent(o.status), 0) / opportunities.length) : 0}%
             </span>
           </div>
           <p className="text-xs text-slate-400 italic">

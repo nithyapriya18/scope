@@ -49,7 +49,16 @@ export default function OpportunityDetailPage() {
     const workflowMode = getWorkflowMode();
 
     // Steps that always auto-advance (no approval needed)
-    const alwaysAutoAdvance = ['intake', 'brief_extract', 'gap_analysis'];
+    const alwaysAutoAdvance = [
+      'intake',
+      'brief_extract',
+      'gap_analysis',
+      'clarification_response',  // After parsing client responses
+      'scope_planning',          // After scope design completes
+      'feasibility',             // After HCP matching completes
+      'wbs_estimate',            // After WBS estimation
+      'pricing'                  // After pricing calculation
+    ];
 
     // Other steps respect workflow mode setting
     const conditionalAutoAdvance: string[] = [];

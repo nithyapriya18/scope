@@ -11,29 +11,47 @@ export class BriefExtractorAgent extends BaseAgent {
   protected agentType = 'brief_extract';
 
   protected getSystemPrompt(context: AgentContext): string {
-    return `You are a PMR Brief Extraction Specialist. Extract key requirements from RFP documents in a CONCISE format.
+    return `You are a PMR Brief Extraction Specialist. Map RFP content to the standard 13-section template.
 
-**CRITICAL**: Keep responses SHORT. Maximum 1-2 sentences per field. Use bullet points where appropriate.
+**STANDARD RFP TEMPLATE SECTIONS**:
+1. Contact & Issuer Information
+2. Introduction & Company Overview
+3. Confidentiality & Legal Terms
+4. Project Background & Context
+5. Business & Research Objectives
+6. Methodology & Scope
+7. Markets & Geography
+8. Target Audience & Sample
+9. Timeline & Key Dates
+10. Deliverables
+11. Budget & Cost Requirements
+12. Proposal Submission Requirements
+13. Evaluation Criteria
 
-Extract these sections:
+**EXTRACTION RULES**:
+- Map RFP content to template sections (some may be missing/incomplete)
+- Mark each section: COMPLETE (all fields filled), PARTIAL (some fields missing), MISSING (no content)
+- Keep responses SHORT: 1-2 sentences per field
+- Extract EXACTLY what is in the RFP (don't infer or assume)
+- Use "Not specified" for missing fields
 
-**1. coverInformation**: {rfpTitle, issuedBy, submissionDeadline, budgetRange}
-**2. executiveSummary**: {therapeuticAreaContext (1 sentence), oneLinerSummary (1 sentence)}
-**3. researchObjectives**: Array of 2-5 brief objectives
-**4. scopeOfWork**: {studyType, methodologyDetails (2-3 sentences max), geographicCoverage (array), interviewDuration, dataCollectionMode}
-**5. targetAudience**: {primaryRespondents, selectionCriteria (array of 3-5 items), minimumExperience, minimumPatientVolume}
-**6. sampleSpecifications**: {totalSampleSize, sampleBreakdown (brief object), quotas (brief string)}
-**7. keyDeliverables**: Array of 5-8 deliverable names (no descriptions)
-**8. timelineAndMilestones**: {projectDuration, proposalDueDate, finalReportDate, keyMilestones (array of 3-5 brief items)}
-**9. budgetAndPricing**: {totalBudget, pricingStructureExpected (brief)}
-**10. evaluationCriteria**: {keyFactors (array of 3-5 brief items)}
-**11. regulatoryCompliance**: {gdprRequired (boolean), hipaaRequired (boolean), otherCompliance (array of 2-3 items)}
-**12. confidenceScores**: {overall, objectives, methodology, sample, timeline, budget} (all 0-1)
+**OUTPUT JSON STRUCTURE**:
+{
+  "templateCoverage": {
+    "section1_contact": "COMPLETE|PARTIAL|MISSING",
+    "section2_company": "COMPLETE|PARTIAL|MISSING",
+    ... (all 13 sections)
+  },
+  "section1_contact": {field1: value, field2: value, ...},
+  "section2_company": {...},
+  ...
+  "section13_evaluation": {...},
+  "overallCompletenessPercent": 0-100,
+  "completeSections": 5,
+  "missingSections": 3
+}
 
-**RULES**:
-- Use "Not specified" for missing info
-- Keep ALL text concise - no long explanations
-- Respond with ONLY valid JSON (no markdown, no explanation)`;
+Respond with ONLY valid JSON (no markdown).`;
   }
 
   protected async process(context: AgentContext): Promise<AgentResult> {
@@ -51,14 +69,24 @@ Extract these sections:
       }
 
       const systemPrompt = this.getSystemPrompt(context);
-      const userMessage = `Extract requirements from this RFP. Keep responses BRIEF and CONCISE.
+      const userMessage = `Extract and map this RFP to the standard 13-section template.
 
 Document: ${fileName}
 
 RFP Content:
 ${rfpText}
 
-Extract ALL sections. Be CONCISE - maximum 1-2 sentences per field. Use "Not specified" for missing info.
+**TASK**:
+1. Identify which template sections are present in the RFP (COMPLETE/PARTIAL/MISSING)
+2. Extract all fields from each present section
+3. Mark missing sections clearly
+
+For each section present in the RFP:
+- Extract EXACT values (don't infer)
+- Use "Not specified" for fields mentioned but without detail
+- Preserve section hierarchy
+
+Return templateCoverage map + extracted data for each section.
 
 Respond with ONLY JSON (no markdown).`;
 
@@ -99,28 +127,44 @@ Respond with ONLY JSON (no markdown).`;
       // Store in briefs table - map new structure to existing columns
       const sql = getSql();
 
-      // Extract key fields from new structure for backward compatibility
-      const researchObjectives = extractedData.researchObjectives || [];
-      const targetAudience = extractedData.targetAudience?.primaryRespondents || "Not specified";
-      const therapeuticArea = extractedData.executiveSummary?.therapeuticAreaContext ||
-                              extractedData.coverInformation?.rfpTitle || "Not specified";
-      const studyType = extractedData.scopeOfWork?.studyType || "Not specified";
-      const deliverables = extractedData.keyDeliverables || [];
-      const budgetIndication = extractedData.budgetAndPricing?.totalBudget ||
-                               extractedData.coverInformation?.budgetRange || null;
-      const timelineRequirements = extractedData.timelineAndMilestones?.projectDuration ||
-                                   extractedData.coverInformation?.submissionDeadline || null;
+      // Extract from template-mapped structure
+      const templateCoverage = extractedData.templateCoverage || {};
+      const completeSections = extractedData.completeSections || 0;
+      const missingSections = extractedData.missingSections || 0;
+      const overallCompletenessPercent = extractedData.overallCompletenessPercent || 0;
 
-      // Build comprehensive sample requirements object
+      // Extract key fields for backward compatibility
+      const section1 = extractedData.section1_contact_issuer || {};
+      const section4 = extractedData.section4_project_background_context || {};
+      const section5 = extractedData.section5_business_research_objectives || {};
+      const section6 = extractedData.section6_methodology_scope || {};
+      const section7 = extractedData.section7_markets_geography || {};
+      const section8 = extractedData.section8_target_audience_sample || {};
+      const section9 = extractedData.section9_timeline_key_dates || {};
+      const section10 = extractedData.section10_deliverables || {};
+      const section11 = extractedData.section11_budget_cost || {};
+
+      const researchObjectives = section5.researchObjectives || [];
+      const businessObjectives = section5.businessObjectives || [];
+      const targetAudience = section8.primaryTargetAudience || "Not specified";
+      const therapeuticArea = section4.therapeuticArea || section1.therapeuticArea || "Not specified";
+      const studyType = section6.primaryMethodology || "Not specified";
+      const deliverables = section10.deliverables || [];
+      const budgetIndication = section11.budgetRange || null;
+      const timelineRequirements = section9.projectTimeline || null;
+
+      // Build comprehensive template-aware sample requirements
       const sampleRequirements = {
-        totalSize: extractedData.sampleSpecifications?.totalSampleSize || "Not specified",
-        breakdown: extractedData.sampleSpecifications?.sampleBreakdown || {},
-        quotas: extractedData.sampleSpecifications?.quotas || "Not specified",
-        geographicCoverage: extractedData.scopeOfWork?.geographicCoverage || [],
-        targetAudience: extractedData.targetAudience || {}
+        totalSize: section8.targetSampleSize || "Not specified",
+        breakdown: section8.sampleBreakdown || {},
+        quotas: section8.quotas || "Not specified",
+        geographicCoverage: section7.markets || [],
+        targetAudience: section8 || {},
+        templateCoverage: templateCoverage
       };
 
-      const confidenceScore = extractedData.confidenceScores?.overall || 0.75;
+      // Calculate confidence from completeness
+      const confidenceScore = Math.max(0, Math.min(1, overallCompletenessPercent / 100));
 
       const result = await sql`
         INSERT INTO briefs (
@@ -165,9 +209,12 @@ Respond with ONLY JSON (no markdown).`;
       `;
 
       console.log(`✅ Brief extraction complete for opportunity ${context.opportunityId}`);
+      console.log(`   Template Coverage: ${completeSections}/13 sections complete`);
+      console.log(`   Completeness: ${overallCompletenessPercent}%`);
       console.log(`   Study Type: ${studyType}`);
       console.log(`   Sample Size: ${sampleRequirements.totalSize}`);
-      console.log(`   Objectives: ${researchObjectives.length} identified`);
+      console.log(`   Research Objectives: ${researchObjectives.length} identified`);
+      console.log(`   Business Objectives: ${businessObjectives.length} identified`);
       console.log(`   Confidence: ${Math.round(result[0].confidenceScore * 100)}%`);
 
       return {
