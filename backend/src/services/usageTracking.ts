@@ -32,10 +32,9 @@ interface UsageRecord {
 }
 
 class UsageTrackingService {
-  // Claude Haiku 4.5 pricing (as of Jan 2025)
-  // Input: $0.80 per million tokens
-  // Output: $4.00 per million tokens
+  // Claude Model Pricing (as of Jan 2025)
   private readonly MODEL_PRICING: Record<string, { input: number; output: number }> = {
+    // Claude Haiku 4.5
     'global.anthropic.claude-haiku-4-5-20251001-v1:0': {
       input: 0.80 / 1_000_000,
       output: 4.00 / 1_000_000,
@@ -44,7 +43,12 @@ class UsageTrackingService {
       input: 0.80 / 1_000_000,
       output: 4.00 / 1_000_000,
     },
-    // Sonnet 4.5 pricing (for reference)
+    // Claude Sonnet 4.6
+    'global.anthropic.claude-sonnet-4-6': {
+      input: 3.00 / 1_000_000,
+      output: 15.00 / 1_000_000,
+    },
+    // Claude Sonnet 4.5 (for reference)
     'us.anthropic.claude-sonnet-4-5-20250929-v1:0': {
       input: 3.00 / 1_000_000,
       output: 15.00 / 1_000_000,
@@ -63,7 +67,7 @@ class UsageTrackingService {
     success: boolean = true,
     errorMessage?: string
   ): Promise<void> {
-    const pricing = this.MODEL_PRICING[usage.modelId] || this.MODEL_PRICING['global.anthropic.claude-haiku-4-5-20251001-v1:0'];
+    const pricing = this.MODEL_PRICING[usage.modelId] || this.MODEL_PRICING['global.anthropic.claude-sonnet-4-6'];
 
     const inputCost = usage.inputTokens * pricing.input;
     const outputCost = usage.outputTokens * pricing.output;

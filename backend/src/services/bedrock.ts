@@ -34,8 +34,8 @@ export class BedrockService implements AIService {
 
     this.client = new BedrockRuntimeClient(clientConfig);
 
-    // Use Claude Haiku 4.5 by default (fast, cost-effective)
-    this.modelId = process.env.BEDROCK_MODEL_ID || 'anthropic.claude-haiku-4-5-20251001-v1:0';
+    // Use Claude Sonnet 4.6 by default (more capable)
+    this.modelId = process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6';
 
     console.log(`✅ Bedrock initialized with model: ${this.modelId} in region: ${clientConfig.region}`);
   }

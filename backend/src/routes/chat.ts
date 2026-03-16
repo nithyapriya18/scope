@@ -110,9 +110,9 @@ Be concise, professional, and helpful. Focus on pharmaceutical market research e
       conversationHistory
     );
 
-    // Calculate cost (Haiku 4.5: $0.80 per M input, $4.00 per M output)
-    const inputCost = (aiResponse.usage?.inputTokens || 0) * 0.80 / 1_000_000;
-    const outputCost = (aiResponse.usage?.outputTokens || 0) * 4.00 / 1_000_000;
+    // Calculate cost (Sonnet 4.6: $3.00 per M input, $15.00 per M output)
+    const inputCost = (aiResponse.usage?.inputTokens || 0) * 3.00 / 1_000_000;
+    const outputCost = (aiResponse.usage?.outputTokens || 0) * 15.00 / 1_000_000;
     const totalCost = inputCost + outputCost;
 
     // Save assistant response
@@ -124,7 +124,7 @@ Be concise, professional, and helpful. Focus on pharmaceutical market research e
         'assistant',
         ${aiResponse.response},
         ${JSON.stringify({
-          model: aiResponse.usage?.modelId || 'claude-haiku-4.5',
+          model: aiResponse.usage?.modelId || 'claude-sonnet-4.6',
           inputTokens: aiResponse.usage?.inputTokens || 0,
           outputTokens: aiResponse.usage?.outputTokens || 0,
           cost: totalCost,
@@ -148,7 +148,7 @@ Be concise, professional, and helpful. Focus on pharmaceutical market research e
         ${userId},
         ${id},
         'chat',
-        ${aiResponse.usage?.modelId || 'claude-haiku-4.5'},
+        ${aiResponse.usage?.modelId || 'claude-sonnet-4.6'},
         ${aiResponse.usage?.inputTokens || 0},
         ${aiResponse.usage?.outputTokens || 0},
         ${inputCost},
