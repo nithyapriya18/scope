@@ -53,7 +53,7 @@ export default function SettingsPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => alert('Settings saved successfully!')}
-            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-opacity"
           >
             <Save size={16} />
             Save Changes
@@ -74,7 +74,7 @@ export default function SettingsPage() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
                     activeTab === tab.id
-                      ? 'bg-primary text-white'
+                      ? 'bg-gradient-to-r from-primary to-secondary text-white'
                       : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
@@ -183,7 +183,7 @@ export default function SettingsPage() {
                       onClick={() => setNotifications(prev => ({ ...prev, [item.key]: !prev[item.key as keyof typeof notifications] }))}
                       className={`relative w-12 h-6 rounded-full transition-colors ${
                         notifications[item.key as keyof typeof notifications]
-                          ? 'bg-primary'
+                          ? 'bg-gradient-to-r from-primary to-secondary'
                           : 'bg-slate-300 dark:bg-slate-700'
                       }`}
                     >
@@ -365,7 +365,7 @@ export default function SettingsPage() {
                   <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
                     Invite team members and manage their access levels
                   </p>
-                  <button className="px-4 py-2 bg-primary hover:bg-cyan-800 text-white rounded-lg text-sm font-semibold transition-colors">
+                  <button className="px-4 py-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white rounded-lg text-sm font-semibold transition-colors">
                     Invite Team Member
                   </button>
                 </div>

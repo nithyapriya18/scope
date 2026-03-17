@@ -479,7 +479,7 @@ export default function VerticalWorkflowTimeline({
                 status === 'completed'
                   ? 'bg-emerald-500 text-white'
                   : status === 'in-progress'
-                  ? 'bg-primary text-white ring-4 ring-primary/20 dark:ring-primary/30'
+                  ? 'bg-gradient-to-br from-primary to-secondary text-white ring-4 ring-primary/20 dark:ring-primary/30'
                   : status === 'waiting'
                   ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 border-2 border-white dark:border-gray-800'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-2 border-white dark:border-gray-800'
@@ -516,7 +516,7 @@ export default function VerticalWorkflowTimeline({
                         status === 'completed'
                           ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
                           : status === 'in-progress'
-                          ? 'bg-primary text-white'
+                          ? 'bg-gradient-to-r from-primary to-secondary text-white'
                           : status === 'waiting'
                           ? 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                           : 'bg-slate-50 dark:bg-slate-700 text-slate-400'
@@ -569,9 +569,9 @@ export default function VerticalWorkflowTimeline({
               {status === 'in-progress' && (
                 <div className="w-full h-2.5 bg-slate-100 dark:bg-slate-700 rounded-full mb-6 overflow-hidden relative">
                   {getCurrentProgress() > 0 ? (
-                    <div className="h-full bg-primary rounded-full transition-all duration-500" style={{ width: `${getCurrentProgress()}%` }} />
+                    <div className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all duration-500" style={{ width: `${getCurrentProgress()}%` }} />
                   ) : (
-                    <div className="h-full bg-primary/70 rounded-full absolute"
+                    <div className="h-full bg-gradient-to-r from-primary to-secondary opacity-70 rounded-full absolute"
                          style={{
                            width: '20%',
                            animation: 'slideProgress 2s ease-in-out infinite'
@@ -776,7 +776,7 @@ export default function VerticalWorkflowTimeline({
                             <button
                               onClick={onApprove || onProcessNext}
                               disabled={processing}
-                              className="px-6 py-2 bg-orange-600 text-white text-xs font-bold rounded-lg hover:bg-orange-700 transition-colors shadow-sm disabled:opacity-50"
+                              className="px-6 py-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white text-xs font-bold rounded-lg transition-opacity shadow-sm disabled:opacity-50"
                             >
                               {processing ? (
                                 <>
@@ -794,7 +794,7 @@ export default function VerticalWorkflowTimeline({
                           <button
                             onClick={onApprove || onProcessNext}
                             disabled={processing}
-                            className="px-6 py-2 bg-orange-600 text-white text-xs font-bold rounded-lg hover:bg-orange-700 transition-colors shadow-sm disabled:opacity-50"
+                            className="px-6 py-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white text-xs font-bold rounded-lg transition-opacity shadow-sm disabled:opacity-50"
                           >
                             {processing ? (
                               <>

@@ -402,7 +402,7 @@ export default function OpportunityDetailPage() {
               <button
                 onClick={handleSaveSettings}
                 disabled={savingSettings}
-                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-primary hover:bg-cyan-800 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white rounded-lg transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {savingSettings ? (
                   <>

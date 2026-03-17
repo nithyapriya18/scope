@@ -156,7 +156,7 @@ export default function NewOpportunityPage() {
                     <h4 className="text-base font-bold text-slate-900 dark:text-white">
                       1. RFP Intake
                     </h4>
-                    <span className="px-2 py-0.5 text-[10px] font-black rounded-lg uppercase tracking-wider bg-primary text-white">
+                    <span className="px-2 py-0.5 text-[10px] font-black rounded-lg uppercase tracking-wider bg-gradient-to-r from-primary to-secondary text-white">
                       In Progress
                     </span>
                   </div>

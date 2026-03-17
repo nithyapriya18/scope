@@ -26,26 +26,26 @@ export default function Header() {
           {/* Logo */}
           <Link
             href="/"
-            className="flex flex-col items-center hover:opacity-80 transition-opacity"
+            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <div className="flex items-center gap-2">
-              <Image
-                src="/petasight.png"
-                alt="PetaSight"
-                width={26}
-                height={26}
-                className="object-contain"
-                priority
-                unoptimized
-              />
+            <Image
+              src="/petasight.png"
+              alt="PetaSight"
+              width={26}
+              height={26}
+              className="object-contain"
+              priority
+              unoptimized
+            />
+            <div className="flex flex-col leading-tight">
               <span className="text-sm tracking-widest text-gray-900 dark:text-white">
                 <span className="font-normal">PETA</span>
                 <span className="font-bold">SIGHT</span>
               </span>
+              <span className="text-xs font-bold tracking-wide text-gray-900 dark:text-white">
+                Lumina Scope
+              </span>
             </div>
-            <span className="text-sm font-bold tracking-wide text-gray-900 dark:text-white">
-              Lumina Scope
-            </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -72,7 +72,7 @@ export default function Header() {
                   href="/dashboard"
                   className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white transition-colors"
                 >
-                  Dashboard
+                  Home
                 </Link>
               </>
             )}
@@ -160,7 +160,7 @@ export default function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="block px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg mx-2 mb-1"
                 >
-                  Dashboard
+                  Home
                 </Link>
                 <button
                   onClick={logout}

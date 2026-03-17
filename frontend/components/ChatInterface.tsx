@@ -117,7 +117,7 @@ export default function ChatInterface({ opportunityId, isOpen = false, onToggle 
       {!open && (
         <button
           onClick={() => toggleOpen(true)}
-          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg transition-all hover:scale-110 active:scale-95 hover:shadow-xl"
+          className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-white shadow-lg transition-all hover:scale-110 active:scale-95 hover:shadow-xl"
           aria-label="Open chat"
         >
           <MessageSquare className="h-6 w-6" />
@@ -142,7 +142,7 @@ export default function ChatInterface({ opportunityId, isOpen = false, onToggle 
           {/* Header */}
           <div className="flex h-14 items-center justify-between border-b border-gray-200 dark:border-gray-700 px-5 flex-shrink-0 rounded-lg-t-2xl bg-gradient-to-r from-cyan-50 to-white dark:from-gray-800 dark:to-gray-800">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                 <Bot className="h-5 w-5 text-white" />
               </div>
               <span className="text-sm font-semibold text-gray-900 dark:text-white">AI Assistant</span>
@@ -217,7 +217,7 @@ export default function ChatInterface({ opportunityId, isOpen = false, onToggle 
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || loading}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-cyan-800 transition-colors shadow-md"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-white disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity shadow-md"
               >
                 <Send className="h-4 w-4" />
               </button>

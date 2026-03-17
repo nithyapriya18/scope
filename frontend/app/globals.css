@@ -94,4 +94,23 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
   }
+
+  /* Global rounded corners for all interactive & structural elements */
+  input, textarea, select {
+    @apply rounded-lg;
+  }
+
+  button {
+    @apply rounded-lg;
+  }
+
+  img {
+    @apply rounded-lg;
+  }
+
+  /* Tables get rounded-compatible collapse */
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+  }
 }

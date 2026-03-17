@@ -3,11 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FileText, Users, BookOpen, BarChart3, Settings, Package, User, ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BookOpen, BarChart3, Settings, User, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/auth';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Home', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Bids', href: '/opportunities', icon: FileText },
   { name: 'Clients', href: '/clients', icon: Users },
   { name: 'Study Library', href: '/study-library', icon: BookOpen },
@@ -46,28 +46,17 @@ export default function Sidebar() {
   };
 
   return (
-    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-gradient-to-b from-pink-50 to-pink-100 dark:from-slate-800 dark:to-slate-900 flex-shrink-0 flex flex-col border-r border-pink-200 dark:border-slate-700 relative transition-all duration-300`}>
+    <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white dark:bg-neutral-950 flex-shrink-0 flex flex-col border-r border-border dark:border-neutral-800 relative transition-all duration-300`}>
       {/* Collapse Toggle Button */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="absolute -right-3 top-6 z-10 bg-white dark:bg-slate-700 hover:bg-pink-100 dark:hover:bg-slate-600 text-primary dark:text-white rounded-full p-1.5 shadow-lg border border-pink-200 dark:border-slate-600 transition-colors"
+        className="absolute -right-3 top-6 z-10 bg-white dark:bg-neutral-800 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-foreground-secondary dark:text-white rounded-full p-1.5 shadow-lg border border-border dark:border-neutral-700 transition-colors"
         title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
       >
         {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
       </button>
 
-      {/* Logo */}
-      <div className="p-6 flex items-center gap-3">
-        <div className="size-10 bg-primary rounded-xl flex items-center justify-center flex-shrink-0">
-          <Package className="text-white" size={22} />
-        </div>
-        {!collapsed && (
-          <div>
-            <h1 className="text-primary dark:text-white text-xl font-bold tracking-tight">Lumina</h1>
-            <p className="text-xs text-pink-700 dark:text-slate-400">Scope</p>
-          </div>
-        )}
-      </div>
+      <div className="h-4" />
 
       {/* Navigation */}
       <nav className="flex-1 px-3 space-y-1">
@@ -81,21 +70,21 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                 isActive
-                  ? 'text-white bg-primary shadow-lg'
-                  : 'text-pink-900 dark:text-slate-300 hover:text-primary dark:hover:text-white hover:bg-pink-200/50 dark:hover:bg-slate-700/50'
+                  ? 'text-white bg-gradient-to-r from-primary to-secondary shadow-sm'
+                  : 'text-foreground-secondary dark:text-neutral-300 hover:text-foreground dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
               }`}
               title={collapsed ? item.name : undefined}
             >
               <Icon size={20} className="flex-shrink-0" />
-              {!collapsed && <span className="text-sm font-semibold">{item.name}</span>}
+              {!collapsed && <span className="text-sm font-medium">{item.name}</span>}
             </Link>
           );
         })}
 
-        {/* Settings - moved here */}
+        {/* Settings */}
         <div className="pt-4">
           {!collapsed && (
-            <div className="text-[10px] font-bold text-pink-600 dark:text-slate-500 uppercase tracking-wider px-3 mb-2">
+            <div className="text-[10px] font-semibold text-foreground-tertiary dark:text-neutral-500 uppercase tracking-wider px-3 mb-2">
               System
             </div>
           )}
@@ -103,35 +92,35 @@ export default function Sidebar() {
             href="/settings"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
               pathname === '/settings'
-                ? 'text-white bg-primary shadow-lg'
-                : 'text-pink-900 dark:text-slate-300 hover:text-primary dark:hover:text-white hover:bg-pink-200/50 dark:hover:bg-slate-700/50'
+                ? 'text-white bg-gradient-to-r from-primary to-secondary shadow-sm'
+                : 'text-foreground-secondary dark:text-neutral-300 hover:text-foreground dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800'
             }`}
             title={collapsed ? 'Settings' : undefined}
           >
             <Settings size={20} className="flex-shrink-0" />
-            {!collapsed && <span className="text-sm font-semibold">Settings</span>}
+            {!collapsed && <span className="text-sm font-medium">Settings</span>}
           </Link>
         </div>
       </nav>
 
       {/* User Profile */}
-      <div className="p-4 border-t border-pink-200 dark:border-slate-700 relative user-menu-container">
+      <div className="p-4 border-t border-border dark:border-neutral-800 relative user-menu-container">
         {mounted && user ? (
           <>
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-pink-200/50 dark:hover:bg-slate-700/50 transition-colors ${collapsed ? 'justify-center' : ''}`}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors ${collapsed ? 'justify-center' : ''}`}
               title={collapsed ? 'User menu' : undefined}
             >
-              <div className="size-10 rounded-full bg-gradient-to-br from-primary to-pink-600 flex items-center justify-center flex-shrink-0">
+              <div className="size-10 rounded-full bg-secondary flex items-center justify-center flex-shrink-0">
                 <User className="text-white" size={18} />
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="text-sm font-semibold text-pink-900 dark:text-white truncate">
+                  <p className="text-sm font-semibold text-foreground dark:text-white truncate">
                     {user.name || 'User'}
                   </p>
-                  <p className="text-xs text-pink-700 dark:text-slate-400 truncate">
+                  <p className="text-xs text-foreground-tertiary dark:text-neutral-400 truncate">
                     {user.email}
                   </p>
                 </div>
@@ -140,18 +129,18 @@ export default function Sidebar() {
 
             {/* User Menu Dropdown */}
             {showUserMenu && !collapsed && (
-              <div className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-pink-200 dark:border-slate-700 overflow-hidden">
+              <div className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-neutral-800 rounded-lg shadow-xl border border-border dark:border-neutral-700 overflow-hidden">
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
                     handleLogout();
                   }}
-                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors"
                 >
-                  <LogOut size={18} className="text-red-600 dark:text-red-400" />
+                  <LogOut size={18} className="text-error dark:text-red-400" />
                   <div className="text-left">
-                    <p className="text-sm font-semibold text-red-600 dark:text-red-400">Logout</p>
-                    <p className="text-xs text-red-500 dark:text-red-300">Sign out of account</p>
+                    <p className="text-sm font-semibold text-error dark:text-red-400">Logout</p>
+                    <p className="text-xs text-foreground-tertiary dark:text-red-300">Sign out of account</p>
                   </div>
                 </button>
               </div>
@@ -159,12 +148,12 @@ export default function Sidebar() {
           </>
         ) : (
           <div className={`flex items-center gap-3 px-3 py-2 ${collapsed ? 'justify-center' : ''}`}>
-            <div className="size-10 rounded-full bg-pink-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-              <User className="text-pink-700 dark:text-slate-400" size={18} />
+            <div className="size-10 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center flex-shrink-0">
+              <User className="text-foreground-tertiary dark:text-neutral-400" size={18} />
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-pink-700 dark:text-slate-400 truncate">
+                <p className="text-sm font-semibold text-foreground-tertiary dark:text-neutral-400 truncate">
                   Not logged in
                 </p>
               </div>

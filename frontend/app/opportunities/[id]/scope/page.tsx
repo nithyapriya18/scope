@@ -252,7 +252,7 @@ export default function ScopePlanningPage() {
                       <div className="text-xs text-muted-foreground mb-1">Feasibility</div>
                       <div className="w-full bg-border rounded-full h-2">
                         <div
-                          className="bg-primary h-2 rounded-full transition-all"
+                          className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all"
                           style={{ width: `${option.feasibilityScore}%` }}
                         />
                       </div>

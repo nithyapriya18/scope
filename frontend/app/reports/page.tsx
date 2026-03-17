@@ -69,7 +69,7 @@ export default function ReportsPage() {
               onClick={() => setTimeRange('last-7-days')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 timeRange === 'last-7-days'
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -79,7 +79,7 @@ export default function ReportsPage() {
               onClick={() => setTimeRange('last-30-days')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 timeRange === 'last-30-days'
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -89,7 +89,7 @@ export default function ReportsPage() {
               onClick={() => setTimeRange('last-90-days')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 timeRange === 'last-90-days'
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -99,7 +99,7 @@ export default function ReportsPage() {
               onClick={() => setTimeRange('year-to-date')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 timeRange === 'year-to-date'
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -110,7 +110,7 @@ export default function ReportsPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => alert('Export reports functionality coming soon')}
-            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-opacity"
           >
             <BarChart3 size={16} />
             Export Report
@@ -174,10 +174,10 @@ export default function ReportsPage() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <p className="text-slate-500 text-sm font-medium mb-1">Avg Cycle Time</p>
-                <h3 className="text-3xl font-bold text-blue-600">{pipelineMetrics.avgCycleTime}d</h3>
+                <h3 className="text-3xl font-bold text-secondary">{pipelineMetrics.avgCycleTime}d</h3>
               </div>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Clock className="text-blue-600" size={20} />
+              <div className="p-2 bg-secondary/10 rounded-lg">
+                <Clock className="text-secondary" size={20} />
               </div>
             </div>
             <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-400">
@@ -202,7 +202,7 @@ export default function ReportsPage() {
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-primary rounded-full"
+                        className="h-full bg-gradient-to-r from-primary to-secondary rounded-full"
                         style={{ width: `${(month.won / month.bids) * 100}%` }}
                       />
                     </div>
@@ -313,14 +313,14 @@ export default function ReportsPage() {
                 AI Automation Cost Efficiency
               </h3>
               <p className="text-sm text-slate-700 dark:text-slate-300 mb-3">
-                Average cost per RFP processing: <strong className="text-primary">$0.014</strong> (~1.4 cents).
-                Total AI costs this period: <strong className="text-primary">$2.18</strong> across {pipelineMetrics.totalBids} bids.
+                Average cost per RFP processing: <strong className="text-secondary">$0.014</strong> (~1.4 cents).
+                Total AI costs this period: <strong className="text-secondary">$2.18</strong> across {pipelineMetrics.totalBids} bids.
               </p>
               <div className="flex items-center gap-2 text-sm">
                 <span className="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg font-semibold text-emerald-600">
                   99% cost reduction vs manual
                 </span>
-                <span className="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg font-semibold text-blue-600">
+                <span className="px-3 py-1 bg-white dark:bg-slate-800 rounded-lg font-semibold text-secondary">
                   85% time saved
                 </span>
               </div>

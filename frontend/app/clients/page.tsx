@@ -178,7 +178,7 @@ export default function ClientsPage() {
               onClick={() => setFilterTier('all')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 filterTier === 'all'
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -188,7 +188,7 @@ export default function ClientsPage() {
               onClick={() => setFilterTier('Tier 1')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 filterTier === 'Tier 1'
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -198,7 +198,7 @@ export default function ClientsPage() {
               onClick={() => setFilterTier('Tier 2')}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 filterTier === 'Tier 2'
-                  ? 'bg-primary text-white'
+                  ? 'bg-gradient-to-r from-primary to-secondary text-white'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -209,7 +209,7 @@ export default function ClientsPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => alert('Add new client functionality coming soon')}
-            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-opacity"
           >
             <Plus size={16} />
             Add Client

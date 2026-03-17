@@ -255,7 +255,7 @@ export default function StudyLibraryPage() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => alert('Custom study template creation coming soon')}
-            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-opacity"
           >
             <Plus size={16} />
             Custom Template
@@ -431,7 +431,7 @@ export default function StudyLibraryPage() {
                   alert(`Use "${selectedType.name}" template for new proposal`);
                   setSelectedType(null);
                 }}
-                className="px-4 py-2 text-sm font-semibold bg-primary hover:bg-cyan-800 text-white rounded-lg transition-colors"
+                className="px-4 py-2 text-sm font-semibold bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white rounded-lg transition-colors"
               >
                 Use Template
               </button>

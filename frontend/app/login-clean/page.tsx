@@ -38,7 +38,7 @@ export default function CleanLoginPage() {
       <div className="w-full max-w-md p-8">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary">
             <BarChart3 className="h-6 w-6 text-primary-foreground" />
           </div>
           <div className="text-center">

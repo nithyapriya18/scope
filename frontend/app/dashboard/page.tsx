@@ -31,9 +31,9 @@ const statusMap: Record<string, string> = {
 };
 
 const studyTypeMap: Record<string, { label: string; color: string }> = {
-  oncology: { label: 'CLINICAL', color: 'bg-blue-100 text-blue-700' },
+  oncology: { label: 'CLINICAL', color: 'bg-secondary/10 text-blue-700' },
   cardiology: { label: 'OBSERVATIONAL', color: 'bg-emerald-100 text-emerald-700' },
-  immunology: { label: 'CLINICAL', color: 'bg-blue-100 text-blue-700' },
+  immunology: { label: 'CLINICAL', color: 'bg-secondary/10 text-blue-700' },
   device: { label: 'PILOT', color: 'bg-purple-100 text-purple-700' },
   behavioral: { label: 'BEHAVIORAL', color: 'bg-orange-100 text-orange-700' },
   genomic: { label: 'R&D', color: 'bg-pink-100 text-pink-700' },
@@ -300,7 +300,7 @@ export default function DashboardPage() {
           </button>
           <button
             onClick={() => router.push('/opportunities/new')}
-            className="bg-primary hover:bg-primary/90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-colors"
+            className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white px-4 py-2 rounded-xl font-semibold text-sm flex items-center gap-2 transition-opacity"
           >
             <Plus size={16} />
             New Bid
@@ -312,37 +312,37 @@ export default function DashboardPage() {
       <div className="flex-1 overflow-auto p-8 bg-background-light dark:bg-background-dark">
         {/* KPI Cards */}
         <div className="grid grid-cols-3 gap-6 mb-8">
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-lg-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-slate-500 text-sm font-medium mb-1">Total Active Bids</p>
                 <h3 className="text-3xl font-bold text-slate-900 dark:text-white">{stats.total}</h3>
               </div>
-              <div className="p-2 bg-primary/10 rounded-lg-lg">
+              <div className="p-2 bg-primary/10 rounded-lg">
                 <TrendingUp className="text-primary" size={20} />
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-lg-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-slate-500 text-sm font-medium mb-1">In Progress</p>
-                <h3 className="text-3xl font-bold text-blue-600">{stats.inProgress}</h3>
+                <h3 className="text-3xl font-bold text-secondary">{stats.inProgress}</h3>
               </div>
-              <div className="p-2 bg-blue-100 rounded-lg-lg">
-                <TrendingUp className="text-blue-600" size={20} />
+              <div className="p-2 bg-secondary/10 rounded-lg">
+                <TrendingUp className="text-secondary" size={20} />
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-6 rounded-lg-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-slate-500 text-sm font-medium mb-1">Due Within 48h</p>
                 <h3 className="text-3xl font-bold text-red-600">{stats.urgent}</h3>
               </div>
-              <div className="p-2 bg-red-100 rounded-lg-lg">
+              <div className="p-2 bg-red-100 rounded-lg">
                 <Calendar className="text-red-600" size={20} />
               </div>
             </div>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Main Data Table */}
-        <div className="bg-white dark:bg-slate-900 rounded-lg-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead>
@@ -443,16 +443,19 @@ export default function DashboardPage() {
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           <div className="flex gap-1">
-                            {Array.from({ length: 11 }).map((_, i) => (
-                              <div
-                                key={i}
-                                className={`h-1.5 w-4 rounded-full ${
-                                  i < Math.floor(progress / 10)
-                                    ? 'bg-primary'
-                                    : 'bg-slate-200 dark:bg-slate-700'
-                                }`}
-                              />
-                            ))}
+                            {Array.from({ length: 11 }).map((_, i) => {
+                              const filled = Math.floor(progress / 10);
+                              const isFilled = i < filled;
+                              const t = filled > 1 ? i / (filled - 1) : 0;
+                              const r = Math.round(0xDA + t * (0x4F - 0xDA));
+                              const g = Math.round(0x36 + t * (0x73 - 0x36));
+                              const b = Math.round(0x5C + t * (0xCD - 0x5C));
+                              return isFilled ? (
+                                <div key={i} className="h-1.5 w-4 rounded-full" style={{ backgroundColor: `rgb(${r},${g},${b})` }} />
+                              ) : (
+                                <div key={i} className="h-1.5 w-4 rounded-full bg-neutral-200 dark:bg-neutral-700" />
+                              );
+                            })}
                           </div>
                         </td>
                         <td
@@ -495,7 +498,7 @@ export default function DashboardPage() {
                                 // TODO: Export
                                 alert('Export ' + opp.rfpTitle);
                               }}
-                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                              className="p-1.5 text-slate-500 hover:text-secondary hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
                               title="Export"
                             >
                               <Download size={16} />
@@ -530,7 +533,7 @@ export default function DashboardPage() {
             <p className="text-sm text-slate-500 font-medium">Overall Pipeline Progress</p>
             <div className="w-64 h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
               <div
-                className="h-full bg-primary"
+                className="h-full bg-gradient-to-r from-primary to-secondary"
                 style={{ width: opportunities.length > 0 ? `${Math.round(opportunities.reduce((sum, o) => sum + getProgressPercent(o.status), 0) / opportunities.length)}%` : '0%' }}
               ></div>
             </div>

@@ -18,10 +18,13 @@ export function getSql() {
 
   console.log('🔗 Connecting to PostgreSQL database...');
 
+  const isRDS = connectionString.includes('rds.amazonaws.com');
+
   sql = postgres(connectionString, {
     max: 10,
     idle_timeout: 20,
     connect_timeout: 10,
+    ssl: isRDS ? 'require' : false,
   });
 
   return sql;
