@@ -60,21 +60,19 @@ router.post('/', async (req, res) => {
 
     const opportunity = result[0];
 
-    // Execute intake agent
+    // Respond immediately — don't block on AI processing
+    res.json({ opportunity });
+
+    // Run Intake Agent in background
     const intakeAgent = new IntakeAgent();
-    const intakeResult = await intakeAgent.execute({
+    intakeAgent.execute({
       opportunityId: opportunity.id,
       userId,
       data: {
         rfpText: emailBody,
         fileName: rfpTitle || emailSubject || 'RFP Document',
       },
-    });
-
-    res.json({
-      opportunity,
-      intakeResult,
-    });
+    }).catch((err) => console.error('❌ Intake agent error:', err));
   } catch (error: any) {
     console.error('Error creating opportunity:', error);
     res.status(500).json({ error: 'Failed to create opportunity', message: error.message });
@@ -263,21 +261,19 @@ router.post('/upload', upload.single('file'), async (req, res) => {
 
     const opportunity = result[0];
 
-    // Run Intake Agent
+    // Respond immediately — don't block on AI processing
+    res.json({ opportunity });
+
+    // Run Intake Agent in background
     const intakeAgent = new IntakeAgent();
-    const intakeResult = await intakeAgent.execute({
+    intakeAgent.execute({
       opportunityId: opportunity.id,
       userId,
       data: {
         rfpText: extractedText,
         fileName: rfpTitle || file.originalname,
       },
-    });
-
-    res.json({
-      opportunity,
-      intakeResult,
-    });
+    }).catch((err) => console.error('❌ Intake agent error:', err));
   } catch (error: any) {
     console.error('Error uploading RFP:', error);
     res.status(500).json({ error: 'Failed to upload RFP', message: error.message });
