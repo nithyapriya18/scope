@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { isAuthenticated } from '@/lib/auth';
 import Image from 'next/image';
 import {
   FileText,
@@ -21,6 +23,11 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
+  const router = useRouter();
+  useEffect(() => {
+    if (isAuthenticated()) router.push('/dashboard');
+  }, []);
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -41,7 +48,7 @@ export default function HomePage() {
     <div className="flex-1 overflow-y-auto">{/* Content sections */}
 
       {/* Hero Section with Gradient Background */}
-      <section className="relative min-h-[90vh] flex items-center bg-gradient-to-br from-ps-secondary-700 via-ps-primary-600 to-ps-primary-500 dark:from-ps-secondary-900 dark:via-ps-primary-800 dark:to-ps-primary-700">
+      <section className="relative min-h-[90vh] flex items-center bg-gradient-to-br from-ps-secondary-800 via-ps-secondary-600 to-ps-primary-600 dark:from-ps-secondary-900 dark:via-ps-secondary-800 dark:to-ps-primary-800">
         {/* Decorative Elements */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl"></div>
@@ -76,7 +83,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 href="/login"
-                className="group bg-white hover:bg-ps-primary-50 text-ps-primary-600 px-10 py-4 rounded-xl font-semibold text-lg transition-all shadow-xl hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-2"
+                className="group bg-white hover:bg-secondary/5 text-secondary px-10 py-4 rounded-xl font-semibold text-lg transition-all shadow-xl hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-2"
               >
                 Get Started
                 <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
@@ -125,7 +132,7 @@ export default function HomePage() {
               icon={<FileText className="w-10 h-10" />}
               title="RFP Intake"
               description="Automatically parse and extract requirements from RFP documents, emails, and PDFs"
-              gradient="from-ps-primary-500 to-ps-primary-600"
+              gradient="from-ps-secondary-500 to-ps-primary-500"
             />
             <FeatureCard
               icon={<Brain className="w-10 h-10" />}
@@ -163,7 +170,7 @@ export default function HomePage() {
 
               <div className="space-y-6">
                 <BenefitItem
-                  icon={<Clock className="text-ps-primary-600 dark:text-ps-primary-400" size={24} />}
+                  icon={<Clock className="text-secondary dark:text-secondary/80" size={24} />}
                   title="10x Faster Proposals"
                   description="Reduce proposal creation time from days to hours with AI-powered automation"
                 />
@@ -198,7 +205,7 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-br from-ps-primary-600 via-ps-primary-500 to-ps-secondary-600 dark:from-ps-primary-800 dark:via-ps-primary-700 dark:to-ps-secondary-800">
+      <section className="py-24 bg-gradient-to-br from-ps-secondary-700 via-ps-secondary-500 to-ps-primary-500 dark:from-ps-secondary-800 dark:via-ps-secondary-700 dark:to-ps-primary-700">
         <div className="container mx-auto px-6 lg:px-12 text-center">
           <h2 className="text-4xl lg:text-5xl font-bold text-white mb-6">
             Ready to Transform Your RFP Process?
@@ -209,7 +216,7 @@ export default function HomePage() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/login"
-              className="bg-white hover:bg-ps-primary-50 text-ps-primary-600 px-10 py-4 rounded-xl font-semibold text-lg transition-all shadow-xl hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-2"
+              className="bg-white hover:bg-secondary/5 text-secondary px-10 py-4 rounded-xl font-semibold text-lg transition-all shadow-xl hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-2"
             >
               Start Free Trial
               <ArrowRight size={20} />
@@ -234,7 +241,7 @@ export default function HomePage() {
               </h2>
               <p className="text-xl text-neutral-600 dark:text-neutral-400 max-w-2xl mx-auto">
                 Join leading pharmaceutical research firms using Lumina Scope.
-                Part of the <span className="font-semibold text-ps-primary-600 dark:text-ps-primary-400">PetaSight</span> family of products.
+                Part of the <span className="font-semibold text-secondary dark:text-secondary/80">PetaSight</span> family of products.
               </p>
             </div>
 
@@ -255,8 +262,8 @@ export default function HomePage() {
 
                 <div className="space-y-4">
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 size-12 rounded-xl bg-ps-primary-50 dark:bg-ps-primary-900/20 flex items-center justify-center">
-                      <Building2 className="text-ps-primary-600 dark:text-ps-primary-400" size={24} />
+                    <div className="flex-shrink-0 size-12 rounded-xl bg-secondary/10 dark:bg-secondary/20 flex items-center justify-center">
+                      <Building2 className="text-secondary dark:text-secondary/80" size={24} />
                     </div>
                     <div>
                       <h4 className="font-semibold text-neutral-900 dark:text-neutral-0 mb-1">
@@ -269,8 +276,8 @@ export default function HomePage() {
                   </div>
 
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 size-12 rounded-xl bg-ps-primary-50 dark:bg-ps-primary-900/20 flex items-center justify-center">
-                      <Mail className="text-ps-primary-600 dark:text-ps-primary-400" size={24} />
+                    <div className="flex-shrink-0 size-12 rounded-xl bg-secondary/10 dark:bg-secondary/20 flex items-center justify-center">
+                      <Mail className="text-secondary dark:text-secondary/80" size={24} />
                     </div>
                     <div>
                       <h4 className="font-semibold text-neutral-900 dark:text-neutral-0 mb-1">
@@ -278,7 +285,7 @@ export default function HomePage() {
                       </h4>
                       <a
                         href="mailto:sales@petasight.com"
-                        className="text-sm text-ps-primary-600 dark:text-ps-primary-400 hover:underline"
+                        className="text-sm text-secondary dark:text-secondary/80 hover:underline"
                       >
                         sales@petasight.com
                       </a>
@@ -286,8 +293,8 @@ export default function HomePage() {
                   </div>
 
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0 size-12 rounded-xl bg-ps-primary-50 dark:bg-ps-primary-900/20 flex items-center justify-center">
-                      <Target className="text-ps-primary-600 dark:text-ps-primary-400" size={24} />
+                    <div className="flex-shrink-0 size-12 rounded-xl bg-secondary/10 dark:bg-secondary/20 flex items-center justify-center">
+                      <Target className="text-secondary dark:text-secondary/80" size={24} />
                     </div>
                     <div>
                       <h4 className="font-semibold text-neutral-900 dark:text-neutral-0 mb-1">
@@ -297,7 +304,7 @@ export default function HomePage() {
                         href="https://www.petasight.com"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-sm text-ps-primary-600 dark:text-ps-primary-400 hover:underline"
+                        className="text-sm text-secondary dark:text-secondary/80 hover:underline"
                       >
                         Visit petasight.com →
                       </a>
@@ -335,7 +342,7 @@ export default function HomePage() {
                         required
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                         placeholder="Your name"
                       />
                     </div>
@@ -349,7 +356,7 @@ export default function HomePage() {
                         required
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                         placeholder="your.email@company.com"
                       />
                     </div>
@@ -362,7 +369,7 @@ export default function HomePage() {
                         type="text"
                         value={formData.company}
                         onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                         placeholder="Your company"
                       />
                     </div>
@@ -375,7 +382,7 @@ export default function HomePage() {
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all"
                         placeholder="+1 (555) 000-0000"
                       />
                     </div>
@@ -389,14 +396,14 @@ export default function HomePage() {
                         rows={4}
                         value={formData.message}
                         onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-ps-primary-500 focus:border-transparent transition-all resize-none"
+                        className="w-full px-4 py-2 rounded-lg border border-neutral-300 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-0 focus:ring-2 focus:ring-secondary focus:border-transparent transition-all resize-none"
                         placeholder="Tell us about your needs..."
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full px-6 py-3 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                      className="w-full px-6 py-3 bg-secondary hover:opacity-90 text-white rounded-lg font-semibold transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                     >
                       Send Message
                       <ArrowRight size={20} />
@@ -459,7 +466,7 @@ function BenefitItem({
 function StatItem({ number, label }: { number: string; label: string }) {
   return (
     <div className="text-center">
-      <div className="text-5xl font-bold text-ps-primary-600 dark:text-ps-primary-400 mb-2">{number}</div>
+      <div className="text-5xl font-bold text-secondary dark:text-secondary/80 mb-2">{number}</div>
       <div className="text-neutral-600 dark:text-neutral-400 font-medium">{label}</div>
     </div>
   );

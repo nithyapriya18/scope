@@ -24,8 +24,8 @@ export type WorkflowStatus =
   | 'assumption_analysis'
   | 'clarification'
   | 'clarification_response'
-  | 'scope_planning'  // Phase 2: Research design (methodology, sample, delivery plan)
-  | 'feasibility'     // Phase 2: HCP matching and recruitment feasibility (runs parallel to scope_planning)
+  | 'feasibility'     // Phase 2: HCP matching and recruitment feasibility
+  | 'scope_planning'  // Phase 2: Research design (methodology, sample, delivery plan) — runs after feasibility
   | 'wbs_estimate'    // Phase 3: Work breakdown structure
   | 'pricing'         // Phase 3: Pricing calculation
   | 'document_gen'    // Phase 3: Document generation
@@ -84,12 +84,15 @@ Your role is to coordinate agent execution based on the current workflow state.`
           };
 
         case 'clarification_response':
-          // After clarification responses received, proceed to scope planning
-          return await this.executeScopePlanning(context);
+          // After clarification responses, run HCP matching first (sets status=feasibility)
+          return await this.executeHCPMatching(context);
+
+        case 'feasibility':
+          // After HCP matching, run research plan design (sets status=scope_planning)
+          return await this.executeResearchPlan(context);
 
         case 'scope_planning':
-        case 'feasibility':
-          // Both research design and feasibility complete, proceed to WBS estimation
+          // Research plan complete, proceed to WBS estimation
           return await this.proceedToWBSEstimation(context);
 
         case 'wbs_estimate':
@@ -213,48 +216,42 @@ Your role is to coordinate agent execution based on the current workflow state.`
     return result;
   }
 
-  private async executeScopePlanning(context: AgentContext): Promise<AgentResult> {
-    console.log('🎯 Executing Research Design & Feasibility (Phase 2) - Running in parallel...');
-    console.log('   📋 Research Design: Study type, methodology, sample size, delivery plan');
-    console.log('   👥 Feasibility: HCP matching and recruitment assessment');
+  private async executeHCPMatching(context: AgentContext): Promise<AgentResult> {
+    console.log('👥 Executing Feasibility Analysis (HCP Matching)...');
 
     const sql = getSql();
-
-    // Execute both agents in parallel
-    const scopeAgent = new ScopePlannerAgent();
     const hcpAgent = new HCPMatcherAgent();
+    const result = await hcpAgent.execute(context);
 
-    const [scopeResult, hcpResult] = await Promise.all([
-      scopeAgent.execute(context),
-      hcpAgent.execute(context)
-    ]);
+    if (result.success) {
+      await sql`
+        UPDATE opportunities
+        SET status = 'feasibility', updated_at = now()
+        WHERE id = ${context.opportunityId}
+      `;
+      console.log('✅ Feasibility analysis complete');
+    }
 
-    // Check if both succeeded
-    const bothSucceeded = scopeResult.success && hcpResult.success;
+    return result;
+  }
 
-    // Update opportunity status on success
-    if (bothSucceeded) {
+  private async executeResearchPlan(context: AgentContext): Promise<AgentResult> {
+    console.log('📋 Executing Research Plan (Scope Design)...');
+
+    const sql = getSql();
+    const scopeAgent = new ScopePlannerAgent();
+    const result = await scopeAgent.execute(context);
+
+    if (result.success) {
       await sql`
         UPDATE opportunities
         SET status = 'scope_planning', updated_at = now()
         WHERE id = ${context.opportunityId}
       `;
-      console.log(`✅ Research Design & Feasibility complete`);
+      console.log('✅ Research plan complete');
     }
 
-    return {
-      success: bothSucceeded,
-      data: {
-        scopePlanning: scopeResult.data,
-        feasibility: hcpResult.data,
-        message: bothSucceeded
-          ? 'Research design and feasibility analysis complete'
-          : 'One or more agents failed',
-      },
-      error: !bothSucceeded
-        ? `Scope: ${scopeResult.error || 'OK'}, HCP: ${hcpResult.error || 'OK'}`
-        : undefined,
-    };
+    return result;
   }
 
   private async proceedToWBSEstimation(context: AgentContext): Promise<AgentResult> {

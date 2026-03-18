@@ -139,7 +139,7 @@ export default function IntelligencePage() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-ps-primary-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary mx-auto mb-4"></div>
           <p className="text-gray-600 dark:text-gray-400">Loading...</p>
         </div>
       </div>
@@ -147,12 +147,12 @@ export default function IntelligencePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ps-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
-            <Sparkles className="w-8 h-8 text-ps-primary-600" />
+            <Sparkles className="w-8 h-8 text-secondary" />
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Market Intelligence</h1>
           </div>
           <p className="text-gray-600 dark:text-gray-400">
@@ -168,7 +168,7 @@ export default function IntelligencePage() {
                 onClick={() => setActiveTab('signals')}
                 className={`py-4 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'signals'
-                    ? 'border-ps-primary-600 text-ps-primary-600'
+                    ? 'border-secondary text-secondary'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
@@ -181,7 +181,7 @@ export default function IntelligencePage() {
                 onClick={() => setActiveTab('news')}
                 className={`py-4 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'news'
-                    ? 'border-ps-primary-600 text-ps-primary-600'
+                    ? 'border-secondary text-secondary'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
@@ -194,7 +194,7 @@ export default function IntelligencePage() {
                 onClick={() => setActiveTab('events')}
                 className={`py-4 border-b-2 font-medium text-sm transition-colors ${
                   activeTab === 'events'
-                    ? 'border-ps-primary-600 text-ps-primary-600'
+                    ? 'border-secondary text-secondary'
                     : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
@@ -215,7 +215,7 @@ export default function IntelligencePage() {
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <Building2 className="w-5 h-5 text-ps-primary-600" />
+                      <Building2 className="w-5 h-5 text-secondary" />
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{signal.company}</h3>
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -252,8 +252,8 @@ export default function IntelligencePage() {
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <Building2 className="w-5 h-5 text-ps-primary-600" />
-                      <span className="text-sm font-medium text-ps-primary-600">{news.company}</span>
+                      <Building2 className="w-5 h-5 text-secondary" />
+                      <span className="text-sm font-medium text-secondary">{news.company}</span>
                       <span className="text-sm text-gray-500 dark:text-gray-400">{news.date}</span>
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{news.title}</h3>
@@ -267,7 +267,7 @@ export default function IntelligencePage() {
                       <span className="text-sm text-gray-500 dark:text-gray-400">Source: {news.source}</span>
                       <a
                         href={news.url}
-                        className="text-sm text-ps-primary-600 hover:text-ps-primary-700 flex items-center gap-1"
+                        className="text-sm text-secondary hover:text-ps-primary-700 flex items-center gap-1"
                       >
                         Read More <ExternalLink className="w-3 h-3" />
                       </a>
@@ -286,7 +286,7 @@ export default function IntelligencePage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <Calendar className="w-5 h-5 text-ps-primary-600" />
+                      <Calendar className="w-5 h-5 text-secondary" />
                       <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{event.name}</h3>
                     </div>
                     <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-3">

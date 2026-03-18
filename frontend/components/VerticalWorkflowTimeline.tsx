@@ -17,6 +17,27 @@ interface WorkflowStep {
   icon: any;
   requiresApproval?: boolean;
   statusMapping?: string[];
+  uiOnly?: boolean; // step exists only in UI, shares a DB status with another step
+}
+
+const STEP_SUBTASKS: Record<string, string[]> = {
+  intake: ['Parse RFP document', 'Extract client metadata', 'Identify therapeutic area', 'Extract deadline & geography'],
+  brief_extract: ['Map to 13-section template', 'Extract research objectives', 'Extract sample requirements', 'Calculate completeness score'],
+  gap_analysis: ['Identify missing sections', 'Flag ambiguous requirements', 'Detect conflicting data', 'Run assumption analysis', 'Score overall completeness'],
+  clarification: ['Prioritize gaps by severity', 'Draft clarification questions', 'Format email with assumptions', 'Prepare send-ready email'],
+  clarification_response: ['Parse uploaded response', 'Match answers to questions', 'Update requirements brief', 'Finalize assumptions'],
+  feasibility: ['Match HCP profiles', 'Score panel availability', 'Flag recruitment risks', 'Summarize feasibility'],
+  scope_planning: ['Detect study type', 'Generate sample size options', 'Design delivery timeline', 'Create scope assumptions'],
+  wbs_estimate: ['Build work breakdown structure', 'Estimate task hours', 'Apply rate card', 'Calculate total cost'],
+  document_gen: ['Generate proposal narrative', 'Build pricing annex', 'Create Statement of Work'],
+  approvals: ['Route to reviewers', 'Track approval status', 'Log final decision'],
+};
+
+function formatDuration(ms: number): string {
+  if (ms < 60000) return `${Math.round(ms / 1000)}s`;
+  const m = Math.floor(ms / 60000);
+  const s = Math.round((ms % 60000) / 1000);
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
 interface VerticalWorkflowTimelineProps {
@@ -30,82 +51,93 @@ interface VerticalWorkflowTimelineProps {
 const workflowSteps: WorkflowStep[] = [
   {
     id: 'intake',
-    label: 'RFP Upload',
-    agentName: 'RFP Intake',
-    description: 'Upload RFP document and extract basic metadata (client, deadline, therapeutic area)',
+    label: 'RFP Intake',
+    agentName: 'RFP Intake Agent',
+    description: 'Parse RFP document and extract key metadata: client, deadline, therapeutic area, geography',
     icon: FileText,
-    statusMapping: ['intake']
+    statusMapping: ['intake'],
   },
   {
     id: 'brief_extract',
-    label: 'Requirements Extraction',
-    agentName: 'Requirements Extraction',
-    description: 'Deep analysis: Extracting research objectives, target audience, sample requirements, and deliverables',
+    label: 'Requirements & Brief Creation',
+    agentName: 'Brief Extractor Agent',
+    description: 'Map RFP to 13-section template. Extract objectives, audience, sample, timeline, deliverables, and budget.',
     icon: Search,
-    statusMapping: ['brief_extract']
+    statusMapping: ['brief_extract'],
   },
   {
     id: 'gap_analysis',
-    label: 'Gap Analysis',
-    agentName: 'Gap Analysis',
-    description: 'Identify missing critical fields, ambiguous terms, and incomplete requirements',
+    label: 'Gaps & Assumptions Identification',
+    agentName: 'Gap & Assumption Agents',
+    description: 'Identify missing sections, ambiguous terms, conflicting data, and document all assumptions made',
     icon: BarChart2,
+    statusMapping: ['gap_analysis', 'assumption_analysis'],
   },
   {
     id: 'clarification',
-    label: 'Clarification Generator',
-    agentName: 'Clarification Generator',
-    description: 'Draft clarification email with questions for client',
+    label: 'Clarification Request',
+    agentName: 'Clarification Generator Agent',
+    description: 'Generate a ready-to-send email with prioritised questions, assumptions, and conflict resolutions for the RFP provider',
     icon: MessageSquare,
-    requiresApproval: true
+    statusMapping: ['clarification'],
+  },
+  {
+    id: 'human_review',
+    label: 'Human Review Point',
+    agentName: 'Human Action Required',
+    description: 'Review the generated clarification email, approve & send it, then upload the client response or continue with assumptions',
+    icon: Eye,
+    uiOnly: true,
+    statusMapping: ['clarification'],
   },
   {
     id: 'clarification_response',
-    label: 'Response Processing',
-    agentName: 'Response Processing',
-    description: 'Parse client responses and update requirements brief with clarified information',
+    label: 'Response Parsing & Brief Update',
+    agentName: 'Response Parser Agent',
+    description: 'Parse client responses, extract answers, and enrich the requirements brief. If skipped, assumptions are finalised.',
     icon: FileCheck,
-    statusMapping: ['clarification_response']
-  },
-  {
-    id: 'scope_planning',
-    label: 'Research Design',
-    agentName: 'Research Design',
-    description: 'Design detailed scope, methodology, sample size, delivery plan, project stages, and full execution roadmap',
-    icon: ClipboardList,
-    requiresApproval: true,
-    statusMapping: ['scope_planning']
+    statusMapping: ['clarification_response'],
   },
   {
     id: 'feasibility',
-    label: 'Feasibility',
-    agentName: 'Feasibility',
-    description: 'Check HCP database for best interview candidates; if unavailable, suggest HCP profiles and specialties to recruit',
+    label: 'Feasibility Analysis',
+    agentName: 'HCP Matcher Agent',
+    description: 'Match HCP profiles from internal database, score availability, and assess recruitment feasibility',
     icon: Users,
-    statusMapping: ['feasibility', 'scope_planning']
+    statusMapping: ['feasibility'],
+  },
+  {
+    id: 'scope_planning',
+    label: 'Research Plan',
+    agentName: 'Scope Planner Agent',
+    description: 'Detect study type, generate sample size options, design methodology, timeline, and scope assumptions',
+    icon: ClipboardList,
+    statusMapping: ['scope_planning'],
   },
   {
     id: 'wbs_estimate',
     label: 'Pricing & Budgeting',
-    agentName: 'Pricing & Budgeting',
-    description: 'Generate pricing tiers and cost breakdown',
+    agentName: 'WBS & Pricer Agents',
+    description: 'Build work breakdown structure, estimate hours, apply rate card, and generate full cost breakdown',
     icon: BarChart2,
-    statusMapping: ['wbs_estimate', 'pricing']
+    statusMapping: ['wbs_estimate', 'pricing'],
   },
   {
-    id: 'proposal',
-    label: 'Document Generation',
-    agentName: 'Document Generation',
-    description: 'Generate proposal document, SoW, pricing annex',
+    id: 'document_gen',
+    label: 'Proposal Creation',
+    agentName: 'Document Generator Agent',
+    description: 'Generate proposal narrative, Statement of Work, and pricing annex ready for client submission',
     icon: FileText,
-    requiresApproval: true
+    requiresApproval: true,
+    statusMapping: ['document_gen'],
   },
   {
     id: 'approvals',
-    label: 'Approval Routing',
-    agentName: 'Approval Routing',
-    description: 'Route to finance, legal, compliance approvers',
+    label: 'Approvals & Closure',
+    agentName: 'Approval Router',
+    description: 'Route documents to finance, legal, and compliance approvers. Log final bid decision.',
     icon: CheckCircle,
+    statusMapping: ['approvals'],
   },
 ];
 
@@ -125,43 +157,78 @@ export default function VerticalWorkflowTimeline({
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [feasibilityModalOpen, setFeasibilityModalOpen] = useState(false);
   const [uploadingResponse, setUploadingResponse] = useState(false);
-  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
   const [redoConfirmStep, setRedoConfirmStep] = useState<string | null>(null);
   const [redoing, setRedoing] = useState(false);
   const backendStatus = opportunity?.status || 'intake';
   const currentJob = opportunity?.currentJob;
+  const allJobs: any[] = opportunity?.allJobs || [];
 
-  // Find the current step index
-  const currentStepIndex = workflowSteps.findIndex(step => {
-    if (step.statusMapping && Array.isArray(step.statusMapping)) {
-      return step.statusMapping.includes(backendStatus);
+  // Determine if the human_review step is active
+  const clarificationHasQuestions = Array.isArray(opportunity?.clarification?.questions) && opportunity.clarification.questions.length > 0;
+
+  // Find the current step index — handles uiOnly steps
+  const currentStepIndex = (() => {
+    // Special case: clarification status with questions generated → human_review is current
+    if (backendStatus === 'clarification' && clarificationHasQuestions) {
+      return workflowSteps.findIndex(s => s.id === 'human_review');
     }
-    return step.id === backendStatus;
-  });
+    // For all other statuses, skip uiOnly steps in lookup
+    return workflowSteps.findIndex(step => {
+      if (step.uiOnly) return false;
+      if (step.statusMapping && Array.isArray(step.statusMapping)) {
+        return step.statusMapping.includes(backendStatus);
+      }
+      return step.id === backendStatus;
+    });
+  })();
+
+  // Get duration for a completed step from allJobs
+  const getStepDuration = (stepId: string): string | null => {
+    // Map step id to job type
+    const jobTypeMap: Record<string, string> = {
+      intake: 'intake',
+      brief_extract: 'brief_extract',
+      gap_analysis: 'gap_analysis',
+      clarification: 'clarification',
+      clarification_response: 'clarification_response',
+      feasibility: 'feasibility',
+      scope_planning: 'scope_planner',
+      wbs_estimate: 'wbs_estimate',
+      document_gen: 'document_gen',
+      approvals: 'approvals',
+    };
+    const jobType = jobTypeMap[stepId];
+    if (!jobType) return null;
+    const job = allJobs.find((j: any) => j.jobType === jobType && j.status === 'completed' && j.durationMs);
+    return job ? formatDuration(job.durationMs) : null;
+  };
 
   const getStepStatus = (stepIndex: number) => {
     const step = workflowSteps[stepIndex];
 
-    // Check if this step matches the current backend status (for parallel steps)
+    // Special handling for the uiOnly human_review step
+    if (step.id === 'human_review') {
+      if (backendStatus !== 'clarification') return 'completed'; // moved past
+      if (!clarificationHasQuestions) return 'locked'; // AI hasn't finished yet
+      return 'in-progress'; // questions ready, awaiting human action
+    }
+
+    // For the clarification step: completed once questions are generated (human_review takes over)
+    if (step.id === 'clarification') {
+      if (backendStatus === 'clarification' && clarificationHasQuestions) return 'completed';
+      if (backendStatus !== 'clarification') {
+        const clarIdx = workflowSteps.findIndex(s => s.id === 'clarification');
+        return stepIndex < currentStepIndex ? 'completed' : 'locked';
+      }
+    }
+
     const isCurrentStep = step.statusMapping && Array.isArray(step.statusMapping)
-      ? step.statusMapping.includes(backendStatus)
+      ? step.statusMapping.includes(backendStatus) && !step.uiOnly
       : step.id === backendStatus;
 
-    if (stepIndex < currentStepIndex && !isCurrentStep) return 'completed';
-
-    if (isCurrentStep || stepIndex === currentStepIndex) {
-      // Special case for clarification: Mark completed when questions are generated
-      if (backendStatus === 'clarification' && opportunity?.clarification) {
-        return 'completed';
-      }
-      // Special case: If clarification is sent/approved, mark as completed
-      if (backendStatus === 'clarification' && opportunity?.clarification?.status === 'sent') {
-        return 'completed';
-      }
-      // If at current step, always show as in-progress (since we haven't moved to next step yet)
-      // This includes pending jobs, processing jobs, and uploaded files awaiting processing
-      return 'in-progress';
-    }
+    if (stepIndex < currentStepIndex) return 'completed';
+    if (stepIndex === currentStepIndex) return 'in-progress';
     if (stepIndex === currentStepIndex + 1) return 'waiting';
     return 'locked';
   };
@@ -244,7 +311,6 @@ export default function VerticalWorkflowTimeline({
     }
 
     setUploadingResponse(true);
-    setShowUploadDialog(false);
 
     try {
       const formData = new FormData();
@@ -371,6 +437,25 @@ export default function VerticalWorkflowTimeline({
     }
   };
 
+  const handleSendEmail = async () => {
+    setEmailSending(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity?.id}/send-clarification-email`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.message || 'Failed to send email');
+      }
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      alert(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const handleResetDecision = async () => {
     // Reset just the upload/skip decision without redoing step 4
     setUploadingResponse(true);
@@ -433,29 +518,22 @@ export default function VerticalWorkflowTimeline({
   };
 
   // Show all steps if showAlls is true, otherwise show first 4 + any completed or in-progress steps
+  // uiOnly steps (human_review) only appear when active or completed
   const visibleSteps = showAlls
     ? workflowSteps
     : workflowSteps.filter((step, index) => {
         const status = getStepStatus(index);
+        if (step.uiOnly) return status === 'in-progress' || status === 'completed';
         return index < 4 || status === 'completed' || status === 'in-progress';
       });
 
-  // Show upload/skip section if clarification is sent OR if we're past clarification step (keep visible after completion)
-  // Check if clarification step (index 3) is completed
-  const clarificationStepIndex = workflowSteps.findIndex(s => s.id === 'clarification');
-  const clarificationCompleted = clarificationStepIndex >= 0 && getStepStatus(clarificationStepIndex) === 'completed';
-
-  const showResponseDecision = clarificationCompleted ||
-                               (opportunity?.clarification?.status === 'sent') ||
-                               ['clarification_response', 'scope_planning', 'feasibility', 'wbs_estimate', 'proposal'].includes(backendStatus);
-  const responseDecisionCompleted = backendStatus !== 'clarification' && showResponseDecision;
-
   return (
     <div className="max-w-6xl mx-auto py-6 px-8 space-y-5">
-      {visibleSteps.map((step, index) => {
-        const status = getStepStatus(index);
+      {visibleSteps.map((step) => {
+        const stepIndex = workflowSteps.indexOf(step);
+        const status = getStepStatus(stepIndex);
         const Icon = step.icon;
-        const isLast = index === workflowSteps.length - 1;
+        const isLast = stepIndex === workflowSteps.length - 1;
 
         return (
           <React.Fragment key={step.id}>
@@ -509,7 +587,7 @@ export default function VerticalWorkflowTimeline({
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="text-base font-bold text-slate-900 dark:text-white">
-                      {index + 1}. {step.label}
+                      {step.uiOnly ? '↳' : `${stepIndex + 1}.`} {step.label}
                     </h4>
                     <span
                       className={`px-2 py-0.5 text-[10px] font-black rounded-lg uppercase tracking-wider ${
@@ -534,34 +612,36 @@ export default function VerticalWorkflowTimeline({
                   <p className="text-xs text-slate-500 dark:text-slate-400">{step.description}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  {/* Progress percentage for in-progress */}
-                  {status === 'in-progress' && getCurrentProgress() > 0 && (
-                    <span className="text-sm font-black text-primary">{getCurrentProgress()}%</span>
-                  )}
+                  {/* Duration for completed steps */}
+                  {status === 'completed' && (() => {
+                    const dur = getStepDuration(step.id);
+                    return dur ? (
+                      <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">
+                        {dur}
+                      </span>
+                    ) : null;
+                  })()}
+
+                  {/* Spinner for in-progress with no progress yet */}
                   {status === 'in-progress' && getCurrentProgress() === 0 && (
                     <Loader2 className="w-4 h-4 text-primary animate-spin" />
                   )}
 
-                  {/* Time info - same for all steps */}
-                  {(status === 'completed' || status === 'in-progress') && (
-                    <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                      2m ago
-                    </span>
+                  {/* Redo button — only for non-uiOnly steps */}
+                  {!step.uiOnly && (
+                    <button
+                      onClick={() => status === 'completed' || status === 'in-progress' ? setRedoConfirmStep(step.id) : null}
+                      disabled={status === 'waiting' || status === 'locked'}
+                      className={`p-1.5 transition-colors ${
+                        status === 'waiting' || status === 'locked'
+                          ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                          : 'text-slate-400 hover:text-orange-600 dark:hover:text-orange-500 cursor-pointer'
+                      }`}
+                      title={status === 'waiting' || status === 'locked' ? 'Cannot redo this step yet' : 'Redo this step'}
+                    >
+                      <RefreshCw size={16} />
+                    </button>
                   )}
-
-                  {/* Always show refresh button, disable for waiting/locked */}
-                  <button
-                    onClick={() => status === 'completed' || status === 'in-progress' ? setRedoConfirmStep(step.id) : null}
-                    disabled={status === 'waiting' || status === 'locked'}
-                    className={`p-1.5 transition-colors ${
-                      status === 'waiting' || status === 'locked'
-                        ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-                        : 'text-slate-400 hover:text-orange-600 dark:hover:text-orange-500 cursor-pointer'
-                    }`}
-                    title={status === 'waiting' || status === 'locked' ? 'Cannot redo this step yet' : 'Redo this step'}
-                  >
-                    <RefreshCw size={16} />
-                  </button>
                 </div>
               </div>
 
@@ -686,132 +766,186 @@ export default function VerticalWorkflowTimeline({
                 </div>
               )}
 
-              {/* Output Preview - In Progress */}
-              {status === 'in-progress' && (
-                <div className="space-y-4">
-                  <div className="bg-primary/5 dark:bg-primary/10 rounded-lg p-4 border border-primary/10 dark:border-primary/20">
-                    <h5 className="text-[10px] font-bold text-primary/60 dark:text-primary/70 uppercase mb-2 tracking-widest">
-                      Current Task
-                    </h5>
-                    <div className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed bg-white/50 dark:bg-gray-800/50 p-3 rounded-lg border border-white/50 dark:border-gray-700/50">
-                      {getCurrentProgressMessage() || (
-                        <>
-                          {step.id === 'intake' && "Processing RFP upload and extracting basic metadata (client name, deadline, therapeutic area)..."}
-                          {step.id === 'brief_extract' && "Deep requirements analysis: Extracting objectives, target audience, sample specifications, deliverables, and timeline from RFP..."}
-                          {step.id === 'gap_analysis' && "Analyzing requirements for completeness. Identifying missing fields, ambiguous terms, and gaps..."}
-                          {step.id === 'clarification' && "Drafting clarification questions for client based on identified gaps and ambiguities..."}
-                          {step.id === 'clarification_response' && "Parsing client responses to clarification questions and assumptions. Extracting answers and updating requirements brief with clarified information..."}
-                          {step.id === 'scope_planning' && "Designing research methodology, calculating sample size, and preparing feasibility assessment..."}
-                          {step.id === 'workplan' && "Evaluating project feasibility, resource requirements, and timeline constraints..."}
-                          {step.id === 'wbs_estimate' && "Calculating pricing tiers and generating cost breakdown based on scope and requirements..."}
-                          {step.id === 'proposal' && "Generating proposal document, Statement of Work, and pricing annex..."}
-                          {step.id === 'approvals' && "Routing documents to finance, legal, and compliance for approval..."}
-                          {!['intake', 'brief_extract', 'gap_analysis', 'clarification', 'clarification_response', 'scope_planning', 'workplan', 'wbs_estimate', 'proposal', 'approvals'].includes(step.id) &&
-                            "Processing current workflow step..."}
-                        </>
-                      )}
+              {/* Human Review Point — two-box layout for email send + upload/skip */}
+              {step.id === 'human_review' && status === 'in-progress' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Box A: Email Preview + Approve & Send */}
+                  <div className="rounded-lg border-2 border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-800 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-500" />
+                      <h4 className="font-bold text-sm text-gray-900 dark:text-white">Clarification Email</h4>
                     </div>
+                    {opportunity?.clarification?.sent_at && (
+                      <div className="mb-3 flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
+                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                          Sent to nithya@petasight.com
+                        </p>
+                      </div>
+                    )}
+                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 mb-4 max-h-44 overflow-y-auto">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Questions Preview</p>
+                      <ol className="space-y-1.5 list-none">
+                        {(opportunity?.clarification?.questions || []).slice(0, 5).map((q: any, i: number) => (
+                          <li key={i} className="text-xs text-slate-600 dark:text-slate-400">
+                            {i + 1}. {typeof q === 'string' ? q : q.question || JSON.stringify(q)}
+                          </li>
+                        ))}
+                        {(opportunity?.clarification?.questions?.length || 0) > 5 && (
+                          <li className="text-xs text-slate-400 italic">
+                            +{opportunity.clarification.questions.length - 5} more…
+                          </li>
+                        )}
+                      </ol>
+                    </div>
+                    <button
+                      onClick={handleSendEmail}
+                      disabled={emailSending || !!opportunity?.clarification?.sent_at}
+                      className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg font-bold text-sm transition-all ${
+                        opportunity?.clarification?.sent_at
+                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 cursor-not-allowed'
+                          : emailSending
+                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-secondary to-primary text-white shadow-md hover:opacity-90 cursor-pointer'
+                      }`}
+                    >
+                      {emailSending ? (
+                        <><Loader2 className="w-4 h-4 animate-spin" />Sending…</>
+                      ) : opportunity?.clarification?.sent_at ? (
+                        <><Check className="w-4 h-4" strokeWidth={3} />Email Sent</>
+                      ) : (
+                        <><MessageSquare className="w-4 h-4" />Approve &amp; Send</>
+                      )}
+                    </button>
+                    {!opportunity?.clarification?.sent_at && (
+                      <p className="text-[10px] text-slate-400 mt-2 text-center">Sends to nithya@petasight.com</p>
+                    )}
                   </div>
 
-                  {/* Human Intervention Alert - Only show when step is completed, not in progress */}
-                  {step.requiresApproval && status === 'completed' && !(step.id === 'clarification' && opportunity?.clarification?.status === 'sent') && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 shadow-sm">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="text-orange-600" size={20} />
-                          <h5 className="text-sm font-bold text-orange-900 tracking-tight">
-                            Human Intervention Required
-                          </h5>
-                        </div>
-                        <span className="px-2 py-0.5 bg-orange-200 text-orange-800 text-[10px] font-bold rounded-lg uppercase">
-                          Urgent Task
-                        </span>
+                  {/* Box B: Upload Response or Skip */}
+                  <div className="space-y-3">
+                    <div className="rounded-lg border-2 border-emerald-200 dark:border-emerald-800 bg-white dark:bg-gray-800 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white">Upload Client Response</h4>
                       </div>
-                      <p className="text-sm text-orange-800/80 mb-4">
-                        {step.id === 'clarification' && "Review and approve clarification questions before sending to client."}
-                        {step.id === 'scope_planning' && "Review and approve research design and methodology before proceeding."}
-                        {step.id === 'proposal' && "Review and approve final proposal documents before submitting to client."}
-                        {!['clarification', 'scope_planning', 'proposal'].includes(step.id) && "Review and approve this step before proceeding to the next stage."}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Upload the client's reply (.pdf, .docx, .txt, .msg)
                       </p>
-                      <div className="flex gap-3">
-                        {/* Review/View button for steps requiring approval */}
-                        {step.id === 'clarification' && opportunity?.clarification && (
-                          <button
-                            onClick={() => setClarificationModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white text-xs font-bold rounded-lg hover:bg-orange-700 transition-colors shadow-sm"
-                          >
-                            <Eye size={14} />
-                            Review Questions
-                          </button>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.txt,.eml,.msg"
+                        onChange={handleFileUpload}
+                        disabled={uploadingResponse}
+                        className="hidden"
+                        id="response-file-upload"
+                      />
+                      <span
+                        role="button"
+                        className={`flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg font-bold text-sm transition-all ${
+                          uploadingResponse
+                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                            : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                        }`}
+                        onClick={() => !uploadingResponse && document.getElementById('response-file-upload')?.click()}
+                      >
+                        {uploadingResponse ? (
+                          <><Loader2 className="w-4 h-4 animate-spin" />Parsing…</>
+                        ) : (
+                          <><Upload className="w-4 h-4" />Choose File</>
                         )}
-                        {step.id === 'gap_analysis' && opportunity?.gapAnalysis && (
-                          <button
-                            onClick={() => setGapModalOpen(true)}
-                            className="flex items-center gap-2 px-4 py-2 bg-white text-orange-800 border-2 border-orange-300 text-xs font-bold rounded-lg hover:bg-orange-50 transition-colors shadow-sm"
-                          >
-                            <Eye size={14} />
-                            Review Analysis
-                          </button>
-                        )}
-                        {step.id === 'scope_planning' && (
-                          <>
-                            {opportunity?.scope && (
-                              <button
-                                onClick={() => setScopeModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white text-orange-800 border-2 border-orange-300 text-xs font-bold rounded-lg hover:bg-orange-50 transition-colors shadow-sm"
-                              >
-                                <Eye size={14} />
-                                Review Design
-                              </button>
-                            )}
-                            {opportunity?.feasibility && (
-                              <button
-                                onClick={() => setFeasibilityModalOpen(true)}
-                                className="flex items-center gap-2 px-4 py-2 bg-white text-orange-800 border-2 border-orange-300 text-xs font-bold rounded-lg hover:bg-orange-50 transition-colors shadow-sm"
-                              >
-                                <Eye size={14} />
-                                Review Feasibility
-                              </button>
-                            )}
-                            <button
-                              onClick={onApprove || onProcessNext}
-                              disabled={processing}
-                              className="px-6 py-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white text-xs font-bold rounded-lg transition-opacity shadow-sm disabled:opacity-50"
-                            >
-                              {processing ? (
-                                <>
-                                  <Loader2 className="inline w-3 h-3 mr-2 animate-spin" />
-                                  Processing...
-                                </>
-                              ) : (
-                                'Approve Design'
-                              )}
-                            </button>
-                          </>
-                        )}
-                        {/* For other approval steps, keep the approve button */}
-                        {!['clarification', 'gap_analysis', 'scope_planning'].includes(step.id) && (
-                          <button
-                            onClick={onApprove || onProcessNext}
-                            disabled={processing}
-                            className="px-6 py-2 bg-gradient-to-r from-primary to-secondary hover:opacity-90 text-white text-xs font-bold rounded-lg transition-opacity shadow-sm disabled:opacity-50"
-                          >
-                            {processing ? (
-                              <>
-                                <Loader2 className="inline w-3 h-3 mr-2 animate-spin" />
-                                Processing...
-                              </>
-                            ) : (
-                              <>
-                                {step.id === 'proposal' && 'Approve Proposal'}
-                                {!['clarification', 'scope_planning', 'proposal'].includes(step.id) && 'Approve'}
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
+                      </span>
                     </div>
-                  )}
+
+                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="w-4 h-4 text-orange-500" />
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white">Skip &amp; Continue</h4>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                        Proceed with current assumptions — no client response needed
+                      </p>
+                      <button
+                        onClick={handleSkipResponses}
+                        disabled={uploadingResponse}
+                        className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg font-bold text-sm bg-slate-600 hover:bg-slate-700 text-white transition-colors disabled:opacity-50"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Skip &amp; Proceed
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Subtask List - In Progress */}
+              {status === 'in-progress' && !step.uiOnly && (
+                <div className="space-y-4">
+                  {(() => {
+                    const subtasks = STEP_SUBTASKS[step.id] || [];
+                    if (subtasks.length === 0) return null;
+                    const progress = getCurrentProgress(); // 0-100
+                    // Map progress to current subtask index
+                    const currentSubIdx = progress === 0
+                      ? 0
+                      : Math.min(Math.floor((progress / 100) * subtasks.length), subtasks.length - 1);
+                    return (
+                      <div className="rounded-lg border border-slate-100 dark:border-slate-700 overflow-hidden">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 border-b border-slate-100 dark:border-slate-700">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tasks</span>
+                          {progress > 0 && (
+                            <span className="float-right text-[10px] font-bold text-primary">{progress}%</span>
+                          )}
+                        </div>
+                        <ul className="divide-y divide-slate-50 dark:divide-slate-800">
+                          {subtasks.map((task, ti) => {
+                            const isDone = ti < currentSubIdx;
+                            const isCurrent = ti === currentSubIdx;
+                            const isNext = ti === currentSubIdx + 1;
+                            return (
+                              <li key={ti} className={`flex items-center gap-3 px-4 py-2.5 ${isCurrent ? 'bg-primary/5 dark:bg-primary/10' : ''}`}>
+                                <span className="flex-shrink-0">
+                                  {isDone ? (
+                                    <Check className="w-3.5 h-3.5 text-emerald-500" strokeWidth={3} />
+                                  ) : isCurrent ? (
+                                    <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
+                                  ) : (
+                                    <span className="w-3.5 h-3.5 block rounded-full border border-slate-200 dark:border-slate-600" />
+                                  )}
+                                </span>
+                                <span className={`text-xs ${
+                                  isDone ? 'line-through text-slate-400 dark:text-slate-500' :
+                                  isCurrent ? 'text-slate-900 dark:text-white font-semibold' :
+                                  isNext ? 'text-slate-500 dark:text-slate-400' :
+                                  'text-slate-300 dark:text-slate-600'
+                                }`}>
+                                  {task}
+                                </span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+                  </div>
+
+              {/* Approval required banner for document_gen (shown when in-progress) */}
+              {step.id === 'document_gen' && status === 'in-progress' && (
+                <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0" size={16} />
+                    <p className="text-sm text-amber-800 dark:text-amber-300">
+                      Review generated proposal documents before final approval
+                    </p>
+                  </div>
+                  <button
+                    onClick={onApprove || onProcessNext}
+                    disabled={processing}
+                    className="ml-4 px-4 py-1.5 bg-gradient-to-r from-primary to-secondary text-white text-xs font-bold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
+                  >
+                    {processing ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Approve & Close'}
+                  </button>
                 </div>
               )}
 
@@ -830,158 +964,6 @@ export default function VerticalWorkflowTimeline({
           </div>
 
 
-          {/* Upload/Skip Decision Point - Render after clarification step */}
-          {step.id === 'clarification' && showResponseDecision && (
-        <div className="relative pl-16 mt-6 mb-6">
-          {/* Connecting Line */}
-          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-500 to-slate-200 dark:to-slate-700" />
-
-          {/* Decision Point Card */}
-          <div className={`rounded-xl p-6 shadow-lg border-2 border-dashed transition-all ${
-            responseDecisionCompleted
-              ? 'bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-900/20 dark:to-gray-900/20 border-slate-300 dark:border-slate-700'
-              : 'bg-gradient-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 border-blue-300 dark:border-blue-700'
-          }`}>
-            <div className="flex items-center gap-3 mb-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                responseDecisionCompleted
-                  ? 'bg-slate-500/10 dark:bg-slate-500/20'
-                  : 'bg-blue-500/10 dark:bg-blue-500/20'
-              }`}>
-                <FileCheck className={`w-5 h-5 ${
-                  responseDecisionCompleted
-                    ? 'text-slate-600 dark:text-slate-500'
-                    : 'text-blue-600 dark:text-blue-500'
-                }`} />
-              </div>
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">
-                  Client Response Required
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {responseDecisionCompleted
-                    ? 'Decision completed. Click refresh icon to re-upload or change choice.'
-                    : 'Choose how to proceed with clarification questions'}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                {responseDecisionCompleted && (
-                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500">
-                    2m ago
-                  </span>
-                )}
-                {responseDecisionCompleted && (
-                  <button
-                    onClick={handleResetDecision}
-                    disabled={uploadingResponse}
-                    className="p-1.5 text-slate-400 hover:text-orange-600 dark:hover:text-orange-500 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Refresh to re-upload or change choice"
-                  >
-                    <RefreshCw size={16} className={uploadingResponse ? 'animate-spin' : ''} />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Upload Response Option */}
-              <div className={`bg-white dark:bg-gray-800 rounded-lg p-5 border-2 transition-all ${
-                backendStatus === 'clarification'
-                  ? 'border-emerald-200 dark:border-emerald-800 hover:border-emerald-400 dark:hover:border-emerald-600'
-                  : 'border-gray-300 dark:border-gray-700'
-              }`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Upload className={`w-5 h-5 ${backendStatus === 'clarification' ? 'text-emerald-600 dark:text-emerald-500' : 'text-gray-400'}`} />
-                  <h4 className="font-bold text-gray-900 dark:text-white">Upload Client Responses</h4>
-                  {backendStatus !== 'clarification' && opportunity?.clarification?.client_responses && (
-                    <span className="ml-auto px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] font-bold rounded uppercase">
-                      Used
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-                  Upload the client's response file (PDF, Word, Excel, email, or txt). We'll parse and validate their answers.
-                </p>
-                <label className="block">
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.eml"
-                    onChange={handleFileUpload}
-                    disabled={uploadingResponse || backendStatus !== 'clarification'}
-                    className="hidden"
-                    id="response-file-upload"
-                  />
-                  <span
-                    className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg font-bold text-sm transition-all ${
-                      uploadingResponse || backendStatus !== 'clarification'
-                        ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
-                        : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md hover:shadow-lg cursor-pointer'
-                    }`}
-                    onClick={(e) => {
-                      if (!uploadingResponse && backendStatus === 'clarification') {
-                        document.getElementById('response-file-upload')?.click();
-                      }
-                    }}
-                  >
-                    {uploadingResponse ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Parsing Responses...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="w-4 h-4" />
-                        Choose File
-                      </>
-                    )}
-                  </span>
-                </label>
-              </div>
-
-              {/* Skip Option */}
-              <div className={`bg-white dark:bg-gray-800 rounded-lg p-5 border-2 transition-all ${
-                backendStatus === 'clarification'
-                  ? 'border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
-                  : 'border-gray-300 dark:border-gray-700'
-              }`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className={`w-5 h-5 ${backendStatus === 'clarification' ? 'text-orange-600 dark:text-orange-500' : 'text-gray-400'}`} />
-                  <h4 className="font-bold text-gray-900 dark:text-white">Continue with Assumptions</h4>
-                  {backendStatus !== 'clarification' && !opportunity?.clarification?.client_responses && (
-                    <span className="ml-auto px-2 py-0.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-[10px] font-bold rounded uppercase">
-                      Used
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-600 dark:text-gray-400 mb-4">
-                  Proceed to Research Design without client responses. We'll work with the assumptions made during gap analysis.
-                </p>
-                <button
-                  onClick={handleSkipResponses}
-                  disabled={uploadingResponse || backendStatus !== 'clarification'}
-                  className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg font-bold text-sm transition-all ${
-                    uploadingResponse || backendStatus !== 'clarification'
-                      ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 cursor-not-allowed border border-gray-200 dark:border-gray-600'
-                      : 'bg-gray-600 hover:bg-gray-700 dark:bg-gray-700 dark:hover:bg-gray-600 text-white shadow-md hover:shadow-lg'
-                  }`}
-                >
-                  {uploadingResponse ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Parsing Responses...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      Skip & Proceed
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-          )}
 
           </React.Fragment>
         );

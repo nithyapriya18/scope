@@ -2,18 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Upload, FileText, Loader2, X, BarChart2, MessageSquare, ClipboardList, Search, FileCheck, CheckCircle } from 'lucide-react';
+import { Upload, FileText, Loader2, X, BarChart2, MessageSquare, ClipboardList, Search, FileCheck, CheckCircle, Eye, Users, RefreshCw } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
 
 const workflowSteps = [
-  { id: 'intake', label: 'RFP Intake', description: 'Upload RFP document or paste text', icon: FileText },
-  { id: 'brief_extract', label: 'Requirements Extraction', description: 'Extract research objectives and scope', icon: Search },
-  { id: 'gap_analysis', label: 'Gap Analysis', description: 'Identify missing information', icon: BarChart2 },
-  { id: 'clarification', label: 'Clarifications', description: 'Generate client questions', icon: MessageSquare },
-  { id: 'scope_planning', label: 'Scope & Sample Planning', description: 'Design methodology and sample plan', icon: ClipboardList },
-  { id: 'wbs_estimate', label: 'Pricing & Budgeting', description: 'Calculate costs and pricing', icon: BarChart2 },
-  { id: 'proposal', label: 'Proposal Generation', description: 'Create proposal documents', icon: FileCheck },
-  { id: 'approvals', label: 'Approval Routing', description: 'Route for stakeholder approval', icon: CheckCircle },
+  { id: 'intake',                 label: 'RFP Intake',                         description: 'Upload RFP document or paste text',              icon: FileText,      uiOnly: false },
+  { id: 'brief_extract',          label: 'Requirements & Brief Creation',       description: 'Extract and map to 13-section template',        icon: Search,        uiOnly: false },
+  { id: 'gap_analysis',           label: 'Gaps & Assumptions Identification',   description: 'Identify missing info and flag assumptions',     icon: BarChart2,     uiOnly: false },
+  { id: 'clarification',          label: 'Clarification Request',               description: 'AI generates clarification email for client',   icon: MessageSquare, uiOnly: false },
+  { id: 'human_review',           label: 'Human Review Point',                  description: 'Review, approve & send email to client',        icon: Eye,           uiOnly: true  },
+  { id: 'clarification_response', label: 'Response Parsing & Brief Update',     description: 'Parse client response and update brief',        icon: RefreshCw,     uiOnly: false },
+  { id: 'feasibility',            label: 'Feasibility Analysis',                description: 'Match HCP profiles and score panel availability', icon: Users,        uiOnly: false },
+  { id: 'scope_planning',         label: 'Research Plan',                       description: 'Design methodology and sample size options',     icon: ClipboardList, uiOnly: false },
+  { id: 'wbs_estimate',           label: 'Pricing & Budgeting',                 description: 'Build WBS, estimate hours, apply rate card',    icon: BarChart2,     uiOnly: false },
+  { id: 'document_gen',           label: 'Proposal Creation',                   description: 'Generate proposal narrative and SoW',           icon: FileCheck,     uiOnly: false },
+  { id: 'approvals',              label: 'Approvals & Closure',                 description: 'Route for stakeholder review and sign-off',     icon: CheckCircle,   uiOnly: false },
 ];
 
 export default function NewOpportunityPage() {
@@ -120,7 +123,7 @@ export default function NewOpportunityPage() {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-ps-primary-50 to-white dark:from-gray-900 dark:to-gray-800">
+    <div className="flex-1 overflow-y-auto bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
       <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="px-8 py-5">
@@ -170,7 +173,7 @@ export default function NewOpportunityPage() {
                   onClick={() => setMode('text')}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                     mode === 'text'
-                      ? 'text-ps-primary-600 border-b-2 border-ps-primary-600'
+                      ? 'text-secondary border-b-2 border-secondary'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
@@ -183,7 +186,7 @@ export default function NewOpportunityPage() {
                   onClick={() => setMode('file')}
                   className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
                     mode === 'file'
-                      ? 'text-ps-primary-600 border-b-2 border-ps-primary-600'
+                      ? 'text-secondary border-b-2 border-secondary'
                       : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
                   }`}
                 >
@@ -212,7 +215,7 @@ export default function NewOpportunityPage() {
                       type="text"
                       value={rfpTitle}
                       onChange={(e) => setRfpTitle(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ps-primary-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-secondary"
                       placeholder="e.g., NSCLC Treatment Patterns Study"
                       required
                     />
@@ -226,7 +229,7 @@ export default function NewOpportunityPage() {
                       type="text"
                       value={clientName}
                       onChange={(e) => setClientName(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ps-primary-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-secondary"
                       placeholder="e.g., Pfizer, Merck, Novartis"
                     />
                   </div>
@@ -239,7 +242,7 @@ export default function NewOpportunityPage() {
                       type="text"
                       value={emailSubject}
                       onChange={(e) => setEmailSubject(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ps-primary-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-secondary"
                       placeholder="e.g., RFP: Oncology Research Study"
                     />
                   </div>
@@ -252,7 +255,7 @@ export default function NewOpportunityPage() {
                       value={emailBody}
                       onChange={(e) => setEmailBody(e.target.value)}
                       rows={8}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-ps-primary-500 font-mono text-sm"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-secondary font-mono text-sm"
                       placeholder="Paste the RFP text here..."
                       required
                     />
@@ -269,7 +272,7 @@ export default function NewOpportunityPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="flex-1 px-8 py-3 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg text-base"
+                      className="flex-1 px-8 py-3 bg-secondary hover:opacity-90 text-white rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg text-base"
                     >
                       {loading ? (
                         <>
@@ -308,12 +311,12 @@ export default function NewOpportunityPage() {
                     />
                     <label
                       htmlFor="file-upload"
-                      className="block border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-ps-primary-400 dark:hover:border-ps-primary-500 transition-colors bg-white dark:bg-gray-900"
+                      className="block border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-secondary dark:hover:border-secondary transition-colors bg-white dark:bg-gray-900"
                     >
                       {file ? (
                         <div className="flex items-center justify-between gap-3 w-full">
                           <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <FileText className="w-8 h-8 text-ps-primary-600 dark:text-ps-primary-400 shrink-0" />
+                            <FileText className="w-8 h-8 text-secondary dark:text-secondary/80 shrink-0" />
                             <div className="text-left min-w-0 flex-1">
                               <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={file.name}>
                                 {file.name}
@@ -342,7 +345,7 @@ export default function NewOpportunityPage() {
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                             Drag and drop or click to upload
                           </p>
-                          <span className="inline-block px-4 py-2 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg text-sm font-medium transition-colors">
+                          <span className="inline-block px-4 py-2 bg-secondary hover:opacity-90 text-white rounded-lg text-sm font-medium transition-colors">
                             Select File
                           </span>
                         </div>
@@ -361,7 +364,7 @@ export default function NewOpportunityPage() {
                     <button
                       type="submit"
                       disabled={loading || !file}
-                      className="flex-1 px-8 py-3 bg-ps-primary-600 hover:bg-ps-primary-700 text-white rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg text-base"
+                      className="flex-1 px-8 py-3 bg-secondary hover:opacity-90 text-white rounded-lg font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg text-base"
                     >
                       {loading ? (
                         <>
@@ -381,7 +384,8 @@ export default function NewOpportunityPage() {
           {/* Remaining Steps - Locked */}
           {workflowSteps.slice(1).map((step, index) => {
             const Icon = step.icon;
-            const stepNumber = index + 2;
+            // Count non-uiOnly steps before this one (including step 0) to get display number
+            const displayNumber = workflowSteps.slice(0, index + 1).filter(s => !s.uiOnly).length + 1;
             const isLast = index === workflowSteps.length - 2;
 
             return (
@@ -402,7 +406,7 @@ export default function NewOpportunityPage() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">
-                          {stepNumber}. {step.label}
+                          {step.uiOnly ? '↳' : `${displayNumber}.`} {step.label}
                         </h4>
                         <span className="px-2 py-0.5 text-[10px] font-black rounded-lg uppercase tracking-wider bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-400">
                           Locked

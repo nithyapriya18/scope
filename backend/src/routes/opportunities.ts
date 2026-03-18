@@ -407,54 +407,72 @@ router.get('/', async (req, res) => {
       ? status
         ? sql`
             SELECT
-              id,
-              user_id as "userId",
-              client_name as "clientName",
-              rfp_title as "rfpTitle",
-              rfp_deadline as "rfpDeadline",
-              therapeutic_area as "therapeuticArea",
-              domain,
-              geography,
-              status,
-              created_at as "createdAt",
-              updated_at as "updatedAt"
-            FROM opportunities
-            WHERE user_id = ${userId as string}
-              AND status = ${status as string}
-            ORDER BY created_at DESC
+              o.id,
+              o.user_id as "userId",
+              o.client_name as "clientName",
+              o.rfp_title as "rfpTitle",
+              o.rfp_deadline as "rfpDeadline",
+              o.therapeutic_area as "therapeuticArea",
+              o.domain,
+              o.geography,
+              o.status,
+              o.created_at as "createdAt",
+              o.updated_at as "updatedAt",
+              b.study_type as "studyType"
+            FROM opportunities o
+            LEFT JOIN LATERAL (
+              SELECT study_type FROM briefs
+              WHERE opportunity_id = o.id
+              ORDER BY created_at DESC LIMIT 1
+            ) b ON true
+            WHERE o.user_id = ${userId as string}
+              AND o.status = ${status as string}
+            ORDER BY o.created_at DESC
           `
         : sql`
             SELECT
-              id,
-              user_id as "userId",
-              client_name as "clientName",
-              rfp_title as "rfpTitle",
-              rfp_deadline as "rfpDeadline",
-              therapeutic_area as "therapeuticArea",
-              domain,
-              geography,
-              status,
-              created_at as "createdAt",
-              updated_at as "updatedAt"
-            FROM opportunities
-            WHERE user_id = ${userId as string}
-            ORDER BY created_at DESC
+              o.id,
+              o.user_id as "userId",
+              o.client_name as "clientName",
+              o.rfp_title as "rfpTitle",
+              o.rfp_deadline as "rfpDeadline",
+              o.therapeutic_area as "therapeuticArea",
+              o.domain,
+              o.geography,
+              o.status,
+              o.created_at as "createdAt",
+              o.updated_at as "updatedAt",
+              b.study_type as "studyType"
+            FROM opportunities o
+            LEFT JOIN LATERAL (
+              SELECT study_type FROM briefs
+              WHERE opportunity_id = o.id
+              ORDER BY created_at DESC LIMIT 1
+            ) b ON true
+            WHERE o.user_id = ${userId as string}
+            ORDER BY o.created_at DESC
           `
       : sql`
           SELECT
-            id,
-            user_id as "userId",
-            client_name as "clientName",
-            rfp_title as "rfpTitle",
-            rfp_deadline as "rfpDeadline",
-            therapeutic_area as "therapeuticArea",
-            domain,
-            geography,
-            status,
-            created_at as "createdAt",
-            updated_at as "updatedAt"
-          FROM opportunities
-          ORDER BY created_at DESC
+            o.id,
+            o.user_id as "userId",
+            o.client_name as "clientName",
+            o.rfp_title as "rfpTitle",
+            o.rfp_deadline as "rfpDeadline",
+            o.therapeutic_area as "therapeuticArea",
+            o.domain,
+            o.geography,
+            o.status,
+            o.created_at as "createdAt",
+            o.updated_at as "updatedAt",
+            b.study_type as "studyType"
+          FROM opportunities o
+          LEFT JOIN LATERAL (
+            SELECT study_type FROM briefs
+            WHERE opportunity_id = o.id
+            ORDER BY created_at DESC LIMIT 1
+          ) b ON true
+          ORDER BY o.created_at DESC
         `;
 
     const opportunities = await query;
@@ -525,6 +543,20 @@ router.get('/:id', async (req, res) => {
       )
       ORDER BY created_at DESC
       LIMIT 1
+    `;
+
+    // Fetch all completed jobs for this opportunity (for step duration display)
+    const allJobsResult = await sql`
+      SELECT
+        job_type as "jobType",
+        status,
+        duration_ms as "durationMs",
+        completed_at as "completedAt"
+      FROM jobs
+      WHERE opportunity_id = ${id}
+        AND status = 'completed'
+        AND duration_ms IS NOT NULL
+      ORDER BY completed_at ASC
     `;
 
     // Parse JSON strings in brief and gap analysis
@@ -652,6 +684,7 @@ router.get('/:id', async (req, res) => {
       clarification: parsedClarification,
       scope: scopes.length > 0 ? scopes[0] : null,
       currentJob: currentJobs.length > 0 ? currentJobs[0] : null,
+      allJobs: allJobsResult,
     };
 
     res.json(response);
@@ -1114,6 +1147,88 @@ router.post('/:id/documents/brief', async (req, res) => {
   } catch (error: any) {
     console.error('Error saving brief:', error);
     res.status(500).json({ error: 'Failed to save brief', message: error.message });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/send-clarification-email
+ * Mark clarification email as sent (sets sent_at timestamp + status=sent)
+ * Actual email delivery uses nodemailer if SMTP env vars are configured,
+ * otherwise writes to a local file as fallback.
+ */
+router.post('/:id/send-clarification-email', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sql = getSql();
+
+    const opps = await sql`
+      SELECT id, rfp_title as "rfpTitle", client_name as "clientName"
+      FROM opportunities WHERE id = ${id}
+    `;
+    if (opps.length === 0) {
+      return res.status(404).json({ error: 'Opportunity not found' });
+    }
+
+    const clarifications = await sql`
+      SELECT id, questions, sent_at
+      FROM clarifications
+      WHERE opportunity_id = ${id}
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    if (clarifications.length === 0) {
+      return res.status(404).json({ error: 'No clarification found for this opportunity' });
+    }
+
+    const clarification = clarifications[0];
+    if (clarification.sent_at) {
+      return res.json({ success: true, message: 'Email already sent', sentAt: clarification.sent_at });
+    }
+
+    // Build email body from questions
+    const questions: any[] = Array.isArray(clarification.questions)
+      ? clarification.questions
+      : (typeof clarification.questions === 'string' ? JSON.parse(clarification.questions) : []);
+
+    const toEmail = process.env.CLARIFICATION_EMAIL_TO || 'nithya@petasight.com';
+    const subject = `Clarification Request: ${opps[0].rfpTitle || 'RFP'}`;
+    const questionsText = questions
+      .map((q: any, i: number) => `${i + 1}. ${typeof q === 'string' ? q : q.question || JSON.stringify(q)}`)
+      .join('\n');
+    const emailBody = `Dear ${opps[0].clientName || 'Client'},\n\nThank you for your RFP submission. To proceed with our proposal, we require clarification on the following points:\n\n${questionsText}\n\nPlease respond at your earliest convenience.\n\nKind regards,\nPetaSight Team`;
+
+    // Attempt SMTP send if configured
+    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+      const nodemailer = require('nodemailer');
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587'),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
+      await transporter.sendMail({ from: process.env.SMTP_FROM || process.env.SMTP_USER, to: toEmail, subject, text: emailBody });
+      console.log(`📧 Clarification email sent to ${toEmail}`);
+    } else {
+      // Fallback: write email to local file
+      const fs = require('fs');
+      const path = require('path');
+      const outDir = path.join(__dirname, '../../data/emails');
+      fs.mkdirSync(outDir, { recursive: true });
+      const outFile = path.join(outDir, `clarification-${id}-${Date.now()}.txt`);
+      fs.writeFileSync(outFile, `To: ${toEmail}\nSubject: ${subject}\n\n${emailBody}`);
+      console.log(`📄 No SMTP configured — clarification email written to ${outFile}`);
+    }
+
+    // Mark as sent
+    await sql`
+      UPDATE clarifications
+      SET sent_at = now(), status = 'sent', updated_at = now()
+      WHERE opportunity_id = ${id}
+    `;
+
+    res.json({ success: true, message: `Email sent to ${toEmail}`, sentAt: new Date().toISOString() });
+  } catch (error: any) {
+    console.error('Error sending clarification email:', error);
+    res.status(500).json({ error: 'Failed to send clarification email', message: error.message });
   }
 });
 

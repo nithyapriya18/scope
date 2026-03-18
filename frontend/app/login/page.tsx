@@ -12,7 +12,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-ps-primary-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-4">
       <div className="max-w-md w-full space-y-8">
         {/* Logo and Title */}
         <div className="text-center">
@@ -27,7 +27,7 @@ function LoginContent() {
               unoptimized
             />
           </div>
-          <h1 className="text-4xl font-bold text-ps-primary-600 dark:text-ps-primary-400 mb-2">PetaSight</h1>
+          <h1 className="text-4xl font-bold text-ps-secondary-700 dark:text-ps-secondary-400 mb-2">PetaSight</h1>
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Lumina Scope</h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
             AI-powered RFP response automation for pharmaceutical market research
@@ -73,7 +73,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-gradient-to-b from-ps-primary-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
           <Loader2 className="w-12 h-12 text-ps-primary-600 dark:text-ps-primary-400 animate-spin" />
         </div>
       }

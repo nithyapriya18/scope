@@ -80,7 +80,7 @@ export default function Header() {
 
           {/* Right Side */}
           <div className="flex items-center gap-3">
-            {!user && isLandingPage && (
+            {isLandingPage && (
               <div className="hidden md:flex items-center gap-2">
                 <Link
                   href="/login"

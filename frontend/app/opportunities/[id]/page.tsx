@@ -53,9 +53,10 @@ export default function OpportunityDetailPage() {
       'intake',
       'brief_extract',
       'gap_analysis',
+      'assumption_analysis',     // After gap analysis, runs assumption analyzer
       'clarification_response',  // After parsing client responses
-      'scope_planning',          // After scope design completes
       'feasibility',             // After HCP matching completes
+      'scope_planning',          // After scope design completes
       'wbs_estimate',            // After WBS estimation
       'pricing'                  // After pricing calculation
     ];

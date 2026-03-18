@@ -30,19 +30,18 @@ const statusMap: Record<string, string> = {
   approvals: 'Approvals Agent',
 };
 
-const studyTypeMap: Record<string, { label: string; color: string }> = {
-  oncology: { label: 'CLINICAL', color: 'bg-secondary/10 text-blue-700' },
-  cardiology: { label: 'OBSERVATIONAL', color: 'bg-emerald-100 text-emerald-700' },
-  immunology: { label: 'CLINICAL', color: 'bg-secondary/10 text-blue-700' },
-  device: { label: 'PILOT', color: 'bg-purple-100 text-purple-700' },
-  behavioral: { label: 'BEHAVIORAL', color: 'bg-orange-100 text-orange-700' },
-  genomic: { label: 'R&D', color: 'bg-pink-100 text-pink-700' },
-};
-
-const getStudyType = (area: string | null) => {
-  if (!area) return studyTypeMap.genomic;
-  const key = area.toLowerCase();
-  return studyTypeMap[key] || { label: 'GENERAL', color: 'bg-gray-100 text-gray-700' };
+const getStudyTypeDisplay = (studyType: string | null) => {
+  if (!studyType) return { label: 'Not Set', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' };
+  const t = studyType.toLowerCase();
+  // Show subtype after em dash if present (e.g. "Qualitative — Patient Journey")
+  const parts = studyType.split('—').map(s => s.trim());
+  const label = parts.length > 1 ? parts[1] : parts[0];
+  if (t.includes('qualitative')) return { label, color: 'bg-secondary/10 text-blue-700 dark:text-blue-400' };
+  if (t.includes('quantitative')) return { label, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
+  if (t.includes('mixed')) return { label, color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400' };
+  if (t.includes('conjoint') || t.includes('choice')) return { label, color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' };
+  if (t.includes('chart review') || t.includes('retrospective')) return { label, color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400' };
+  return { label: parts[parts.length - 1], color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' };
 };
 
 const getProgressPercent = (status: string): number => {
@@ -268,7 +267,7 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleBulkExport}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                  className="bg-secondary hover:opacity-90 text-white px-3 py-1.5 rounded-lg text-sm font-medium flex items-center gap-2 transition-opacity"
                   title="Export to Excel"
                 >
                   <Download size={14} />
@@ -388,7 +387,7 @@ export default function DashboardPage() {
                 ) : (
                   filtered.map((opp) => {
                     const daysLeft = getDaysUntilDeadline(opp.rfpDeadline);
-                    const studyType = getStudyType(opp.therapeuticArea);
+                    const studyType = getStudyTypeDisplay(opp.studyType);
                     const progress = getProgressPercent(opp.status);
                     const isUrgent = daysLeft <= 2;
                     const statusLabel = getStatusLabel(opp.status);
