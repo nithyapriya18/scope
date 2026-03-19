@@ -228,6 +228,10 @@ Your role is to coordinate agent execution based on the current workflow state.`
       // Non-fatal: proceed to HCP matching anyway
     }
 
+    // Step 5 done — advance status so the UI shows step 6 in-progress during HCP matching
+    const sql = getSql();
+    await sql`UPDATE opportunities SET status = 'feasibility', updated_at = now() WHERE id = ${context.opportunityId}`;
+
     // Now run HCP matching (feasibility)
     return await this.executeHCPMatching(context);
   }
