@@ -8,7 +8,6 @@ import { getCurrentUser, logout } from '@/lib/auth';
 
 const navigation = [
   { name: 'Home', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Bids', href: '/opportunities', icon: FileText },
   { name: 'HCP Panel', href: '/hcp-panel', icon: UserCheck },
 ];
 
