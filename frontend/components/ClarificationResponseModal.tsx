@@ -327,28 +327,35 @@ export default function ClarificationResponseModal({
           {/* Applied changes banner */}
           {(() => {
             const clarInfo = brief?.raw_extraction?.clarifiedInformation;
-            const isSkipped = clarInfo?.skipped || showingAssumptionsOnly;
+            // Treat as assumption-only if: explicitly skipped, no responses, or AI used fallback (source=assumed)
+            const assumptionOnly = clarInfo?.skipped || showingAssumptionsOnly ||
+              responses?.source === 'assumed' || responses?.source === 'client_response_unparsed' ||
+              (responses && questionsAnsweredCount === 0 && assumptionsCorrectedCount === 0);
+            const hasRealResponses = !assumptionOnly && (questionsAnsweredCount > 0 || assumptionsCorrectedCount > 0);
             const summary = clarInfo?.summary || responses?.summary;
             return (
-              <div className={`rounded-xl p-4 border ${isSkipped ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'}`}>
+              <div className={`rounded-xl p-4 border ${assumptionOnly ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'}`}>
                 <div className="flex items-start gap-3">
-                  {isSkipped
-                    ? <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                  {assumptionOnly
+                    ? <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     : <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
-                  <div>
+                  <div className="flex-1">
                     <p className="font-bold text-sm text-gray-900 dark:text-white mb-0.5">
-                      {isSkipped ? 'Proceeding with PetaSight assumptions' : responses?.source === 'assumed' ? 'Brief updated with assumptions' : 'Brief updated with client responses'}
+                      {assumptionOnly ? 'Proceeding with PetaSight assumptions' : 'Brief updated with client responses'}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
-                      {summary || (isSkipped
-                        ? 'No client response received. All clarification questions are treated as assumed/confirmed by PetaSight.'
-                        : responses?.source === 'assumed'
-                        ? 'No client response was received. All assumptions have been confirmed as-is.'
+                      {summary || (assumptionOnly
+                        ? 'No client response was received or parsed. All open questions have been answered using PetaSight\'s internal assumptions.'
                         : 'Client responses have been parsed and incorporated into the requirements brief below.')}
                     </p>
+                    {assumptionOnly && assumptionsConfirmedCount > 0 && (
+                      <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-100 dark:bg-amber-900/40 rounded-full">
+                        <span className="text-xs font-bold text-amber-700 dark:text-amber-400">{assumptionsConfirmedCount} assumptions applied</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                {!isSkipped && (
+                {hasRealResponses && (
                   <div className="grid grid-cols-4 gap-3 mt-3">
                     {[
                       { label: 'Answered', value: questionsAnsweredCount, color: 'text-emerald-600 dark:text-emerald-400' },
