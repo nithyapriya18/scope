@@ -6,11 +6,13 @@ import VerticalWorkflowTimeline from '@/components/VerticalWorkflowTimeline';
 import ChatInterface from '@/components/ChatInterface';
 import { Loader2, Settings } from 'lucide-react';
 import { getWorkflowMode, getCurrentUser } from '@/lib/auth';
+import { useRunningPipeline } from '@/contexts/RunningPipelineContext';
 
 export default function OpportunityDetailPage() {
   const params = useParams();
   const router = useRouter();
   const opportunityId = params.id as string;
+  const { setRunning, clearRunning } = useRunningPipeline();
 
   const [opportunity, setOpportunity] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -31,8 +33,27 @@ export default function OpportunityDetailPage() {
   useEffect(() => {
     fetchOpportunity();
     const interval = setInterval(fetchOpportunity, 3000); // Poll every 3 seconds
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearRunning(); // Clean up when leaving the page
+    };
   }, [opportunityId]);
+
+  // Keep global running state in sync with this opportunity's pipeline.
+  // Pipeline is "running" when status is anything except clarification (waiting for human) or approved (done).
+  useEffect(() => {
+    const status = opportunity?.status;
+    const isPipelineRunning = !!status && status !== 'clarification' && status !== 'approved';
+    if (isPipelineRunning) {
+      setRunning({
+        opportunityId,
+        opportunityTitle: opportunity?.rfpTitle || 'Untitled RFP',
+        currentStep: status,
+      });
+    } else {
+      clearRunning();
+    }
+  }, [opportunity?.status, opportunityId]);
 
   // Initialize form fields when opportunity loads
   useEffect(() => {

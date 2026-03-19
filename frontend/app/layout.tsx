@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import ConditionalLayout from '@/components/ConditionalLayout';
+import { RunningPipelineProvider } from '@/contexts/RunningPipelineContext';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -24,9 +25,11 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${inter.className} bg-white dark:bg-gray-900 text-gray-900 dark:text-white antialiased`}>
         <ThemeProvider>
-          <div className="flex flex-col h-screen overflow-hidden">
-            <ConditionalLayout>{children}</ConditionalLayout>
-          </div>
+          <RunningPipelineProvider>
+            <div className="flex flex-col h-screen overflow-hidden">
+              <ConditionalLayout>{children}</ConditionalLayout>
+            </div>
+          </RunningPipelineProvider>
         </ThemeProvider>
       </body>
     </html>
