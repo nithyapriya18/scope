@@ -337,11 +337,13 @@ export default function ClarificationResponseModal({
                     : <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
                   <div>
                     <p className="font-bold text-sm text-gray-900 dark:text-white mb-0.5">
-                      {isSkipped ? 'Proceeding with PetaSight assumptions' : 'Brief updated with client responses'}
+                      {isSkipped ? 'Proceeding with PetaSight assumptions' : responses?.source === 'assumed' ? 'Brief updated with assumptions' : 'Brief updated with client responses'}
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-400">
                       {summary || (isSkipped
                         ? 'No client response received. All clarification questions are treated as assumed/confirmed by PetaSight.'
+                        : responses?.source === 'assumed'
+                        ? 'No client response was received. All assumptions have been confirmed as-is.'
                         : 'Client responses have been parsed and incorporated into the requirements brief below.')}
                     </p>
                   </div>
@@ -489,12 +491,12 @@ export default function ClarificationResponseModal({
                     <div className="space-y-2">
                       {clarInfo.responses.map((r: any, idx: number) => (
                         <div key={idx} className={`rounded-lg p-3 border-l-4 ${clarInfo.skipped ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/10' : r.clientResponse === 'corrected' ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/10' : 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/10'}`}>
-                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-0.5">{r.questionId || `Q${idx + 1}`} — {r.question}</p>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-0.5">{r.id || r.questionId || `Q${idx + 1}`} — {r.text || r.question || <span className="italic font-normal">No question text</span>}</p>
                           {clarInfo.skipped
-                            ? <p className="text-xs text-orange-700 dark:text-orange-400 italic">Assumed: {r.assumedValue || 'PetaSight standard assumption'}</p>
+                            ? <p className="text-xs text-orange-700 dark:text-orange-400 italic">Assumed: {r.assumedValue || r.answer || 'PetaSight standard assumption'}</p>
                             : r.type === 'assumption'
                               ? <p className="text-xs text-gray-700 dark:text-gray-300">Status: <span className="font-bold">{r.clientResponse?.toUpperCase()}</span>{r.correctedValue ? ` → ${r.correctedValue}` : ''}</p>
-                              : <p className="text-xs text-gray-700 dark:text-gray-300">{r.answer}</p>
+                              : <p className="text-xs text-gray-700 dark:text-gray-300">{r.answer || <span className="italic text-gray-400">No answer extracted</span>}</p>
                           }
                         </div>
                       ))}
