@@ -1636,9 +1636,11 @@ router.post('/:id/redo/:step', async (req, res) => {
       WHERE id = ${id}
     `;
 
-    // Trigger the orchestrator to process the step
+    // Trigger the orchestrator in the background — respond immediately
     const orchestrator = new OrchestratorAgent();
-    await orchestrator.executeNextStep(id, userId, step as any);
+    orchestrator.executeNextStep(id, userId, step as any).catch((err: any) => {
+      console.error('Background redo processing error:', err);
+    });
 
     res.json({
       message: `Step ${step} will be reprocessed`,
