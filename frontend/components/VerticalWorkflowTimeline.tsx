@@ -448,7 +448,9 @@ export default function VerticalWorkflowTimeline({
   const clarificationStatus = opportunity?.clarification?.status;
   const clientResponseText = opportunity?.clarification?.client_response_text;
   const actionTakenUpload = !!clientResponseText;
-  const actionTakenSkip = clarificationStatus === 'skipped';
+  // Skip: either explicitly 'skipped', or locked and no file was uploaded (agent changed status to 'responded')
+  const actionTakenSkip = clarificationStatus === 'skipped' ||
+    (backendStatus !== 'clarification' && !clientResponseText && !!opportunity?.clarification);
   const actionTaken = actionTakenUpload || actionTakenSkip; // any action was taken
   const actionAreaLocked = backendStatus !== 'clarification'; // once past clarification, lock it
 
@@ -547,7 +549,7 @@ export default function VerticalWorkflowTimeline({
                           actionTakenSkip
                             ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-400 text-emerald-700 dark:text-emerald-400 cursor-not-allowed'
                             : actionAreaLocked
-                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
+                            ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-50'
                             : 'bg-slate-700 hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500 text-white hover:shadow-lg'
                         }`}
                       >
