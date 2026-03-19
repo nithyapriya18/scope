@@ -1,0 +1,549 @@
+{
+  "_meta": {
+    "description": "PetaSight mock HCP panel database \u2014 validated respondents by specialty & country.",
+    "last_updated": "2026-01-01",
+    "note": "Panel sizes reflect validated, reachable HCPs. Active rate = typical response rate."
+  },
+  "panel": [
+    {
+      "specialty": "Family Practice / GP",
+      "country": "US",
+      "group": 1,
+      "panelSize": 18500,
+      "activeRate": 0.14,
+      "recruitmentWeeks": 2
+    },
+    {
+      "specialty": "Internal Medicine",
+      "country": "US",
+      "group": 1,
+      "panelSize": 12000,
+      "activeRate": 0.13,
+      "recruitmentWeeks": 2
+    },
+    {
+      "specialty": "Oncology",
+      "country": "US",
+      "group": 4,
+      "panelSize": 3200,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "US",
+      "group": 2,
+      "panelSize": 5400,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Endocrinology",
+      "country": "US",
+      "group": 2,
+      "panelSize": 2800,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Pulmonology",
+      "country": "US",
+      "group": 2,
+      "panelSize": 2400,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Neurology",
+      "country": "US",
+      "group": 2,
+      "panelSize": 4200,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Haematology",
+      "country": "US",
+      "group": 3,
+      "panelSize": 1600,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Dermatology",
+      "country": "US",
+      "group": 2,
+      "panelSize": 3600,
+      "activeRate": 0.13,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Rheumatology",
+      "country": "US",
+      "group": 3,
+      "panelSize": 1400,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Gastroenterology",
+      "country": "US",
+      "group": 3,
+      "panelSize": 2600,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Psychiatry",
+      "country": "US",
+      "group": 2,
+      "panelSize": 3800,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Infectious Diseases",
+      "country": "US",
+      "group": 3,
+      "panelSize": 1800,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Nephrology",
+      "country": "US",
+      "group": 2,
+      "panelSize": 1900,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Paediatrics",
+      "country": "US",
+      "group": 2,
+      "panelSize": 7200,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Pharmacist",
+      "country": "US",
+      "group": 1,
+      "panelSize": 8500,
+      "activeRate": 0.15,
+      "recruitmentWeeks": 2
+    },
+    {
+      "specialty": "Nurse",
+      "country": "US",
+      "group": 1,
+      "panelSize": 22000,
+      "activeRate": 0.16,
+      "recruitmentWeeks": 2
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "UK",
+      "group": 1,
+      "panelSize": 8200,
+      "activeRate": 0.14,
+      "recruitmentWeeks": 2
+    },
+    {
+      "specialty": "Internal Medicine",
+      "country": "UK",
+      "group": 1,
+      "panelSize": 4500,
+      "activeRate": 0.13,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "UK",
+      "group": 4,
+      "panelSize": 1200,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "UK",
+      "group": 2,
+      "panelSize": 2100,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Endocrinology",
+      "country": "UK",
+      "group": 2,
+      "panelSize": 900,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Pulmonology",
+      "country": "UK",
+      "group": 2,
+      "panelSize": 850,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Neurology",
+      "country": "UK",
+      "group": 2,
+      "panelSize": 1600,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Haematology",
+      "country": "UK",
+      "group": 3,
+      "panelSize": 650,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Rheumatology",
+      "country": "UK",
+      "group": 3,
+      "panelSize": 550,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Gastroenterology",
+      "country": "UK",
+      "group": 3,
+      "panelSize": 1100,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Psychiatry",
+      "country": "UK",
+      "group": 2,
+      "panelSize": 1800,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Dermatology",
+      "country": "UK",
+      "group": 2,
+      "panelSize": 1400,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Nurse",
+      "country": "UK",
+      "group": 1,
+      "panelSize": 9500,
+      "activeRate": 0.15,
+      "recruitmentWeeks": 2
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "Germany",
+      "group": 1,
+      "panelSize": 7800,
+      "activeRate": 0.13,
+      "recruitmentWeeks": 2
+    },
+    {
+      "specialty": "Oncology",
+      "country": "Germany",
+      "group": 4,
+      "panelSize": 1400,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "Germany",
+      "group": 2,
+      "panelSize": 2400,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Endocrinology",
+      "country": "Germany",
+      "group": 2,
+      "panelSize": 1100,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Neurology",
+      "country": "Germany",
+      "group": 2,
+      "panelSize": 1800,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Haematology",
+      "country": "Germany",
+      "group": 3,
+      "panelSize": 750,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Rheumatology",
+      "country": "Germany",
+      "group": 3,
+      "panelSize": 620,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "France",
+      "group": 1,
+      "panelSize": 6900,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "France",
+      "group": 4,
+      "panelSize": 1100,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "France",
+      "group": 2,
+      "panelSize": 1900,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Endocrinology",
+      "country": "France",
+      "group": 2,
+      "panelSize": 950,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "Spain",
+      "group": 1,
+      "panelSize": 5200,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "Spain",
+      "group": 4,
+      "panelSize": 800,
+      "activeRate": 0.09,
+      "recruitmentWeeks": 6
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "Spain",
+      "group": 2,
+      "panelSize": 1500,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "Italy",
+      "group": 1,
+      "panelSize": 5600,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "Italy",
+      "group": 4,
+      "panelSize": 900,
+      "activeRate": 0.09,
+      "recruitmentWeeks": 6
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "Italy",
+      "group": 2,
+      "panelSize": 1700,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "Canada",
+      "group": 1,
+      "panelSize": 4800,
+      "activeRate": 0.13,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "Canada",
+      "group": 4,
+      "panelSize": 950,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "Canada",
+      "group": 2,
+      "panelSize": 1600,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "Japan",
+      "group": 1,
+      "panelSize": 9200,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "Japan",
+      "group": 4,
+      "panelSize": 1800,
+      "activeRate": 0.09,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "Japan",
+      "group": 2,
+      "panelSize": 2800,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "China",
+      "group": 1,
+      "panelSize": 12000,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Oncology",
+      "country": "China",
+      "group": 4,
+      "panelSize": 2200,
+      "activeRate": 0.09,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "China",
+      "group": 2,
+      "panelSize": 3600,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "India",
+      "group": 1,
+      "panelSize": 14000,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "India",
+      "group": 4,
+      "panelSize": 1500,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "India",
+      "group": 2,
+      "panelSize": 3200,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "Australia",
+      "group": 1,
+      "panelSize": 3800,
+      "activeRate": 0.13,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "Australia",
+      "group": 4,
+      "panelSize": 620,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 5
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "Australia",
+      "group": 2,
+      "panelSize": 1100,
+      "activeRate": 0.12,
+      "recruitmentWeeks": 4
+    },
+    {
+      "specialty": "Family Practice / GP",
+      "country": "Brazil",
+      "group": 1,
+      "panelSize": 6500,
+      "activeRate": 0.11,
+      "recruitmentWeeks": 3
+    },
+    {
+      "specialty": "Oncology",
+      "country": "Brazil",
+      "group": 4,
+      "panelSize": 850,
+      "activeRate": 0.09,
+      "recruitmentWeeks": 6
+    },
+    {
+      "specialty": "Cardiology",
+      "country": "Brazil",
+      "group": 2,
+      "panelSize": 2100,
+      "activeRate": 0.1,
+      "recruitmentWeeks": 4
+    }
+  ],
+  "specialtyAliases": {
+    "gp": "Family Practice / GP",
+    "general practice": "Family Practice / GP",
+    "pcp": "Family Practice / GP",
+    "primary care": "Family Practice / GP",
+    "oncologist": "Oncology",
+    "cardiologist": "Cardiology",
+    "endocrinologist": "Endocrinology",
+    "pulmonologist": "Pulmonology",
+    "neurologist": "Neurology",
+    "haematologist": "Haematology",
+    "hematologist": "Haematology",
+    "rheumatologist": "Rheumatology",
+    "gastroenterologist": "Gastroenterology",
+    "psychiatrist": "Psychiatry",
+    "dermatologist": "Dermatology",
+    "nephrologist": "Nephrology",
+    "paediatrician": "Paediatrics",
+    "pediatrician": "Paediatrics"
+  }
+}

@@ -107,6 +107,30 @@ app.use('/api/opportunities', opportunitiesRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api', chatRouter); // Chat routes (nested under opportunities)
 
+// HCP Panel — serve mock panel database
+app.get('/api/hcp-panel', (_req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../config/hcp_panel.json'), 'utf-8'));
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: 'Failed to load panel data', message: e.message });
+  }
+});
+
+// Rate card — serve for pricing step
+app.get('/api/rate-card', (_req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../config/rate_card.json'), 'utf-8'));
+    res.json(data);
+  } catch (e: any) {
+    res.status(500).json({ error: 'Failed to load rate card', message: e.message });
+  }
+});
+
 // 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Not Found', path: req.path });

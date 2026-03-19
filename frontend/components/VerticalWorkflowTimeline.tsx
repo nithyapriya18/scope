@@ -444,14 +444,21 @@ export default function VerticalWorkflowTimeline({
     }
   };
 
+  // Determine what action was taken in the human review area
+  const clarificationStatus = opportunity?.clarification?.status;
+  const clientResponseText = opportunity?.clarification?.client_response_text;
+  const actionTakenUpload = !!clientResponseText;
+  const actionTakenSkip = clarificationStatus === 'skipped';
+  const actionTaken = actionTakenUpload || actionTakenSkip; // any action was taken
+  const actionAreaLocked = backendStatus !== 'clarification'; // once past clarification, lock it
+
   // Show first 4 steps + any completed or in-progress + the step that follows the action area
   const visibleSteps = showAlls
     ? workflowSteps
     : workflowSteps.filter((step, index) => {
         const status = getStepStatus(index);
-        // Always show clarification_response (step 5) when the action area is visible
-        if (step.id === 'clarification_response' && clarificationHasQuestions &&
-          (backendStatus === 'clarification' || backendStatus === 'clarification_response')) return true;
+        // Always show clarification_response (step 5) when clarificationHasQuestions (action area stays visible)
+        if (step.id === 'clarification_response' && clarificationHasQuestions) return true;
         // Always show the waiting step immediately after in-progress so the queue is visible
         if (status === 'waiting' && index === currentStepIndex + 1) return true;
         return index < 4 || status === 'completed' || status === 'in-progress';
@@ -467,29 +474,30 @@ export default function VerticalWorkflowTimeline({
 
         return (
           <React.Fragment key={step.id}>
-            {/* Action area: shown between step 4 and step 5 until steps proceed past clarification_response */}
-            {step.id === 'clarification_response' && clarificationHasQuestions &&
-              (backendStatus === 'clarification' || backendStatus === 'clarification_response') && (
+            {/* Human review action area — always visible when clarification has questions */}
+            {step.id === 'clarification_response' && clarificationHasQuestions && (
               <div id="workflow-action-area" className="relative pl-16">
                 {/* Connecting line stub */}
                 <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-700" />
                 <div className={`rounded-xl border-2 p-5 space-y-3 ${
-                  backendStatus === 'clarification_response'
-                    ? 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/40'
+                  actionAreaLocked
+                    ? 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/30'
                     : 'border-dashed border-primary/40 dark:border-primary/30 bg-primary/[0.03] dark:bg-primary/[0.05]'
                 }`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Eye className={`w-3.5 h-3.5 ${backendStatus === 'clarification_response' ? 'text-slate-400' : 'text-primary'}`} />
+                      <Eye className={`w-3.5 h-3.5 ${actionAreaLocked ? 'text-slate-400' : 'text-primary'}`} />
                       <span className={`text-[11px] font-black uppercase tracking-widest ${
-                        backendStatus === 'clarification_response' ? 'text-slate-400 dark:text-slate-500' : 'text-primary'
+                        actionAreaLocked ? 'text-slate-400 dark:text-slate-500' : 'text-primary'
                       }`}>
-                        {backendStatus === 'clarification_response' ? 'Action taken — step 5 processing' : 'Your Action Required'}
+                        {actionTaken
+                          ? (actionTakenUpload ? 'Response uploaded' : 'Skipped — using assumptions')
+                          : 'Your Action Required'}
                       </span>
                     </div>
                     <button
                       onClick={handleResetClarificationDecision}
-                      disabled={uploadingResponse}
+                      disabled={uploadingResponse || !actionAreaLocked}
                       title="Reset and choose again"
                       className="p-1.5 text-slate-400 hover:text-primary transition-colors disabled:opacity-30"
                     >
@@ -498,39 +506,55 @@ export default function VerticalWorkflowTimeline({
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
+                    {/* Upload button */}
                     <div>
                       <input
                         type="file"
                         accept=".pdf,.doc,.docx,.txt,.eml,.msg"
                         onChange={handleFileUpload}
-                        disabled={uploadingResponse}
+                        disabled={uploadingResponse || actionAreaLocked}
                         className="hidden"
                         id="response-file-upload"
                       />
                       <button
-                        onClick={() => !uploadingResponse && backendStatus === 'clarification' && document.getElementById('response-file-upload')?.click()}
-                        disabled={uploadingResponse || backendStatus === 'clarification_response'}
-                        className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-bold text-sm transition-all ${
-                          uploadingResponse || backendStatus === 'clarification_response'
-                            ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                        onClick={() => !uploadingResponse && !actionAreaLocked && document.getElementById('response-file-upload')?.click()}
+                        disabled={uploadingResponse || actionAreaLocked}
+                        className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-bold text-sm transition-all relative ${
+                          actionTakenUpload
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-400 text-emerald-700 dark:text-emerald-400 cursor-not-allowed'
+                            : uploadingResponse
+                            ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed'
+                            : actionAreaLocked
+                            ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
                             : 'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 shadow-md hover:shadow-lg'
                         }`}
                       >
                         {uploadingResponse
                           ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading…</>
+                          : actionTakenUpload
+                          ? <><Check className="w-4 h-4" />Response Uploaded</>
                           : <><Upload className="w-4 h-4" />Upload Client Response</>
                         }
                       </button>
                       <p className="text-[10px] text-slate-400 text-center mt-1">.pdf · .docx · .txt · .msg</p>
                     </div>
+                    {/* Skip button */}
                     <div>
                       <button
                         onClick={handleSkipResponses}
-                        disabled={uploadingResponse || backendStatus === 'clarification_response'}
-                        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-bold text-sm bg-slate-700 hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500 text-white transition-all shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                        disabled={uploadingResponse || actionAreaLocked}
+                        className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-bold text-sm transition-all shadow-md ${
+                          actionTakenSkip
+                            ? 'bg-emerald-50 dark:bg-emerald-900/20 border-2 border-emerald-400 text-emerald-700 dark:text-emerald-400 cursor-not-allowed'
+                            : actionAreaLocked
+                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed opacity-50'
+                            : 'bg-slate-700 hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500 text-white hover:shadow-lg'
+                        }`}
                       >
-                        <CheckCircle className="w-4 h-4" />
-                        Skip — Use Assumptions
+                        {actionTakenSkip
+                          ? <><Check className="w-4 h-4" />Skipped — Assumptions Used</>
+                          : <><CheckCircle className="w-4 h-4" />Skip — Use Assumptions</>
+                        }
                       </button>
                       <p className="text-[10px] text-slate-400 text-center mt-1">Proceed without client input</p>
                     </div>

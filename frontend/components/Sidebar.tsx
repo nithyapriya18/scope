@@ -3,15 +3,13 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, FileText, Users, BookOpen, BarChart3, Settings, User, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileText, Users, BookOpen, BarChart3, Settings, User, ChevronLeft, ChevronRight, LogOut, UserCheck } from 'lucide-react';
 import { getCurrentUser, logout } from '@/lib/auth';
 
 const navigation = [
   { name: 'Home', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Bids', href: '/opportunities', icon: FileText },
-  { name: 'Clients', href: '/clients', icon: Users },
-  { name: 'Study Library', href: '/study-library', icon: BookOpen },
-  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'HCP Panel', href: '/hcp-panel', icon: UserCheck },
 ];
 
 export default function Sidebar() {
