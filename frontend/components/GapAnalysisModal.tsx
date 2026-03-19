@@ -12,15 +12,15 @@ interface GapAnalysisModalProps {
   opportunityId?: string;
 }
 
-// Helper function to convert snake_case to Title Case with proper formatting
+// Helper function to convert snake_case/camelCase to Title Case
 function formatFieldName(fieldName: string): string {
   if (!fieldName) return '';
 
-  // If there are no underscores, return as-is (already formatted)
-  if (!fieldName.includes('_')) return fieldName;
+  // Split camelCase into words first (e.g. totalSize → total Size)
+  const decamel = fieldName.replace(/([a-z])([A-Z])/g, '$1_$2');
 
   // Replace underscores with spaces and split into words
-  const words = fieldName.split('_').map(word => {
+  const words = decamel.split('_').map(word => {
     // Handle common acronyms
     const acronyms: { [key: string]: string } = {
       'sla': 'SLA',
@@ -326,9 +326,9 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
           <div className="bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-800/50 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Overall Completeness</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">RFP Information Completeness</h3>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {criticalGapsCount} critical gaps • {highPriorityGapsCount} high priority gaps
+                  How much of the required RFP information was provided • {criticalGapsCount} critical gaps • {highPriorityGapsCount} high priority gaps
                 </p>
               </div>
               <div className={`text-4xl font-black ${completenessColor}`}>
@@ -349,7 +349,8 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
               <div className="space-y-3">
                 {missingFields.map((item: any, idx: number) => {
                   const priority = item.priority || item.severity || 'medium';
-                  const description = item.description || '';
+                  const fieldLabel = item.missingField || item.field || '';
+                  const section = item.section || '';
                   const impact = item.impact || '';
 
                   return (
@@ -357,10 +358,13 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                       key={idx}
                       className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="text-sm font-bold text-red-900 dark:text-red-300">{formatFieldName(item.field)}</h4>
+                      <div className="flex items-start justify-between mb-1">
+                        <div>
+                          {section && <p className="text-xs text-red-600 dark:text-red-400 mb-0.5">{section}</p>}
+                          <h4 className="text-sm font-bold text-red-900 dark:text-red-300">{formatFieldName(fieldLabel)}</h4>
+                        </div>
                         <span
-                          className={`px-2 py-0.5 text-xs font-bold rounded uppercase ${
+                          className={`px-2 py-0.5 text-xs font-bold rounded uppercase shrink-0 ml-3 ${
                             priority === 'critical'
                               ? 'bg-red-600 text-white'
                               : priority === 'high'
@@ -371,9 +375,8 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                           {priority}
                         </span>
                       </div>
-                      {description && <p className="text-sm text-red-800 dark:text-red-200 mb-2">{description}</p>}
                       {impact && (
-                        <p className="text-xs text-red-700 dark:text-red-300">
+                        <p className="text-xs text-red-700 dark:text-red-300 mt-1">
                           <strong>Impact:</strong> {impact}
                         </p>
                       )}
@@ -389,22 +392,26 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
             <Section title="Ambiguous Requirements" icon={AlertTriangle} iconColor="text-yellow-600">
               <div className="space-y-3">
                 {ambiguousRequirements.map((item: any, idx: number) => {
-                  const requirement = item.requirement || 'Requirement';
+                  const fieldName = item.field || item.requirement || '';
+                  const section = item.section || '';
                   const severity = item.severity || 'medium';
-                  const issue = item.issue || '';
+                  const ambiguity = item.ambiguity || item.issue || '';
 
                   return (
                     <div
                       key={idx}
                       className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4"
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <h4 className="text-sm font-bold text-yellow-900 dark:text-yellow-300">{requirement}</h4>
-                        <span className="px-2 py-0.5 text-xs font-bold rounded uppercase bg-yellow-500 text-white">
+                      <div className="flex items-start justify-between mb-1">
+                        <div>
+                          {section && <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-0.5">{section}</p>}
+                          <h4 className="text-sm font-bold text-yellow-900 dark:text-yellow-300">{fieldName}</h4>
+                        </div>
+                        <span className="px-2 py-0.5 text-xs font-bold rounded uppercase bg-yellow-500 text-white shrink-0 ml-3">
                           {severity}
                         </span>
                       </div>
-                      {issue && <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-2">{issue}</p>}
+                      {ambiguity && <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1 mb-2">{ambiguity}</p>}
                       {item.possibleInterpretations && Array.isArray(item.possibleInterpretations) && item.possibleInterpretations.length > 0 && (
                         <div className="mt-2">
                           <p className="text-xs font-bold text-yellow-700 dark:text-yellow-300 mb-1">
@@ -431,8 +438,8 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
             <Section title="Conflicting Information" icon={AlertTriangle} iconColor="text-orange-600">
               <div className="space-y-3">
                 {conflictingInfo.map((item: any, idx: number) => {
-                  const title = item.area || item.conflict || 'Conflict';
-                  const description = item.conflict || item.details || '';
+                  const section = item.section || '';
+                  const conflict = item.conflict || item.details || 'Conflict';
                   const hasStatements = item.statement1 && item.statement2;
 
                   return (
@@ -440,8 +447,8 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                       key={idx}
                       className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4"
                     >
-                      <h4 className="text-sm font-bold text-orange-900 dark:text-orange-300 mb-2">{title}</h4>
-                      {description && <p className="text-sm text-orange-800 dark:text-orange-200 mb-3">{description}</p>}
+                      {section && <p className="text-xs text-orange-600 dark:text-orange-400 mb-0.5">{section}</p>}
+                      <h4 className="text-sm font-bold text-orange-900 dark:text-orange-300 mb-2">{conflict}</h4>
                       {hasStatements && (
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-white dark:bg-gray-800 rounded p-3">

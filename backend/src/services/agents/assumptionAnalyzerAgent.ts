@@ -110,13 +110,24 @@ Respond with valid JSON:
       }
 
       const systemPrompt = this.getSystemPrompt(context);
+
+      // Parse rawExtraction if double-encoded (stored as JSON string in JSONB column)
+      let rawExtractionData = brief.rawExtraction;
+      if (typeof rawExtractionData === 'string') {
+        try { rawExtractionData = JSON.parse(rawExtractionData); } catch {}
+      }
+      let gapLlmAnalysis = gaps.length > 0 ? gaps[0].llmAnalysis : null;
+      if (typeof gapLlmAnalysis === 'string') {
+        try { gapLlmAnalysis = JSON.parse(gapLlmAnalysis); } catch {}
+      }
+
       const userMessage = `Analyze this RFP and identify all assumptions we must make and potential clashes/conflicts.
 
 **BRIEF EXTRACTION**:
-${JSON.stringify(brief.rawExtraction || brief, null, 2)}
+${JSON.stringify(rawExtractionData || brief, null, 2)}
 
-${gaps.length > 0 ? `**GAP ANALYSIS**:
-${JSON.stringify(gaps[0].llmAnalysis || gaps[0], null, 2)}` : ''}
+${gapLlmAnalysis ? `**GAP ANALYSIS**:
+${JSON.stringify(gapLlmAnalysis, null, 2)}` : ''}
 
 **TASK**:
 1. Identify all ASSUMPTIONS we must make to move forward

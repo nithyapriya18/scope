@@ -99,23 +99,39 @@ router.post('/extract-metadata', upload.single('file'), async (req, res) => {
       if (ext === '.pdf') {
         // Use pdftotext (from poppler-utils)
         const outputPath = `${file.path}.txt`;
-        execSync(`pdftotext "${file.path}" "${outputPath}"`);
-        extractedText = fs.readFileSync(outputPath, 'utf-8');
-        fs.unlinkSync(outputPath);
+        try {
+          execSync(`pdftotext "${file.path}" "${outputPath}"`, { timeout: 60000 });
+          extractedText = fs.readFileSync(outputPath, 'utf-8');
+          fs.unlinkSync(outputPath);
+        } catch (pdfErr) {
+          console.error('PDF extraction error:', pdfErr);
+          throw new Error('Failed to extract text from PDF');
+        }
       } else if (ext === '.docx' || ext === '.doc') {
         // Use pandoc to convert Word to text
-        extractedText = execSync(`pandoc "${file.path}" -t plain`, { encoding: 'utf8' });
+        try {
+          extractedText = execSync(`pandoc "${file.path}" -f docx -t plain`, {
+            encoding: 'utf8',
+            timeout: 60000,
+            maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large documents
+          });
+        } catch (pandocErr: any) {
+          console.error('Pandoc extraction error:', pandocErr.message);
+          throw new Error(`Failed to extract text from Word document: ${pandocErr.message}`);
+        }
       } else {
         fs.unlinkSync(file.path);
         return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
       }
 
       // Clean up temp file
-      fs.unlinkSync(file.path);
-    } catch (extractError) {
-      console.error('File extraction error:', extractError);
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    } catch (extractError: any) {
+      console.error('File extraction error:', extractError.message);
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ error: 'Failed to extract text from file' });
+      return res.status(400).json({ error: extractError.message || 'Failed to extract text from file' });
     }
 
     if (!extractedText.trim()) {
@@ -206,23 +222,39 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       if (ext === '.pdf') {
         // Use pdftotext (from poppler-utils)
         const outputPath = `${file.path}.txt`;
-        execSync(`pdftotext "${file.path}" "${outputPath}"`);
-        extractedText = fs.readFileSync(outputPath, 'utf-8');
-        fs.unlinkSync(outputPath);
+        try {
+          execSync(`pdftotext "${file.path}" "${outputPath}"`, { timeout: 60000 });
+          extractedText = fs.readFileSync(outputPath, 'utf-8');
+          fs.unlinkSync(outputPath);
+        } catch (pdfErr) {
+          console.error('PDF extraction error:', pdfErr);
+          throw new Error('Failed to extract text from PDF');
+        }
       } else if (ext === '.docx' || ext === '.doc') {
         // Use pandoc to convert Word to text
-        extractedText = execSync(`pandoc "${file.path}" -t plain`, { encoding: 'utf8' });
+        try {
+          extractedText = execSync(`pandoc "${file.path}" -f docx -t plain`, {
+            encoding: 'utf8',
+            timeout: 60000,
+            maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large documents
+          });
+        } catch (pandocErr: any) {
+          console.error('Pandoc extraction error:', pandocErr.message);
+          throw new Error(`Failed to extract text from Word document: ${pandocErr.message}`);
+        }
       } else {
         fs.unlinkSync(file.path);
         return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
       }
 
       // Clean up temp file
-      fs.unlinkSync(file.path);
-    } catch (extractError) {
-      console.error('File extraction error:', extractError);
+      if (fs.existsSync(file.path)) {
+        fs.unlinkSync(file.path);
+      }
+    } catch (extractError: any) {
+      console.error('File extraction error:', extractError.message);
       if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ error: 'Failed to extract text from file' });
+      return res.status(400).json({ error: extractError.message || 'Failed to extract text from file' });
     }
 
     if (!extractedText.trim()) {
@@ -313,12 +345,12 @@ router.post('/:id/re-upload', upload.single('file'), async (req, res) => {
       if (ext === '.pdf') {
         // Use pdftotext (from poppler-utils)
         const outputPath = `${file.path}.txt`;
-        execSync(`pdftotext "${file.path}" "${outputPath}"`);
+        execSync(`pdftotext "${file.path}" "${outputPath}"`, { timeout: 60000 });
         extractedText = fs.readFileSync(outputPath, 'utf-8');
         fs.unlinkSync(outputPath);
       } else if (ext === '.docx' || ext === '.doc') {
         // Use pandoc to convert Word to text
-        extractedText = execSync(`pandoc "${file.path}" -t plain`, { encoding: 'utf8' });
+        extractedText = execSync(`pandoc "${file.path}" -f docx -t plain`, { encoding: 'utf8', timeout: 60000 });
       } else {
         fs.unlinkSync(file.path);
         return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
@@ -527,6 +559,7 @@ router.get('/:id', async (req, res) => {
 
     const clarifications = await sql`SELECT * FROM clarifications WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const scopes = await sql`SELECT * FROM scopes WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
+    const feasibilityRows = await sql`SELECT * FROM feasibility_assessments WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
 
     // Fetch current job progress (include recently completed jobs for 60 seconds)
     const currentJobs = await sql`
@@ -672,12 +705,27 @@ router.get('/:id', async (req, res) => {
       }
     }
 
+    // Parse feasibility assessment
+    let parsedFeasibility = null;
+    if (feasibilityRows.length > 0) {
+      const f = feasibilityRows[0];
+      parsedFeasibility = {
+        overallFeasibility: f.overall_feasibility,
+        geographicFeasibility: f.geographic_feasibility,
+        vendorAssessment: f.vendor_assessment,
+        hcpAvailability: f.hcp_availability,
+        riskFactors: f.risk_factors,
+        recommendations: f.recommendations,
+      };
+    }
+
     // Attach workflow data to opportunity
     const response = {
       ...opportunity,
       brief: parsedBrief,
       gapAnalysis: parsedGapAnalysis,
       clarification: parsedClarification,
+      feasibility: parsedFeasibility,
       scope: scopes.length > 0 ? scopes[0] : null,
       currentJob: currentJobs.length > 0 ? currentJobs[0] : null,
       allJobs: allJobsResult,
@@ -798,11 +846,13 @@ router.post('/:id/process', async (req, res) => {
 
     const currentStatus = opps[0].status;
 
-    // Execute next step via orchestrator
-    const orchestrator = new OrchestratorAgent();
-    const result = await orchestrator.executeNextStep(id, userId, currentStatus);
+    // Respond immediately — agent runs in background, frontend polls for status
+    res.json({ success: true, status: currentStatus, message: 'Processing started' });
 
-    res.json(result);
+    // Run orchestrator in background
+    const orchestrator = new OrchestratorAgent();
+    orchestrator.executeNextStep(id, userId, currentStatus)
+      .catch((err) => console.error(`Error in orchestrator for ${id}:`, err));
   } catch (error: any) {
     console.error('Error processing opportunity:', error);
     res.status(500).json({ error: 'Failed to process opportunity', message: error.message });
@@ -1251,13 +1301,12 @@ router.post('/:id/clarification-response', upload.single('responseFile'), async 
 
     const opportunity = opportunities[0];
 
-    // If skipping responses, just proceed to next step with assumptions
+    // If skipping responses, apply assumptions from gap analysis to the brief and proceed
     if (skipResponses === true || skipResponses === 'true') {
+      // Mark clarification as skipped — Step 5 agent will apply assumptions to the brief
       await sql`
         UPDATE clarifications
-        SET
-          status = 'skipped',
-          updated_at = now()
+        SET status = 'skipped', updated_at = now()
         WHERE id = (
           SELECT id FROM clarifications
           WHERE opportunity_id = ${id}
@@ -1266,27 +1315,13 @@ router.post('/:id/clarification-response', upload.single('responseFile'), async 
         )
       `;
 
-      // Skip response processing and go directly to scope planning
+      // Advance status — Step 5 (clarification_response) handles the brief update
       await sql`
-        UPDATE opportunities
-        SET
-          status = 'scope_planning',
-          updated_at = now()
+        UPDATE opportunities SET status = 'clarification_response', updated_at = now()
         WHERE id = ${id}
       `;
 
-      // Trigger orchestrator to process scope planning
-      const { OrchestratorAgent } = await import('../services/agents/orchestratorAgent');
-      const orchestrator = new OrchestratorAgent();
-      orchestrator.execute({
-        opportunityId: id,
-        userId: req.body.userId || 'system',
-      }).catch((err) => console.error('Error triggering scope planning:', err));
-
-      return res.json({
-        message: 'Proceeding to Research Design with assumptions (skipped response processing)',
-        skipped: true,
-      });
+      return res.json({ message: 'Skipped. Step 5 will finalise assumptions.', skipped: true });
     }
 
     // Extract text from uploaded file if provided
@@ -1305,8 +1340,8 @@ router.post('/:id/clarification-response', upload.single('responseFile'), async 
         } else if (ext === '.txt' || ext === '.eml') {
           extractedText += '\n\n' + fs.readFileSync(filePath, 'utf8');
         } else if (ext === '.docx') {
-          // Use pandoc to convert docx to text
-          const output = execSync(`pandoc "${filePath}" -t plain`, { encoding: 'utf8' });
+          // Use pandoc to convert docx to text — pass --from explicitly since temp file has no extension
+          const output = execSync(`pandoc --from docx "${filePath}" -t plain`, { encoding: 'utf8' });
           extractedText += '\n\n' + output;
         } else if (ext === '.xlsx' || ext === '.xls') {
           // For Excel, we'll store the file and mention it contains data
@@ -1331,13 +1366,13 @@ router.post('/:id/clarification-response', upload.single('responseFile'), async 
       });
     }
 
-    // Store response text in clarification record
+    // Store response text and advance status — AI parsing happens in Step 5 via orchestrator
     const clarificationUpdate = await sql`
       UPDATE clarifications
       SET
         client_response_text = ${extractedText},
         client_response_file = ${req.file?.originalname || null},
-        status = 'processing',
+        status = 'responded',
         updated_at = now()
       WHERE id = (
         SELECT id FROM clarifications
@@ -1354,17 +1389,14 @@ router.post('/:id/clarification-response', upload.single('responseFile'), async 
       });
     }
 
-    // Trigger clarification response parsing agent
-    const { ClarificationResponseAgent } = await import('../services/agents/clarificationResponseAgent');
-
-    // Execute agent in background (agent will create its own job for tracking)
-    const agent = new ClarificationResponseAgent();
-    agent.execute({ opportunityId: id, userId: req.body.userId || 'system' })
-      .then(() => console.log(`✅ Clarification response parsed for opportunity ${id}`))
-      .catch((err) => console.error('❌ Error parsing clarification response:', err));
+    // Advance opportunity status immediately — Step 5 (clarification_response) will handle AI parsing
+    await sql`
+      UPDATE opportunities SET status = 'clarification_response', updated_at = now()
+      WHERE id = ${id}
+    `;
 
     res.json({
-      message: 'Response uploaded successfully, parsing in progress',
+      message: 'Response uploaded successfully. Step 5 will parse and update the brief.',
       opportunityId: id,
     });
   } catch (error: any) {
@@ -1398,41 +1430,23 @@ router.post('/:id/reset-clarification-decision', async (req, res) => {
 
     const opportunity = opportunities[0];
 
-    // Only allow reset if we're past clarification step
-    const validStatuses = ['clarification_response', 'scope_planning', 'feasibility', 'wbs_estimate', 'proposal'];
-    if (!validStatuses.includes(opportunity.status)) {
-      return res.status(400).json({
-        error: 'Cannot reset decision',
-        message: `Opportunity must be past clarification step. Current status: ${opportunity.status}`,
-      });
-    }
-
-    // Clear the clarification response data and reset status to 'clarification'
+    // Clear the uploaded response and reset status back to 'clarification'
     await sql`
       UPDATE clarifications
-      SET
-        client_response_text = null,
-        client_response_file = null,
-        client_responses = null,
-        status = 'sent',
-        updated_at = now()
+      SET client_response_text = null, client_response_file = null,
+          client_responses = null, status = 'pending_approval', updated_at = now()
       WHERE opportunity_id = ${id}
     `;
 
-    // Reset opportunity status to clarification (decision point)
     await sql`
-      UPDATE opportunities
-      SET
-        status = 'clarification',
-        updated_at = now()
-      WHERE id = ${id}
+      UPDATE opportunities SET status = 'clarification', updated_at = now() WHERE id = ${id}
     `;
 
-    // Delete any jobs and data from steps after clarification
+    // Delete downstream jobs so steps 5+ go back to WAITING
     await sql`
       DELETE FROM jobs
       WHERE opportunity_id = ${id}
-        AND agent_type IN ('clarification_response', 'scope_planning', 'feasibility', 'wbs_estimate', 'proposal')
+        AND job_type IN ('clarification_response', 'hcp_matching', 'scope_planner', 'wbs_estimate', 'pricing')
     `;
 
     res.json({
@@ -1612,11 +1626,7 @@ router.post('/:id/redo/:step', async (req, res) => {
 
     // Trigger the orchestrator to process the step
     const orchestrator = new OrchestratorAgent();
-    await orchestrator.execute({
-      opportunityId: id,
-      userId,
-      triggerStep: step,
-    });
+    await orchestrator.executeNextStep(id, userId, step as any);
 
     res.json({
       message: `Step ${step} will be reprocessed`,

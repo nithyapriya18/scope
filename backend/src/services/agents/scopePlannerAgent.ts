@@ -148,9 +148,10 @@ Output structured JSON matching the expected schema.`;
       }
 
       const [gapAnalysis] = await sql`
-        SELECT * FROM gap_analyses
-        WHERE opportunity_id = ${context.opportunityId}
-        ORDER BY created_at DESC
+        SELECT ga.* FROM gap_analyses ga
+        JOIN briefs b ON ga.brief_id = b.id
+        WHERE b.opportunity_id = ${context.opportunityId}
+        ORDER BY ga.created_at DESC
         LIMIT 1
       `;
 

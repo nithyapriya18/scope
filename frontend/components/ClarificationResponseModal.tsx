@@ -323,452 +323,187 @@ export default function ClarificationResponseModal({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Complete Requirements Brief (if available) */}
-          {brief?.raw_extraction && (
-            <div className="bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-900/20 dark:to-gray-900/20 rounded-xl p-6 border border-slate-200 dark:border-slate-800">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                {showingAssumptionsOnly ? 'Requirements Brief' : 'Original Requirements Brief'}
-              </h3>
-              <div className="space-y-4">
-                {/* Executive Summary */}
-                {brief.raw_extraction.executiveSummary && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Executive Summary</h4>
-                    {brief.raw_extraction.executiveSummary.oneLinerSummary && (
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{brief.raw_extraction.executiveSummary.oneLinerSummary}</p>
-                    )}
-                    {brief.raw_extraction.executiveSummary.therapeuticAreaContext && (
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">{brief.raw_extraction.executiveSummary.therapeuticAreaContext}</p>
-                    )}
+
+          {/* Applied changes banner */}
+          {(() => {
+            const clarInfo = brief?.raw_extraction?.clarifiedInformation;
+            const isSkipped = clarInfo?.skipped || showingAssumptionsOnly;
+            const summary = clarInfo?.summary || responses?.summary;
+            return (
+              <div className={`rounded-xl p-4 border ${isSkipped ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800' : 'bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800'}`}>
+                <div className="flex items-start gap-3">
+                  {isSkipped
+                    ? <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                    : <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />}
+                  <div>
+                    <p className="font-bold text-sm text-gray-900 dark:text-white mb-0.5">
+                      {isSkipped ? 'Proceeding with PetaSight assumptions' : 'Brief updated with client responses'}
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      {summary || (isSkipped
+                        ? 'No client response received. All clarification questions are treated as assumed/confirmed by PetaSight.'
+                        : 'Client responses have been parsed and incorporated into the requirements brief below.')}
+                    </p>
                   </div>
-                )}
-
-                {/* Research Objectives */}
-                {brief.raw_extraction.researchObjectives && Array.isArray(brief.raw_extraction.researchObjectives) && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Research Objectives</h4>
-                    <ul className="space-y-2">
-                      {brief.raw_extraction.researchObjectives.map((obj: any, idx: number) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                          <span className="text-primary font-bold">{idx + 1}.</span>
-                          <span>{typeof obj === 'object' ? JSON.stringify(obj) : String(obj)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Scope of Work */}
-                {brief.raw_extraction.scopeOfWork && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Scope of Work</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      {brief.raw_extraction.scopeOfWork.studyType && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Study Type:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.scopeOfWork.studyType}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.scopeOfWork.dataCollectionMode && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Data Collection:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.scopeOfWork.dataCollectionMode}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.scopeOfWork.geographicCoverage && (
-                        <div className="col-span-2">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Geographic Coverage:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {Array.isArray(brief.raw_extraction.scopeOfWork.geographicCoverage)
-                              ? brief.raw_extraction.scopeOfWork.geographicCoverage.join(', ')
-                              : brief.raw_extraction.scopeOfWork.geographicCoverage}
-                          </p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.scopeOfWork.methodologyDetails && (
-                        <div className="col-span-2">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Methodology:</p>
-                          <p className="text-sm text-gray-700 dark:text-gray-300">{brief.raw_extraction.scopeOfWork.methodologyDetails}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Target Audience */}
-                {brief.raw_extraction.targetAudience && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Target Audience</h4>
-                    <div className="space-y-2 text-sm">
-                      {brief.raw_extraction.targetAudience.primaryRespondents && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Primary Respondents:</p>
-                          <p className="text-gray-900 dark:text-white">{brief.raw_extraction.targetAudience.primaryRespondents}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.targetAudience.minimumExperience && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Minimum Experience:</p>
-                          <p className="text-gray-900 dark:text-white">{brief.raw_extraction.targetAudience.minimumExperience}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.targetAudience.selectionCriteria && Array.isArray(brief.raw_extraction.targetAudience.selectionCriteria) && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Selection Criteria:</p>
-                          <ul className="space-y-1 ml-4">
-                            {brief.raw_extraction.targetAudience.selectionCriteria.map((criteria: any, idx: number) => (
-                              <li key={idx} className="text-gray-700 dark:text-gray-300 flex items-start gap-2">
-                                <span className="text-primary">•</span>
-                                {typeof criteria === 'object' ? JSON.stringify(criteria) : String(criteria)}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Sample Specifications */}
-                {brief.raw_extraction.sampleSpecifications && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Sample Specifications</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                      {brief.raw_extraction.sampleSpecifications.totalSampleSize && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Sample Size:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.sampleSpecifications.totalSampleSize}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.sampleSpecifications.segmentation && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Segmentation:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.sampleSpecifications.segmentation}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.sampleSpecifications.quotas && (
-                        <div className="col-span-2">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Quotas:</p>
-                          <p className="text-gray-700 dark:text-gray-300">{brief.raw_extraction.sampleSpecifications.quotas}</p>
-                        </div>
-                      )}
-                    </div>
-                    {brief.raw_extraction.sampleSpecifications.sampleBreakdown && typeof brief.raw_extraction.sampleSpecifications.sampleBreakdown === 'object' && (
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Sample Breakdown:</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          {Object.entries(brief.raw_extraction.sampleSpecifications.sampleBreakdown).map(([key, value]) => (
-                            <div key={key} className="px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded text-xs">
-                              <p className="font-bold text-gray-900 dark:text-white mb-1 capitalize">
-                                {key.replace(/([A-Z])/g, ' $1').trim()}
-                              </p>
-                              <p className="text-primary font-medium">
-                                {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Key Deliverables */}
-                {brief.raw_extraction.keyDeliverables && Array.isArray(brief.raw_extraction.keyDeliverables) && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Key Deliverables</h4>
-                    <ul className="grid grid-cols-2 gap-2">
-                      {brief.raw_extraction.keyDeliverables.map((deliverable: any, idx: number) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                          <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                          {typeof deliverable === 'object' ? JSON.stringify(deliverable) : String(deliverable)}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Timeline & Milestones */}
-                {brief.raw_extraction.timelineAndMilestones && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Timeline & Milestones</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      {brief.raw_extraction.timelineAndMilestones.projectDuration && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Project Duration:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.timelineAndMilestones.projectDuration}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.timelineAndMilestones.proposalDueDate && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Proposal Due:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.timelineAndMilestones.proposalDueDate}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.timelineAndMilestones.finalReportDate && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Final Report:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.timelineAndMilestones.finalReportDate}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Budget & Pricing */}
-                {brief.raw_extraction.budgetAndPricing && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Budget & Pricing</h4>
-                    <div className="space-y-2 text-sm">
-                      {brief.raw_extraction.budgetAndPricing.totalBudget && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Budget:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.budgetAndPricing.totalBudget}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.budgetAndPricing.pricingStructureExpected && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Pricing Structure:</p>
-                          <p className="text-gray-700 dark:text-gray-300">{brief.raw_extraction.budgetAndPricing.pricingStructureExpected}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Regulatory Compliance */}
-                {brief.raw_extraction.regulatoryCompliance && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
-                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Regulatory Compliance</h4>
-                    <div className="grid grid-cols-2 gap-3 text-sm">
-                      {brief.raw_extraction.regulatoryCompliance.gdprRequired !== undefined && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">GDPR Required:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.regulatoryCompliance.gdprRequired ? 'Yes' : 'No'}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.regulatoryCompliance.hipaaRequired !== undefined && (
-                        <div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">HIPAA Required:</p>
-                          <p className="font-medium text-gray-900 dark:text-white">{brief.raw_extraction.regulatoryCompliance.hipaaRequired ? 'Yes' : 'No'}</p>
-                        </div>
-                      )}
-                      {brief.raw_extraction.regulatoryCompliance.otherCompliance && Array.isArray(brief.raw_extraction.regulatoryCompliance.otherCompliance) && (
-                        <div className="col-span-2">
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Other Compliance:</p>
-                          <ul className="space-y-1">
-                            {brief.raw_extraction.regulatoryCompliance.otherCompliance.map((comp: any, idx: number) => (
-                              <li key={idx} className="text-gray-700 dark:text-gray-300 flex items-start gap-2">
-                                <span className="text-primary">•</span>
-                                {typeof comp === 'object' ? JSON.stringify(comp) : String(comp)}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Add Assumptions as Additional Requirements (when skip was used) */}
-                {showingAssumptionsOnly && gapAnalysis && (() => {
-                  const assumptions = gapAnalysis.raw_gap_analysis?.assumptionsMade || gapAnalysis.assumptions_made || [];
-                  return assumptions.length > 0 && (
-                    <>
-                      <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border-l-4 border-orange-500 mt-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <AlertCircle className="w-4 h-4 text-orange-600 dark:text-orange-500" />
-                          <p className="font-bold text-orange-900 dark:text-orange-300 text-sm">Note:</p>
-                        </div>
-                        <p className="text-xs text-orange-800 dark:text-orange-400">
-                          The following assumptions have been made based on gap analysis. These will be used to proceed with Research Design.
-                        </p>
-                      </div>
-
-                      <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mt-3">
-                        <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-3">Additional Requirements & Assumptions</h4>
-                        <div className="space-y-3">
-                          {assumptions.map((assumption: any, idx: number) => (
-                            <div key={idx} className="border-l-2 border-orange-400 pl-4 py-2">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
-                                <span className="text-orange-600 dark:text-orange-400 font-bold">A{idx + 1}.</span>{' '}
-                                {typeof assumption === 'string' ? assumption : assumption.assumption || assumption.requirement || JSON.stringify(assumption)}
-                              </p>
-                              {typeof assumption === 'object' && (assumption.basedOn || assumption.rationale) && (
-                                <p className="text-sm text-gray-600 dark:text-gray-400 ml-6 italic">
-                                  → Based on: {assumption.basedOn || assumption.rationale}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-          )}
-
-          {/* Overall Summary */}
-          {!showingAssumptionsOnly && (
-          <div className="bg-gradient-to-br from-emerald-50 to-blue-50 dark:from-emerald-900/20 dark:to-blue-900/20 rounded-xl p-6 border border-emerald-200 dark:border-emerald-800">
-            <div className="flex items-center gap-3 mb-4">
-              <BarChart2 className="w-6 h-6 text-emerald-600 dark:text-emerald-500" />
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Response Summary</h3>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-500">{questionsAnsweredCount}</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold mt-1">Questions Answered</div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-3xl font-bold text-blue-600 dark:text-blue-500">{assumptionsConfirmedCount}</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold mt-1">Assumptions Confirmed</div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-3xl font-bold text-purple-600 dark:text-purple-500">{assumptionsCorrectedCount}</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold mt-1">Assumptions Corrected</div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-3xl font-bold text-blue-600 dark:text-blue-500">{completenessPercentage}%</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold mt-1">Complete</div>
-              </div>
-              <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                <div className="text-3xl font-bold text-orange-600 dark:text-orange-500">{criticalGapsRemaining}</div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold mt-1">Critical Gaps</div>
-              </div>
-            </div>
-
-            {responses?.summary && (
-              <p className="text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 p-4 rounded-lg">
-                {responses.summary}
-              </p>
-            )}
-
-            <div className="mt-4 flex items-center gap-2">
-              {readyToProceed ? (
-                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-4 py-2 rounded-lg">
-                  <CheckCircle className="w-5 h-5" />
-                  <span className="font-semibold">Ready to proceed to Research Design</span>
                 </div>
-              ) : (
-                <div className="flex items-center gap-2 text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/40 px-4 py-2 rounded-lg">
-                  <AlertCircle className="w-5 h-5" />
-                  <span className="font-semibold">Additional clarification recommended</span>
+                {!isSkipped && (
+                  <div className="grid grid-cols-4 gap-3 mt-3">
+                    {[
+                      { label: 'Answered', value: questionsAnsweredCount, color: 'text-emerald-600 dark:text-emerald-400' },
+                      { label: 'Unanswered', value: questionsUnansweredCount, color: 'text-orange-600 dark:text-orange-400' },
+                      { label: 'Confirmed', value: assumptionsConfirmedCount, color: 'text-blue-600 dark:text-blue-400' },
+                      { label: 'Corrected', value: assumptionsCorrectedCount, color: 'text-purple-600 dark:text-purple-400' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="bg-white dark:bg-gray-800 rounded-lg p-2 text-center">
+                        <div className={`text-xl font-bold ${color}`}>{value}</div>
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Updated Requirements Brief using section* keys */}
+          {brief?.raw_extraction && (() => {
+            const b = brief.raw_extraction;
+            const s4 = b.section4_project_background_context || {};
+            const s5 = b.section5_business_research_objectives || {};
+            const s6 = b.section6_methodology_scope || {};
+            const s7 = b.section7_markets_geography || {};
+            const s8 = b.section8_target_audience_sample || {};
+            const s9 = b.section9_timeline_key_dates || {};
+            const s10 = b.section10_deliverables || {};
+            const s11 = b.section11_budget_cost || {};
+            const clarInfo = b.clarifiedInformation;
+
+            const BriefSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+              <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                <div className="px-4 py-2 bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
+                  <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">{title}</h4>
                 </div>
-              )}
-            </div>
-          </div>
-          )}
-
-          {/* Question Responses */}
-          {!showingAssumptionsOnly && questionResponses.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                Question Responses ({questionResponses.length})
-              </h3>
-              <div className="space-y-4">
-                {questionResponses.map((response: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                          <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                            {response.questionId || `Q${idx + 1}`}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            {response.question}
-                          </p>
-                          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-3">
-                            <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Client Answer:</p>
-                            <p className="text-base text-gray-900 dark:text-white">{response.answer}</p>
-                          </div>
-                          {response.notes && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                              <strong>Note:</strong> {response.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex flex-col gap-2 ml-4">
-                        <span className={`px-2 py-1 text-xs font-bold rounded uppercase ${getConfidenceColor(response.confidence)}`}>
-                          {response.confidence}
-                        </span>
-                        {response.followUpNeeded && (
-                          <span className="px-2 py-1 text-xs font-bold rounded uppercase bg-orange-500 text-white">
-                            Follow-up
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                <div className="p-4 space-y-3">{children}</div>
               </div>
-            </div>
-          )}
+            );
 
-          {/* Assumption Responses */}
-          {!showingAssumptionsOnly && assumptionResponses.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                Assumption Responses ({assumptionResponses.length})
-              </h3>
-              <div className="space-y-4">
-                {assumptionResponses.map((response: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center shrink-0">
-                          <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
-                            {response.assumptionId || `A${idx + 1}`}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                            {response.assumption}
-                          </p>
-                          <div className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 mb-3">
-                            <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Client Response:</p>
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`px-3 py-1 text-sm font-bold rounded-full ${
-                                response.clientResponse === 'confirmed' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' :
-                                response.clientResponse === 'corrected' ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400' :
-                                response.clientResponse === 'rejected' ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' :
-                                'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-400'
-                              }`}>
-                                {response.clientResponse.toUpperCase()}
-                              </span>
-                            </div>
-                            {response.correctedValue && (
-                              <div className="mt-2">
-                                <p className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Corrected Information:</p>
-                                <p className="text-base text-gray-900 dark:text-white">{response.correctedValue}</p>
-                              </div>
-                            )}
-                          </div>
-                          {response.notes && (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                              <strong>Note:</strong> {response.notes}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+            const Field = ({ label, value, fullWidth = false }: { label: string; value: any; fullWidth?: boolean }) => {
+              if (!value) return null;
+              const text = Array.isArray(value) ? value.join(', ') : typeof value === 'object' ? JSON.stringify(value) : String(value);
+              return (
+                <div className={fullWidth ? 'col-span-2' : ''}>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-0.5">{label}</p>
+                  <p className="text-sm text-gray-900 dark:text-white">{text}</p>
+                </div>
+              );
+            };
+
+            return (
+              <div className="space-y-3">
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">Updated Requirements Brief</h3>
+
+                {(s4.background || s4.productBrand || s4.problemStatement) && (
+                  <BriefSection title="Project Background">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Brand / Product" value={s4.productBrand} />
+                      <Field label="Lifecycle Stage" value={s4.lifecycleStage} />
+                      <Field label="Background" value={s4.background} fullWidth />
+                      <Field label="Problem Statement" value={s4.problemStatement} fullWidth />
                     </div>
-                  </div>
-                ))}
+                  </BriefSection>
+                )}
+
+                {(s5.primaryObjectives || s5.secondaryObjectives || s5.researchQuestions) && (
+                  <BriefSection title="Business & Research Objectives">
+                    <Field label="Primary Objectives" value={Array.isArray(s5.primaryObjectives) ? s5.primaryObjectives.join('\n') : s5.primaryObjectives} fullWidth />
+                    <Field label="Secondary Objectives" value={Array.isArray(s5.secondaryObjectives) ? s5.secondaryObjectives.join('\n') : s5.secondaryObjectives} fullWidth />
+                    <Field label="Research Questions" value={Array.isArray(s5.researchQuestions) ? s5.researchQuestions.join('\n') : s5.researchQuestions} fullWidth />
+                  </BriefSection>
+                )}
+
+                {(s6.researchDesign || s6.dataCollection || s6.numberOfWaves) && (
+                  <BriefSection title="Methodology & Scope">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Data Collection" value={s6.dataCollection} />
+                      <Field label="Number of Waves" value={s6.numberOfWaves} />
+                      <Field label="Research Design" value={s6.researchDesign} fullWidth />
+                      <Field label="Supplier Discretion" value={s6.supplierDiscretion} fullWidth />
+                    </div>
+                  </BriefSection>
+                )}
+
+                {(s7.countries || s7.regions || s7.markets) && (
+                  <BriefSection title="Markets & Geography">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Countries" value={s7.countries} />
+                      <Field label="Regions" value={s7.regions} />
+                      <Field label="Markets" value={s7.markets} fullWidth />
+                    </div>
+                  </BriefSection>
+                )}
+
+                {(s8.targetSampleSize || s8.targetAudience || s8.quotas) && (
+                  <BriefSection title="Target Audience & Sample">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Target Sample Size" value={s8.targetSampleSize} />
+                      <Field label="Target Audience" value={s8.targetAudience} />
+                      <Field label="Quotas" value={s8.quotas} fullWidth />
+                      <Field label="Special Requirements" value={s8.specialRequirements} fullWidth />
+                    </div>
+                  </BriefSection>
+                )}
+
+                {(s9.projectEndDate || s9.contractLength || s9.keyMilestones) && (
+                  <BriefSection title="Timeline & Key Dates">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Project End Date" value={s9.projectEndDate} />
+                      <Field label="Contract Length" value={s9.contractLength} />
+                      <Field label="Key Milestones" value={s9.keyMilestones} fullWidth />
+                    </div>
+                  </BriefSection>
+                )}
+
+                {(s10.reports || s10.presentations || s10.dataAccess) && (
+                  <BriefSection title="Deliverables">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Reports" value={s10.reports} />
+                      <Field label="Presentations" value={s10.presentations} />
+                      <Field label="Data Access" value={s10.dataAccess} fullWidth />
+                    </div>
+                  </BriefSection>
+                )}
+
+                {(s11.budget || s11.currency || s11.pricingNotes) && (
+                  <BriefSection title="Budget & Cost">
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Budget" value={s11.budget} />
+                      <Field label="Currency" value={s11.currency} />
+                      <Field label="Pricing Notes" value={s11.pricingNotes} fullWidth />
+                    </div>
+                  </BriefSection>
+                )}
+
+                {/* Clarifications applied section */}
+                {clarInfo && clarInfo.responses && clarInfo.responses.length > 0 && (
+                  <BriefSection title={clarInfo.skipped ? 'Assumptions Applied' : 'Clarifications & Responses'}>
+                    <div className="space-y-2">
+                      {clarInfo.responses.map((r: any, idx: number) => (
+                        <div key={idx} className={`rounded-lg p-3 border-l-4 ${clarInfo.skipped ? 'border-orange-400 bg-orange-50 dark:bg-orange-900/10' : r.clientResponse === 'corrected' ? 'border-purple-400 bg-purple-50 dark:bg-purple-900/10' : 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/10'}`}>
+                          <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-0.5">{r.questionId || `Q${idx + 1}`} — {r.question}</p>
+                          {clarInfo.skipped
+                            ? <p className="text-xs text-orange-700 dark:text-orange-400 italic">Assumed: {r.assumedValue || 'PetaSight standard assumption'}</p>
+                            : r.type === 'assumption'
+                              ? <p className="text-xs text-gray-700 dark:text-gray-300">Status: <span className="font-bold">{r.clientResponse?.toUpperCase()}</span>{r.correctedValue ? ` → ${r.correctedValue}` : ''}</p>
+                              : <p className="text-xs text-gray-700 dark:text-gray-300">{r.answer}</p>
+                          }
+                        </div>
+                      ))}
+                    </div>
+                  </BriefSection>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>

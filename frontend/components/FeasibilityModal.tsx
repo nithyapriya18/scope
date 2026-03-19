@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Users, CheckCircle, AlertCircle, AlertTriangle, TrendingUp, MapPin, Target, Download, Save } from 'lucide-react';
+import { X, Users, CheckCircle, AlertCircle, AlertTriangle, MapPin, Target, Download, Save } from 'lucide-react';
 import { useState } from 'react';
 import jsPDF from 'jspdf';
 
@@ -17,7 +17,7 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
   const [downloading, setDownloading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  if (!isOpen || !feasibility) return null;
+  if (!isOpen) return null;
 
   const formatFeasibilityAsText = () => {
     let text = `HCP FEASIBILITY ASSESSMENT\n`;
@@ -276,7 +276,7 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
             )}
             <button
               onClick={handleSave}
-              disabled={saving || !opportunityId}
+              disabled={saving || !opportunityId || !feasibility}
               className="flex items-center justify-center gap-2 w-40 px-4 py-2 bg-gray-700 dark:bg-gray-600 hover:bg-gray-800 dark:hover:bg-gray-700 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               title={!opportunityId ? 'Opportunity ID required to save' : 'Save to Files'}
             >
@@ -294,7 +294,7 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
             </button>
             <button
               onClick={handleDownload}
-              disabled={downloading}
+              disabled={downloading || !feasibility}
               className="flex items-center justify-center gap-2 w-40 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {downloading ? (
@@ -321,56 +321,111 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {!feasibility && (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400 dark:text-gray-600">
+              <Users className="w-12 h-12 mb-4 opacity-40" />
+              <p className="text-lg font-medium">No feasibility data yet</p>
+              <p className="text-sm mt-1">The feasibility assessment will appear here once the step completes.</p>
+            </div>
+          )}
           {/* Overall Feasibility */}
-          {feasibility.overallFeasibility && (
+          {feasibility?.overallFeasibility && (
             <div className={`rounded-xl p-6 border-2 ${
-              feasibility.overallFeasibility.riskLevel?.toLowerCase() === 'green' || feasibility.overallFeasibility.riskLevel?.toLowerCase() === 'low'
+              feasibility.overallFeasibility.riskLevel?.toLowerCase() === 'low'
                 ? 'bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border-emerald-400 dark:border-emerald-700'
-                : feasibility.overallFeasibility.riskLevel?.toLowerCase() === 'yellow' || feasibility.overallFeasibility.riskLevel?.toLowerCase() === 'medium'
+                : feasibility.overallFeasibility.riskLevel?.toLowerCase() === 'medium'
                 ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-400 dark:border-yellow-700'
                 : 'bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 border-red-400 dark:border-red-700'
             }`}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overall Assessment</h3>
-                <span className={`px-3 py-1 text-sm font-bold rounded-full ${getRiskColor(feasibility.overallFeasibility.riskLevel)}`}>
-                  {feasibility.overallFeasibility.riskLevel?.toUpperCase()}
-                </span>
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Overall Assessment</h3>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 text-sm font-bold rounded-full ${getRiskColor(feasibility.overallFeasibility.riskLevel)}`}>
+                      {feasibility.overallFeasibility.riskLevel?.toUpperCase()} RISK
+                    </span>
+                    {feasibility.overallFeasibility.feasible !== undefined && (
+                      <span className={`px-3 py-1 text-sm font-bold rounded-full ${feasibility.overallFeasibility.feasible ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'}`}>
+                        {feasibility.overallFeasibility.feasible ? 'FEASIBLE' : 'NOT FEASIBLE'}
+                      </span>
+                    )}
+                    {feasibility.overallFeasibility.estimatedFieldworkWeeks && (
+                      <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400">
+                        ~{feasibility.overallFeasibility.estimatedFieldworkWeeks}w fieldwork
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {feasibility.overallFeasibility.confidenceScore !== undefined && (
+                  <div className="text-right">
+                    <div className="text-2xl font-black text-gray-900 dark:text-white">{Math.round(feasibility.overallFeasibility.confidenceScore * 100)}%</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Confidence</div>
+                  </div>
+                )}
               </div>
               {feasibility.overallFeasibility.summary && (
                 <p className="text-sm text-gray-700 dark:text-gray-300 mb-3">{feasibility.overallFeasibility.summary}</p>
               )}
-              {feasibility.overallFeasibility.recommendation && (
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{feasibility.overallFeasibility.recommendation}</p>
-              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                {feasibility.overallFeasibility.keyRisks && feasibility.overallFeasibility.keyRisks.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Key Risks</p>
+                    <ul className="space-y-1">
+                      {feasibility.overallFeasibility.keyRisks.map((r: string, i: number) => (
+                        <li key={i} className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-1">
+                          <AlertTriangle className="w-3 h-3 text-orange-500 shrink-0 mt-0.5" />
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {feasibility.overallFeasibility.recommendations && feasibility.overallFeasibility.recommendations.length > 0 && (
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Recommendations</p>
+                    <ul className="space-y-1">
+                      {feasibility.overallFeasibility.recommendations.map((r: string, i: number) => (
+                        <li key={i} className="text-xs text-gray-700 dark:text-gray-300 flex items-start gap-1">
+                          <CheckCircle className="w-3 h-3 text-emerald-500 shrink-0 mt-0.5" />
+                          {r}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Match Analysis */}
-          {feasibility.matchAnalysis && (
-            <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+          {/* HCP Availability */}
+          {feasibility?.hcpAvailability && feasibility.hcpAvailability.length > 0 && (
+            <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5 text-blue-600 dark:text-blue-500" />
-                Database Match Summary
+                <Users className="w-5 h-5 text-purple-600 dark:text-purple-500" />
+                HCP Availability by Segment
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {feasibility.matchAnalysis.totalHCPsFound !== undefined && (
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-blue-600 dark:text-blue-500">{feasibility.matchAnalysis.totalHCPsFound}</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold mt-1">Total HCPs Found</div>
+              <div className="space-y-3">
+                {feasibility.hcpAvailability.map((seg: any, idx: number) => (
+                  <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-bold text-sm text-gray-900 dark:text-white">{seg.segment}</h4>
+                      <span className={`px-2 py-0.5 text-xs font-bold rounded uppercase ${getRiskColor(seg.riskLevel)}`}>{seg.riskLevel}</span>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
+                      {seg.estimatedPoolSize && <Stat label="Pool Size" value={seg.estimatedPoolSize.toLocaleString()} />}
+                      {seg.incidenceRate && <Stat label="Incidence" value={`${seg.incidenceRate}%`} />}
+                      {seg.neededSample && <Stat label="Needed" value={seg.neededSample} />}
+                      {seg.recruitmentRatio && <Stat label="Ratio" value={`${seg.recruitmentRatio}x`} />}
+                    </div>
+                    {seg.notes && <p className="text-xs text-gray-600 dark:text-gray-400 italic">{seg.notes}</p>}
                   </div>
-                )}
-                {feasibility.matchAnalysis.matchQualityScore !== undefined && (
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 text-center">
-                    <div className="text-3xl font-bold text-purple-600 dark:text-purple-500">{feasibility.matchAnalysis.matchQualityScore}/100</div>
-                    <div className="text-xs text-gray-600 dark:text-gray-400 uppercase font-semibold mt-1">Match Quality</div>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
           )}
 
           {/* Geographic Feasibility */}
-          {feasibility.geographicFeasibility && feasibility.geographicFeasibility.length > 0 && (
+          {feasibility?.geographicFeasibility && feasibility.geographicFeasibility.length > 0 && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
@@ -378,147 +433,49 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
               </h3>
               <div className="space-y-3">
                 {feasibility.geographicFeasibility.map((geo: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-bold text-gray-900 dark:text-white">{geo.geography || geo.market}</h4>
+                  <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-bold text-gray-900 dark:text-white">{geo.market || geo.geography}</h4>
                       <div className="flex items-center gap-2">
-                        {getRiskIcon(geo.riskLevel)}
-                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${getRiskColor(geo.riskLevel)}`}>
-                          {geo.riskLevel}
-                        </span>
+                        {geo.accessibility && <span className="text-xs text-gray-500 dark:text-gray-400">{geo.accessibility}</span>}
+                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${getRiskColor(geo.riskLevel)}`}>{geo.riskLevel}</span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 mb-3">
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Required</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{geo.requiredSample || geo.sampleNeeded}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Available</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{geo.qualifiedHCPs || geo.availableHCPs}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Ratio</p>
-                        <p className="text-lg font-bold text-gray-900 dark:text-white">{geo.recruitmentRatio || geo.ratio}x</p>
-                      </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-2">
+                      {geo.panelDepth && <Stat label="Panel Depth" value={geo.panelDepth.toLocaleString()} />}
+                      {geo.recruitmentWeeks && <Stat label="Est. Weeks" value={`${geo.recruitmentWeeks}w`} />}
                     </div>
-                    {geo.recommendation && (
-                      <p className="text-sm text-gray-700 dark:text-gray-300 italic">{geo.recommendation}</p>
-                    )}
+                    {geo.notes && <p className="text-xs text-gray-600 dark:text-gray-400 italic">{geo.notes}</p>}
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Risk Factors */}
-          {feasibility.riskFactors && feasibility.riskFactors.length > 0 && (
+          {/* Vendor Assessment */}
+          {feasibility?.vendorAssessment && feasibility.vendorAssessment.length > 0 && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-500" />
-                Recruitment Risk Factors ({feasibility.riskFactors.length})
+                <Target className="w-5 h-5 text-blue-600 dark:text-blue-500" />
+                Vendor Assessment
               </h3>
-              <div className="space-y-2">
-                {feasibility.riskFactors.map((risk: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="flex items-start gap-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg p-4 border border-orange-200 dark:border-orange-800"
-                  >
-                    <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-500 shrink-0 mt-0.5" />
-                    <div className="flex-1">
-                      {typeof risk === 'string' ? (
-                        <p className="text-sm text-gray-700 dark:text-gray-300">{risk}</p>
-                      ) : (
-                        <>
-                          <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{risk.risk || risk.factor}</p>
-                          {risk.mitigation && (
-                            <p className="text-xs text-gray-600 dark:text-gray-400">
-                              <strong>Mitigation:</strong> {risk.mitigation}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Alternative Strategies */}
-          {feasibility.alternativeStrategies && feasibility.alternativeStrategies.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-500" />
-                Alternative Strategies
-              </h3>
-              <div className="grid gap-3">
-                {feasibility.alternativeStrategies.map((strategy: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800"
-                  >
-                    {typeof strategy === 'string' ? (
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{strategy}</p>
-                    ) : (
-                      <>
-                        <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">{strategy.strategy}</p>
-                        {strategy.description && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400">{strategy.description}</p>
-                        )}
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Top Candidate Profiles */}
-          {feasibility.topCandidates && feasibility.topCandidates.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">
-                Top HCP Candidates ({feasibility.topCandidates.length})
-              </h3>
-              <div className="grid gap-3">
-                {feasibility.topCandidates.slice(0, 10).map((candidate: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4 border border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div>
-                        <h4 className="font-bold text-gray-900 dark:text-white">{candidate.name || `HCP ${idx + 1}`}</h4>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{candidate.specialty}</p>
+              <div className="space-y-3">
+                {feasibility.vendorAssessment.map((v: any, idx: number) => (
+                  <div key={idx} className={`rounded-xl p-4 border ${v.recommended ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-bold text-gray-900 dark:text-white">{v.vendor}</h4>
+                        {v.recommended && <span className="px-2 py-0.5 text-xs font-bold rounded bg-emerald-500 text-white">RECOMMENDED</span>}
                       </div>
-                      {candidate.matchScore && (
-                        <span className="px-2 py-1 text-xs font-bold rounded-full bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-400">
-                          {candidate.matchScore}/100
-                        </span>
-                      )}
+                      <div className="flex items-center gap-3 text-sm">
+                        {v.estimatedCPI && <span className="text-gray-600 dark:text-gray-400">CPI: <strong>{v.estimatedCPI}</strong></span>}
+                        {v.estimatedWeeks && <span className="text-gray-600 dark:text-gray-400">~{v.estimatedWeeks}w</span>}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      {candidate.geography && (
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">Location:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white font-medium">{candidate.geography}</span>
-                        </div>
-                      )}
-                      {candidate.practiceType && (
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">Practice:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white font-medium">{candidate.practiceType}</span>
-                        </div>
-                      )}
-                      {candidate.yearsInPractice && (
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">Experience:</span>
-                          <span className="ml-2 text-gray-900 dark:text-white font-medium">{candidate.yearsInPractice}y</span>
-                        </div>
-                      )}
+                    {v.coverage && <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">{v.coverage}</p>}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      {v.strengths && <div><p className="font-bold text-emerald-600 dark:text-emerald-400 mb-1">Strengths</p><p className="text-gray-600 dark:text-gray-400">{v.strengths}</p></div>}
+                      {v.weaknesses && <div><p className="font-bold text-orange-600 dark:text-orange-400 mb-1">Weaknesses</p><p className="text-gray-600 dark:text-gray-400">{v.weaknesses}</p></div>}
                     </div>
                   </div>
                 ))}
@@ -527,6 +484,15 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-2 text-center">
+      <div className="text-base font-bold text-gray-900 dark:text-white">{value}</div>
+      <div className="text-[10px] text-gray-500 dark:text-gray-400 uppercase font-semibold">{label}</div>
     </div>
   );
 }

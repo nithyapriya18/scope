@@ -84,8 +84,8 @@ Your role is to coordinate agent execution based on the current workflow state.`
           };
 
         case 'clarification_response':
-          // After clarification responses, run HCP matching first (sets status=feasibility)
-          return await this.executeHCPMatching(context);
+          // Step 5: parse client response (or finalise assumptions), update brief, then run HCP matching
+          return await this.executeClarificationParsing(context);
 
         case 'feasibility':
           // After HCP matching, run research plan design (sets status=scope_planning)
@@ -214,6 +214,22 @@ Your role is to coordinate agent execution based on the current workflow state.`
     }
 
     return result;
+  }
+
+  private async executeClarificationParsing(context: AgentContext): Promise<AgentResult> {
+    console.log('📝 Step 5: Parsing clarification response and updating brief...');
+
+    const { ClarificationResponseAgent } = await import('./clarificationResponseAgent');
+    const agent = new ClarificationResponseAgent();
+    const result = await agent.execute(context);
+
+    if (!result.success) {
+      console.error('❌ Clarification parsing failed:', result.error);
+      // Non-fatal: proceed to HCP matching anyway
+    }
+
+    // Now run HCP matching (feasibility)
+    return await this.executeHCPMatching(context);
   }
 
   private async executeHCPMatching(context: AgentContext): Promise<AgentResult> {

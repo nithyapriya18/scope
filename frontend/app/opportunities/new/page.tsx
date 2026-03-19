@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, FileText, Loader2, X, BarChart2, MessageSquare, ClipboardList, Search, FileCheck, CheckCircle, Eye, Users, RefreshCw } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
@@ -37,6 +37,8 @@ export default function NewOpportunityPage() {
   const [fileClientName, setFileClientName] = useState('');
   const [fileTherapeuticArea, setFileTherapeuticArea] = useState('');
   const [fileDeadline, setFileDeadline] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const handleFileSelection = (selectedFile: File) => {
     setFile(selectedFile);
@@ -87,6 +89,14 @@ export default function NewOpportunityPage() {
 
     setError('');
     setLoading(true);
+    setUploadProgress(0);
+
+    // Simulate progress: ramp to ~85% over ~8s, then wait for real response
+    let progress = 0;
+    progressIntervalRef.current = setInterval(() => {
+      progress = Math.min(progress + (progress < 40 ? 4 : progress < 70 ? 2 : 0.5), 85);
+      setUploadProgress(Math.round(progress));
+    }, 300);
 
     try {
       const user = getCurrentUser();
@@ -111,6 +121,8 @@ export default function NewOpportunityPage() {
       const opportunityId = result.opportunity?.id;
 
       if (opportunityId) {
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+        setUploadProgress(100);
         router.push(`/opportunities/${opportunityId}`);
       } else {
         setError('Failed to get opportunity ID');
@@ -118,6 +130,7 @@ export default function NewOpportunityPage() {
     } catch (err: any) {
       setError(err.message || 'Failed to upload RFP');
     } finally {
+      if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       setLoading(false);
     }
   };
@@ -309,49 +322,64 @@ export default function NewOpportunityPage() {
                       className="hidden"
                       id="file-upload"
                     />
-                    <label
-                      htmlFor="file-upload"
-                      className="block border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-secondary dark:hover:border-secondary transition-colors bg-white dark:bg-gray-900"
-                    >
-                      {file ? (
-                        <div className="flex items-center justify-between gap-3 w-full">
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <FileText className="w-8 h-8 text-secondary dark:text-secondary/80 shrink-0" />
-                            <div className="text-left min-w-0 flex-1">
-                              <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={file.name}>
-                                {file.name}
-                              </p>
-                              <p className="text-xs text-gray-600 dark:text-gray-400">
-                                {(file.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
+                    {file ? (
+                      <div className="flex items-center justify-between gap-3 px-4 py-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <FileText className="w-5 h-5 text-secondary shrink-0" />
+                          <div className="text-left min-w-0 flex-1">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate" title={file.name}>
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {(file.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
                           </div>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setFile(null);
-                              setFileRfpTitle('');
-                              setFileClientName('');
-                            }}
-                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
-                          >
-                            <X className="w-5 h-5" />
-                          </button>
                         </div>
-                      ) : (
-                        <div>
-                          <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                            Drag and drop or click to upload
-                          </p>
-                          <span className="inline-block px-4 py-2 bg-secondary hover:opacity-90 text-white rounded-lg text-sm font-medium transition-colors">
-                            Select File
-                          </span>
-                        </div>
-                      )}
-                    </label>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setFile(null);
+                            setFileRfpTitle('');
+                            setFileClientName('');
+                          }}
+                          className="text-red-500 hover:text-red-600 shrink-0"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label
+                        htmlFor="file-upload"
+                        className="block border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-secondary dark:hover:border-secondary transition-colors bg-white dark:bg-gray-900"
+                      >
+                        <Upload className="w-12 h-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                          Drag and drop or click to upload
+                        </p>
+                        <span className="inline-block px-4 py-2 bg-secondary hover:opacity-90 text-white rounded-lg text-sm font-medium transition-colors">
+                          Select File
+                        </span>
+                      </label>
+                    )}
                   </div>
+
+                  {loading && (
+                    <div className="mt-2">
+                      <div className="flex justify-between items-center mb-1.5">
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300">
+                          {uploadProgress < 30 ? 'Uploading file...' : uploadProgress < 60 ? 'Extracting text...' : uploadProgress < 85 ? 'Parsing RFP content...' : 'Creating opportunity...'}
+                        </span>
+                        <span className="text-sm font-bold text-secondary">{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-secondary to-primary rounded-full transition-all duration-300"
+                          style={{ width: `${uploadProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex gap-3 pt-6 border-t border-slate-200 dark:border-slate-700 mt-6">
                     <button

@@ -10,43 +10,32 @@ export class ClarificationGeneratorAgent extends BaseAgent {
   protected agentType = 'clarification';
 
   protected getSystemPrompt(context: AgentContext): string {
-    return `You are a PMR Clarification Specialist.
+    return `You are a PMR Clarification Specialist preparing a formal email to the RFP issuer.
 
-Your task is to generate professional, clear clarification questions based on identified gaps in the RFP brief.
+Your task: generate ONE question/item for EVERY gap identified in the analysis. Do not skip any gap.
 
-**CRITICAL**: You MUST generate questions for ALL THREE types of gaps:
-1. **Missing Information** - Information not provided in the RFP
-2. **Ambiguous Requirements** - Information that is unclear, vague, or open to multiple interpretations
-3. **Conflicting Information** - Statements that contradict each other or are inconsistent
+**You MUST cover all four categories — generate one entry per item in each list:**
 
-Guidelines for generating questions:
+1. **Missing Information** — one question per missing field asking for the specific data
+2. **Ambiguous Requirements** — one item per ambiguity stating the assumption PetaSight will proceed with, and asking the client to approve or correct it
+3. **Conflicting Information** — one item per conflict presenting both statements and asking which is correct
+4. **Assumptions Requiring Approval** — for any gap where PetaSight must proceed regardless, state the assumption explicitly and ask for sign-off
 
-1. **Be Specific**: Don't ask "What are your requirements?" - ask "What is the target sample size per market?"
+**Rules:**
+- Be specific, not generic. Reference the actual field/section name.
+- For ambiguous items: state "We will assume [X] unless you advise otherwise."
+- For conflicts: quote both statements and ask which applies.
+- Professional, consultative tone throughout.
+- No arbitrary question limit — cover every identified gap.
 
-2. **Prioritize**: Focus on critical and high-priority gaps first
+For each entry output:
+- **category**: "missing" | "ambiguous" | "conflict" | "assumption"
+- **question**: The question or assumption statement
+- **priority**: "critical" | "high" | "medium"
+- **context**: One sentence on why this affects the proposal
+- **suggestedOptions**: Array of options if applicable (optional)
 
-3. **Group Logically**: Organize questions by category (Sample, Timeline, Deliverables, etc.)
-
-4. **Professional Tone**: Maintain a helpful, consultative tone
-
-5. **Provide Context**: Explain why you're asking (helps client understand importance)
-
-6. **Offer Options**: Where appropriate, suggest options to make it easier for client to respond
-
-7. **For Ambiguous Requirements**: Present the ambiguity clearly and ask for clarification (e.g., "The RFP mentions 'small sample' - could you specify the exact number of respondents needed?")
-
-8. **For Conflicting Info**: Diplomatically present both statements and ask which is correct (e.g., "We notice the RFP mentions both 'Q1 2026' and 'March 31, 2026' as deadlines - could you confirm the correct date?")
-
-For each question, provide:
-- **category**: "sample", "timeline", "methodology", "deliverables", "budget", "other"
-- **question**: The actual question text
-- **priority**: "critical", "high", "medium", "low"
-- **context**: Why this matters for the proposal (1 sentence)
-- **suggestedOptions**: Array of possible answers (if applicable)
-
-Generate 5-10 questions depending on gap severity. Ensure you cover ALL identified gaps - missing, ambiguous, AND conflicting.
-
-Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosing.`;
+Respond with JSON: { questions[], emailSubject, emailIntro, emailClosing }`;
   }
 
   protected async process(context: AgentContext): Promise<AgentResult> {
@@ -112,14 +101,13 @@ ${JSON.stringify(gapData.conflictingInfo, null, 2)}
 - Research Objectives: ${JSON.stringify(gapData.researchObjectives)}
 - Target Audience: ${gapData.targetAudience}
 
-**IMPORTANT**: Generate questions that address ALL THREE types of gaps above:
-- Ask direct questions for missing information
-- Request clarification for ambiguous requirements
-- Ask client to resolve conflicting information
+**REQUIREMENT**: Generate one entry for EVERY item in each list above — do not merge or skip any gap.
+- Missing fields → ask for the specific data
+- Ambiguous requirements → state the assumption PetaSight will proceed with, ask for approval or correction
+- Conflicting info → quote both values, ask which is correct
+- Any critical/high gap without a clear answer → add as an explicit assumption requiring sign-off
 
-Generate 5-10 clarification questions with category, priority, context, and optional suggestedOptions for each.
-
-Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosing.`;
+Respond with JSON: { questions[], emailSubject, emailIntro, emailClosing }`;
 
       // Update progress: 40% - Generating clarifications
       if (currentJob) {
@@ -133,17 +121,17 @@ Respond with JSON containing: questions[], emailSubject, emailIntro, emailClosin
         await jobQueueService.updateProgress(currentJob.id, 70, 'Formatting clarification email');
       }
 
-      // Parse JSON response
+      // Parse JSON response — strip markdown code fences if present
       let clarificationData;
       try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          clarificationData = JSON.parse(jsonMatch[0]);
-        } else {
-          clarificationData = JSON.parse(response);
+        let cleaned = response.trim();
+        if (cleaned.startsWith('```')) {
+          cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '');
         }
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        clarificationData = JSON.parse(jsonMatch ? jsonMatch[0] : cleaned);
       } catch (parseError) {
-        console.error('Failed to parse clarification response:', response);
+        console.error('Failed to parse clarification response:', response.slice(0, 500));
         return {
           success: false,
           error: 'Failed to parse clarification response',

@@ -30,11 +30,13 @@ export class BriefExtractorAgent extends BaseAgent {
 
 **CRITICAL EXTRACTION RULES**:
 - Work with ANY RFP format: structured template, freeform Word doc, or Excel spreadsheet
-- Redacted placeholders like [CLIENT_ORG], [BRAND_A], [CONTACT_EMAIL], [DATE], [YEAR], [PHONE] are masked data — treat as "Redacted" not "Not specified"
+- Redacted placeholders like [CLIENT_ORG], [BRAND_A], [CONTACT_EMAIL], [DATE], [YEAR], [PHONE], [PAYER_ORG] are masked data — treat as "Redacted" not "Not specified"
 - "Open to supplier suggestions" / "vendor discretion" fields → use "Supplier discretion" (NOT "Not specified")
 - "Not specified" → only when the RFP truly omits the information with no indication it exists
 - Extract EXACTLY what is stated — no inference or assumptions
 - Keep field values concise: 1-2 sentences max
+- Do NOT skip sections; mark them PARTIAL/MISSING if info is incomplete/absent
+- For array fields (markets, deliverables, objectives): extract ALL items mentioned, not just examples
 
 **STUDY TYPE CLASSIFICATION** — set primaryMethodology to one of:
 - "Qualitative" — IDIs, focus groups, ethnography, KOL interviews, pharmacist interviews
@@ -182,15 +184,20 @@ Document: ${fileName}
 RFP Content:
 ${rfpText}
 
-**INSTRUCTIONS**:
+**EXTRACTION REQUIREMENTS**:
 1. This may be a structured template RFP or a freeform document — adapt accordingly
 2. For each of the 13 sections: mark COMPLETE / PARTIAL / MISSING in templateCoverage
 3. Extract every field you can find — even from freeform text that doesn't use section headers
-4. Placeholders like [CLIENT_ORG], [BRAND_A], [DATE], [YEAR], [PHONE], [CONTACT_EMAIL] = "Redacted"
+4. Placeholders like [CLIENT_ORG], [BRAND_A], [DATE], [YEAR], [PHONE], [CONTACT_EMAIL], [PAYER_ORG] = "Redacted"
 5. Fields explicitly left open for supplier input = "Supplier discretion"
 6. Fields truly absent from the RFP = "Not specified"
 7. Classify study type precisely (Qualitative / Quantitative / Conjoint / Chart Review / etc.)
 8. Set studySubtype to the specific program name (e.g. "Expert Performance Tracking", "Patient Journey", "Brand Equity Tracking")
+
+**COMPLETENESS CALCULATION**:
+- Count completed (COMPLETE) sections for completeSections
+- Count missing (MISSING) sections for missingSections
+- Calculate: overallCompletenessPercent = (COMPLETE / 13) * 100
 
 Return ONLY valid JSON matching the exact schema. No markdown.`;
 

@@ -13,14 +13,15 @@ export class BedrockService implements AIService {
   private client: BedrockRuntimeClient;
   private modelId: string;
 
-  constructor() {
+  constructor(modelIdOverride?: string) {
     // Initialize Bedrock client
     const clientConfig: any = {
       region: process.env.AWS_REGION || 'us-east-1',
       requestHandler: {
-        requestTimeout: 30000, // 30 second timeout
+        requestTimeout: 480000, // 8 minute timeout — account for stream delays on complex extractions
+        socketTimeout: 300000, // 5 minute socket timeout to catch dropped connections
       },
-      maxAttempts: 3, // Retry up to 3 times
+      maxAttempts: 2, // Reduce retries: 3x on a slow model wastes minutes before surfacing the error
     };
 
     // Only add explicit credentials if provided (not using AWS_PROFILE)
@@ -35,7 +36,7 @@ export class BedrockService implements AIService {
     this.client = new BedrockRuntimeClient(clientConfig);
 
     // Use Claude Sonnet 4.6 by default (more capable)
-    this.modelId = process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6';
+    this.modelId = modelIdOverride || process.env.BEDROCK_MODEL_ID || 'global.anthropic.claude-sonnet-4-6';
 
     console.log(`✅ Bedrock initialized with model: ${this.modelId} in region: ${clientConfig.region}`);
   }
@@ -53,7 +54,7 @@ export class BedrockService implements AIService {
 
     const requestBody = {
       anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 8192,
+      max_tokens: 32000,
       system: systemPrompt,
       messages,
     };
@@ -97,7 +98,7 @@ export class BedrockService implements AIService {
 
     const requestBody = {
       anthropic_version: 'bedrock-2023-05-31',
-      max_tokens: 8192,
+      max_tokens: 32000,
       system: systemPrompt,
       messages,
       tools,

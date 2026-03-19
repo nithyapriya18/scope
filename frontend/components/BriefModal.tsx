@@ -394,8 +394,242 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Cover Information */}
-          {briefData.coverInformation && (
+          {/* Completeness Banner */}
+          {briefData.overallCompletenessPercent !== undefined && (
+            <div className="flex items-center gap-4 px-4 py-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="flex-1">
+                <div className="flex justify-between mb-1">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Brief Completeness</span>
+                  <span className="text-xs font-bold text-primary">{briefData.overallCompletenessPercent}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-secondary to-primary rounded-full" style={{ width: `${briefData.overallCompletenessPercent}%` }} />
+                </div>
+              </div>
+              <div className="flex gap-3 text-xs shrink-0">
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{briefData.completeSections} complete</span>
+                <span className="text-red-500 dark:text-red-400 font-semibold">{briefData.missingSections} missing</span>
+              </div>
+            </div>
+          )}
+
+          {/* Section 1: Contact & Issuer */}
+          {briefData.section1_contact_issuer && (
+            <Section title="Contact & Issuer" icon={FileText}>
+              <Grid>
+                <Field label="Issuer Name" value={briefData.section1_contact_issuer.issuerName} />
+                <Field label="Contact Person" value={briefData.section1_contact_issuer.contactPerson} />
+                <Field label="Contact Title" value={briefData.section1_contact_issuer.contactTitle} />
+                <Field label="Contact Email" value={briefData.section1_contact_issuer.contactEmail} />
+                <Field label="Phone" value={briefData.section1_contact_issuer.phoneNumber} />
+                <Field label="Submission Deadline" value={briefData.section1_contact_issuer.submissionDeadline || briefData.section1_contact_issuer.rfpIssueDate} />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 2: Company */}
+          {briefData.section2_company && (
+            <Section title="Company" icon={FileText}>
+              <Grid>
+                <Field label="Company Name" value={briefData.section2_company.companyName} />
+                <Field label="Division" value={briefData.section2_company.division} />
+                <Field label="Description" value={briefData.section2_company.description} fullWidth />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 4: Project Background */}
+          {briefData.section4_project_background_context && (
+            <Section title="Project Background & Context" icon={Info}>
+              <div className="space-y-3">
+                <Grid>
+                  <Field label="Therapeutic Area" value={briefData.section4_project_background_context.therapeuticArea} />
+                  <Field label="Disease Area" value={briefData.section4_project_background_context.diseaseArea} />
+                  <Field label="Brand / Product" value={briefData.section4_project_background_context.productBrand} />
+                  <Field label="Lifecycle Stage" value={briefData.section4_project_background_context.lifecycleStage} />
+                </Grid>
+                <Field label="Project Background" value={briefData.section4_project_background_context.background} fullWidth />
+                <Field label="Problem Statement" value={briefData.section4_project_background_context.problemStatement} fullWidth />
+              </div>
+            </Section>
+          )}
+
+          {/* Section 5: Business & Research Objectives */}
+          {briefData.section5_business_research_objectives && (
+            <Section title="Business & Research Objectives" icon={Target}>
+              {briefData.section5_business_research_objectives.businessObjectives?.length > 0 && (
+                <div className="mb-4">
+                  <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Business Objectives</h5>
+                  <ul className="space-y-2">
+                    {briefData.section5_business_research_objectives.businessObjectives.map((obj: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                        <div className="w-5 h-5 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-[10px] font-bold text-primary">{idx + 1}</span>
+                        </div>
+                        {obj}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {briefData.section5_business_research_objectives.researchObjectives?.length > 0 && (
+                <div>
+                  <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Research Objectives</h5>
+                  <ul className="space-y-2">
+                    {briefData.section5_business_research_objectives.researchObjectives.map((obj: string, idx: number) => (
+                      <li key={idx} className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-300">
+                        <div className="w-5 h-5 rounded-full bg-secondary/10 dark:bg-secondary/20 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-[10px] font-bold text-secondary">{idx + 1}</span>
+                        </div>
+                        {obj}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* Section 6: Methodology & Scope */}
+          {briefData.section6_methodology_scope && (
+            <Section title="Methodology & Scope" icon={CheckCircle}>
+              <Grid>
+                <Field label="Primary Methodology" value={briefData.section6_methodology_scope.primaryMethodology} />
+                <Field label="Study Subtype" value={briefData.section6_methodology_scope.studySubtype} />
+                <Field label="Data Collection" value={briefData.section6_methodology_scope.dataCollection} />
+                <Field label="Number of Waves" value={briefData.section6_methodology_scope.numberOfWaves} />
+                <Field label="Research Design" value={briefData.section6_methodology_scope.researchDesign} fullWidth />
+                <Field label="Supplier Discretion Items" value={briefData.section6_methodology_scope.supplierDiscretion} fullWidth />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 7: Markets & Geography */}
+          {briefData.section7_markets_geography && (
+            <Section title="Markets & Geography" icon={MapPin}>
+              <Grid>
+                <Field
+                  label="Markets"
+                  value={Array.isArray(briefData.section7_markets_geography.markets)
+                    ? briefData.section7_markets_geography.markets.join(', ')
+                    : briefData.section7_markets_geography.markets}
+                  fullWidth
+                />
+                <Field
+                  label="Primary Markets"
+                  value={Array.isArray(briefData.section7_markets_geography.primaryMarkets)
+                    ? briefData.section7_markets_geography.primaryMarkets.join(', ')
+                    : briefData.section7_markets_geography.primaryMarkets}
+                  fullWidth
+                />
+                <Field label="Global Study" value={briefData.section7_markets_geography.globalStudy ? 'Yes' : 'No'} />
+                <Field label="Number of Countries" value={briefData.section7_markets_geography.numberOfCountries} />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 8: Target Audience & Sample */}
+          {briefData.section8_target_audience_sample && (
+            <Section title="Target Audience & Sample" icon={Users}>
+              <div className="space-y-3">
+                <Grid>
+                  <Field label="Primary Target Audience" value={briefData.section8_target_audience_sample.primaryTargetAudience} />
+                  <Field label="Target Sample Size" value={briefData.section8_target_audience_sample.targetSampleSize} />
+                  <Field label="Audience Description" value={briefData.section8_target_audience_sample.audienceDescription} fullWidth />
+                  <Field label="Quotas" value={briefData.section8_target_audience_sample.quotas} fullWidth />
+                  <Field label="Special Requirements" value={briefData.section8_target_audience_sample.specialRequirements} fullWidth />
+                </Grid>
+              </div>
+            </Section>
+          )}
+
+          {/* Section 9: Timeline & Key Dates */}
+          {briefData.section9_timeline_key_dates && (
+            <Section title="Timeline & Key Dates" icon={Calendar}>
+              <Grid>
+                <Field label="RFP Issue Date" value={briefData.section9_timeline_key_dates.rfpIssueDate} />
+                <Field label="Proposal Deadline" value={briefData.section9_timeline_key_dates.proposalDeadline} />
+                <Field label="Questions Deadline" value={briefData.section9_timeline_key_dates.questionsDeadline} />
+                <Field label="Project Start Date" value={briefData.section9_timeline_key_dates.projectStartDate} />
+                <Field label="Project End Date" value={briefData.section9_timeline_key_dates.projectEndDate} />
+                <Field label="Contract Length" value={briefData.section9_timeline_key_dates.contractLength} />
+                <Field label="Project Duration" value={briefData.section9_timeline_key_dates.projectDuration} fullWidth />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 10: Deliverables */}
+          {briefData.section10_deliverables && (
+            <Section title="Deliverables" icon={FileText}>
+              {briefData.section10_deliverables.deliverables?.length > 0 && (
+                <ul className="grid grid-cols-2 gap-2 mb-3">
+                  {briefData.section10_deliverables.deliverables.map((d: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />{d}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Grid>
+                <Field label="Report Format" value={briefData.section10_deliverables.reportFormat} />
+                <Field label="Presentations" value={briefData.section10_deliverables.presentations} />
+                <Field label="Data Access" value={briefData.section10_deliverables.dataAccess} />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 11: Budget & Cost */}
+          {briefData.section11_budget_cost && (
+            <Section title="Budget & Cost" icon={DollarSign}>
+              <Grid>
+                <Field label="Budget Range" value={briefData.section11_budget_cost.budgetRange} />
+                <Field label="Currency" value={briefData.section11_budget_cost.currency} />
+                <Field label="Costing Template" value={briefData.section11_budget_cost.costingTemplate} fullWidth />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 12: Submission Requirements */}
+          {briefData.section12_submission_requirements && (
+            <Section title="Submission Requirements" icon={AlertCircle}>
+              <Grid>
+                <Field label="Format" value={briefData.section12_submission_requirements.format} />
+                <Field label="Max Pages" value={briefData.section12_submission_requirements.maxPages} />
+                <Field label="Submission Deadline" value={briefData.section12_submission_requirements.submissionDeadline} fullWidth />
+                <Field label="Contact for Questions" value={briefData.section12_submission_requirements.contactForQuestions} fullWidth />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Section 13: Evaluation Criteria */}
+          {briefData.section13_evaluation_criteria && (
+            <Section title="Evaluation Criteria" icon={Target}>
+              {briefData.section13_evaluation_criteria.criteria?.length > 0 && (
+                <ul className="space-y-2 mb-3">
+                  {briefData.section13_evaluation_criteria.criteria.map((c: string, i: number) => (
+                    <li key={i} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                      <span className="text-primary shrink-0">•</span>{c}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <Field label="Evaluation Process" value={briefData.section13_evaluation_criteria.evaluationProcess} fullWidth />
+            </Section>
+          )}
+
+          {/* Section 3: Confidentiality */}
+          {briefData.section3_confidentiality && (
+            <Section title="Confidentiality" icon={Shield}>
+              <Grid>
+                <Field label="NDA Required" value={briefData.section3_confidentiality.nda_required ? 'Yes' : 'No'} />
+                <Field label="Confidentiality Level" value={briefData.section3_confidentiality.confidentialityLevel} />
+                <Field label="Terms" value={briefData.section3_confidentiality.terms} fullWidth />
+              </Grid>
+            </Section>
+          )}
+
+          {/* Old schema fallback: coverInformation */}
+          {!briefData.section1_contact_issuer && briefData.coverInformation && (
             <Section title="Cover Information" icon={FileText}>
               <Grid>
                 <Field label="Issued By" value={briefData.coverInformation.issuedBy} />

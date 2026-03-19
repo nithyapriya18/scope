@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import VerticalWorkflowTimeline from '@/components/VerticalWorkflowTimeline';
 import ChatInterface from '@/components/ChatInterface';
@@ -18,6 +18,9 @@ export default function OpportunityDetailPage() {
   const [chatOpen, setChatOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  // Track which status we last auto-advanced for — prevents re-triggering same step multiple times
+  // while the background agent runs (status stays unchanged for up to 2 mins)
+  const lastAutoAdvancedStatus = useRef<string | null>(null);
 
   // Settings form state
   const [editedRfpTitle, setEditedRfpTitle] = useState('');
@@ -48,6 +51,11 @@ export default function OpportunityDetailPage() {
     const status = opportunity.status;
     const workflowMode = getWorkflowMode();
 
+    // Clear the "already fired" marker when status genuinely changes
+    if (lastAutoAdvancedStatus.current && lastAutoAdvancedStatus.current !== status) {
+      lastAutoAdvancedStatus.current = null;
+    }
+
     // Steps that always auto-advance (no approval needed)
     const alwaysAutoAdvance = [
       'intake',
@@ -64,11 +72,26 @@ export default function OpportunityDetailPage() {
     // Other steps respect workflow mode setting
     const conditionalAutoAdvance: string[] = [];
 
-    const shouldAutoAdvance =
-      alwaysAutoAdvance.includes(status) ||
-      (workflowMode === 'automated' && conditionalAutoAdvance.includes(status));
+    // Don't auto-advance if the last job for this status failed — prevents infinite retry loops
+    const allJobs: any[] = opportunity.allJobs || [];
+    const jobTypeMap: Record<string, string> = {
+      intake: 'intake', brief_extract: 'brief_extract', gap_analysis: 'gap_analysis',
+      assumption_analysis: 'assumption_analysis', clarification: 'clarification',
+      clarification_response: 'clarification_response', feasibility: 'hcp_matching',
+      scope_planning: 'scope_planner', wbs_estimate: 'wbs_estimate', pricing: 'pricing',
+    };
+    const jobType = jobTypeMap[status];
+    const recentFailedJob = jobType && allJobs.find(
+      (j: any) => j.jobType === jobType && j.status === 'failed'
+    );
 
-    if (shouldAutoAdvance) {
+    const shouldAutoAdvance =
+      !recentFailedJob &&
+      (alwaysAutoAdvance.includes(status) ||
+      (workflowMode === 'automated' && conditionalAutoAdvance.includes(status)));
+
+    if (shouldAutoAdvance && lastAutoAdvancedStatus.current !== status) {
+      lastAutoAdvancedStatus.current = status; // Mark fired — won't re-fire until status changes
       // Small delay to let UI update
       const timeout = setTimeout(() => {
         handleProcessNext();

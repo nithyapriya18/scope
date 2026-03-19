@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Check, Loader2, FileText, BarChart2, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Eye, ChevronDown, Users, Search, Info, Upload, FileCheck, RefreshCw } from 'lucide-react';
 import BriefModal from './BriefModal';
 import GapAnalysisModal from './GapAnalysisModal';
@@ -82,15 +82,6 @@ const workflowSteps: WorkflowStep[] = [
     statusMapping: ['clarification'],
   },
   {
-    id: 'human_review',
-    label: 'Human Review Point',
-    agentName: 'Human Action Required',
-    description: 'Review the generated clarification email, approve & send it, then upload the client response or continue with assumptions',
-    icon: Eye,
-    uiOnly: true,
-    statusMapping: ['clarification'],
-  },
-  {
     id: 'clarification_response',
     label: 'Response Parsing & Brief Update',
     agentName: 'Response Parser Agent',
@@ -157,31 +148,61 @@ export default function VerticalWorkflowTimeline({
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [feasibilityModalOpen, setFeasibilityModalOpen] = useState(false);
   const [uploadingResponse, setUploadingResponse] = useState(false);
-  const [emailSending, setEmailSending] = useState(false);
   const [redoConfirmStep, setRedoConfirmStep] = useState<string | null>(null);
   const [redoing, setRedoing] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const backendStatus = opportunity?.status || 'intake';
   const currentJob = opportunity?.currentJob;
   const allJobs: any[] = opportunity?.allJobs || [];
 
-  // Determine if the human_review step is active
   const clarificationHasQuestions = Array.isArray(opportunity?.clarification?.questions) && opportunity.clarification.questions.length > 0;
 
-  // Find the current step index — handles uiOnly steps
-  const currentStepIndex = (() => {
-    // Special case: clarification status with questions generated → human_review is current
-    if (backendStatus === 'clarification' && clarificationHasQuestions) {
-      return workflowSteps.findIndex(s => s.id === 'human_review');
+  // Find the current step index
+  const currentStepIndex = workflowSteps.findIndex(step => {
+    if (step.uiOnly) return false;
+    if (step.statusMapping && Array.isArray(step.statusMapping)) {
+      return step.statusMapping.includes(backendStatus);
     }
-    // For all other statuses, skip uiOnly steps in lookup
-    return workflowSteps.findIndex(step => {
-      if (step.uiOnly) return false;
-      if (step.statusMapping && Array.isArray(step.statusMapping)) {
-        return step.statusMapping.includes(backendStatus);
-      }
-      return step.id === backendStatus;
-    });
-  })();
+    return step.id === backendStatus;
+  });
+
+  // Live timer for in-progress step
+  useEffect(() => {
+    const inProgressStep = workflowSteps[currentStepIndex];
+    const isRunning = inProgressStep && !inProgressStep.uiOnly &&
+      (inProgressStep.statusMapping?.includes(backendStatus) ?? inProgressStep.id === backendStatus);
+    if (isRunning) {
+      setElapsedSeconds(1);
+      timerRef.current = setInterval(() => {
+        setElapsedSeconds(s => s + 1);
+      }, 1000);
+    } else {
+      setElapsedSeconds(0);
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [currentStepIndex]);
+
+  // Auto-scroll to the active step or action area whenever progress advances
+  useEffect(() => {
+    const id = (backendStatus === 'clarification' && clarificationHasQuestions)
+      ? 'workflow-action-area'
+      : 'workflow-active-step';
+    const el = document.getElementById(id);
+    if (el) {
+      // Small delay so the DOM has rendered the newly visible step
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+    }
+  }, [currentStepIndex, clarificationHasQuestions]);
+
+  const formatElapsed = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  };
 
   // Get duration for a completed step from allJobs
   const getStepDuration = (stepId: string): string | null => {
@@ -192,7 +213,7 @@ export default function VerticalWorkflowTimeline({
       gap_analysis: 'gap_analysis',
       clarification: 'clarification',
       clarification_response: 'clarification_response',
-      feasibility: 'feasibility',
+      feasibility: 'hcp_matching',
       scope_planning: 'scope_planner',
       wbs_estimate: 'wbs_estimate',
       document_gen: 'document_gen',
@@ -205,28 +226,10 @@ export default function VerticalWorkflowTimeline({
   };
 
   const getStepStatus = (stepIndex: number) => {
-    const step = workflowSteps[stepIndex];
-
-    // Special handling for the uiOnly human_review step
-    if (step.id === 'human_review') {
-      if (backendStatus !== 'clarification') return 'completed'; // moved past
-      if (!clarificationHasQuestions) return 'locked'; // AI hasn't finished yet
-      return 'in-progress'; // questions ready, awaiting human action
+    // Step 4 (clarification) completes as soon as questions are generated — action area handles the human step
+    if (workflowSteps[stepIndex].id === 'clarification' && backendStatus === 'clarification' && clarificationHasQuestions) {
+      return 'completed';
     }
-
-    // For the clarification step: completed once questions are generated (human_review takes over)
-    if (step.id === 'clarification') {
-      if (backendStatus === 'clarification' && clarificationHasQuestions) return 'completed';
-      if (backendStatus !== 'clarification') {
-        const clarIdx = workflowSteps.findIndex(s => s.id === 'clarification');
-        return stepIndex < currentStepIndex ? 'completed' : 'locked';
-      }
-    }
-
-    const isCurrentStep = step.statusMapping && Array.isArray(step.statusMapping)
-      ? step.statusMapping.includes(backendStatus) && !step.uiOnly
-      : step.id === backendStatus;
-
     if (stepIndex < currentStepIndex) return 'completed';
     if (stepIndex === currentStepIndex) return 'in-progress';
     if (stepIndex === currentStepIndex + 1) return 'waiting';
@@ -297,14 +300,12 @@ export default function VerticalWorkflowTimeline({
     });
 
     if (backendStatus !== 'clarification') {
-      alert(`⚠️ Cannot upload file. Opportunity must be in "clarification" status.\n\nCurrent status: ${backendStatus}`);
       console.error('❌ Wrong status for upload:', backendStatus);
       event.target.value = '';
       return;
     }
 
     if (!opportunity?.id) {
-      alert('⚠️ No opportunity ID found. Please refresh the page and try again.');
       console.error('❌ No opportunity ID');
       event.target.value = '';
       return;
@@ -350,53 +351,13 @@ export default function VerticalWorkflowTimeline({
       const result = await response.json();
       console.log('✅ Response uploaded successfully:', result);
 
-      // Show success message but keep processing state
-      alert(`✅ File "${file.name}" uploaded successfully!\n\n⏳ Parsing client responses with AI... This may take 15-30 seconds.\n\nThe buttons will re-enable automatically once processing completes.`);
-
-      // Keep refreshing and check if processing is complete
-      let checkCount = 0;
-      const maxChecks = 20; // 20 checks * 3s = 60 seconds max
-
-      const refreshInterval = setInterval(async () => {
-        checkCount++;
-        console.log(`🔄 Polling check ${checkCount}/${maxChecks}`);
-
-        if (onRefresh) {
-          await onRefresh();
-        }
-
-        // Re-fetch opportunity status to check if it's changed
-        try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity.id}`);
-          if (response.ok) {
-            const updatedOpp = await response.json();
-            console.log(`📊 Current status: ${updatedOpp.status}`);
-
-            // Check if status has changed from 'clarification'
-            if (updatedOpp.status !== 'clarification') {
-              console.log('✅ Processing complete, status changed to:', updatedOpp.status);
-              clearInterval(refreshInterval);
-              setUploadingResponse(false);
-              alert('✅ Client responses parsed successfully!\n\nYou can now proceed to the next step.');
-              return;
-            }
-          }
-        } catch (err) {
-          console.error('Error checking opportunity status:', err);
-        }
-
-        // Timeout after max checks
-        if (checkCount >= maxChecks) {
-          clearInterval(refreshInterval);
-          setUploadingResponse(false);
-          console.log('⏱️ Stopped polling after', maxChecks * 3, 'seconds');
-          alert('⏱️ Processing is taking longer than expected.\n\nPlease check back in a moment or refresh the page.');
-        }
-      }, 3000);
+      // Status is already set to clarification_response by the backend.
+      // The page's polling will detect the change and auto-advance to Step 5.
+      setUploadingResponse(false);
+      if (onRefresh) onRefresh();
 
     } catch (error) {
       console.error('❌ Error uploading response:', error);
-      alert(`Failed to upload response file: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setUploadingResponse(false);
     }
 
@@ -405,7 +366,7 @@ export default function VerticalWorkflowTimeline({
   };
 
   const handleSkipResponses = async () => {
-    if (!confirm('Proceed to Research Design with current assumptions? No client responses will be recorded.')) {
+    if (!confirm('Proceed to Feasibility with current assumptions? No client responses will be recorded.')) {
       return;
     }
 
@@ -431,54 +392,21 @@ export default function VerticalWorkflowTimeline({
       }
     } catch (error) {
       console.error('Error skipping responses:', error);
-      alert('Failed to proceed. Please try again.');
     } finally {
       setUploadingResponse(false);
     }
   };
 
-  const handleSendEmail = async () => {
-    setEmailSending(true);
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity?.id}/send-clarification-email`,
-        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
-      );
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.message || 'Failed to send email');
-      }
-      if (onRefresh) onRefresh();
-    } catch (error) {
-      alert(`Failed to send email: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    } finally {
-      setEmailSending(false);
-    }
-  };
-
-  const handleResetDecision = async () => {
-    // Reset just the upload/skip decision without redoing step 4
+  const handleResetClarificationDecision = async () => {
     setUploadingResponse(true);
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity?.id}/reset-clarification-decision`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: 'a14bc04f-7d40-4ad2-bcb8-ec0ea08b7da0', // Demo user UUID
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to reset decision');
-      }
-
-      // Refresh opportunity data
-      if (onRefresh) {
-        setTimeout(() => onRefresh(), 500);
-      }
-    } catch (error) {
-      console.error('Error resetting decision:', error);
-      alert('Failed to reset decision. Please try again.');
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity?.id}/reset-clarification-decision`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      if (res.ok && onRefresh) onRefresh();
+    } catch (err) {
+      console.error('Error resetting clarification decision:', err);
     } finally {
       setUploadingResponse(false);
     }
@@ -511,19 +439,21 @@ export default function VerticalWorkflowTimeline({
       }
     } catch (error) {
       console.error('Error redoing step:', error);
-      alert('Failed to redo step. Please try again.');
     } finally {
       setRedoing(false);
     }
   };
 
-  // Show all steps if showAlls is true, otherwise show first 4 + any completed or in-progress steps
-  // uiOnly steps (human_review) only appear when active or completed
+  // Show first 4 steps + any completed or in-progress + the step that follows the action area
   const visibleSteps = showAlls
     ? workflowSteps
     : workflowSteps.filter((step, index) => {
         const status = getStepStatus(index);
-        if (step.uiOnly) return status === 'in-progress' || status === 'completed';
+        // Always show clarification_response (step 5) when the action area is visible
+        if (step.id === 'clarification_response' && clarificationHasQuestions &&
+          (backendStatus === 'clarification' || backendStatus === 'clarification_response')) return true;
+        // Always show the waiting step immediately after in-progress so the queue is visible
+        if (status === 'waiting' && index === currentStepIndex + 1) return true;
         return index < 4 || status === 'completed' || status === 'in-progress';
       });
 
@@ -537,6 +467,77 @@ export default function VerticalWorkflowTimeline({
 
         return (
           <React.Fragment key={step.id}>
+            {/* Action area: shown between step 4 and step 5 until steps proceed past clarification_response */}
+            {step.id === 'clarification_response' && clarificationHasQuestions &&
+              (backendStatus === 'clarification' || backendStatus === 'clarification_response') && (
+              <div id="workflow-action-area" className="relative pl-16">
+                {/* Connecting line stub */}
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200 dark:bg-slate-700" />
+                <div className={`rounded-xl border-2 p-5 space-y-3 ${
+                  backendStatus === 'clarification_response'
+                    ? 'border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800/40'
+                    : 'border-dashed border-primary/40 dark:border-primary/30 bg-primary/[0.03] dark:bg-primary/[0.05]'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className={`w-3.5 h-3.5 ${backendStatus === 'clarification_response' ? 'text-slate-400' : 'text-primary'}`} />
+                      <span className={`text-[11px] font-black uppercase tracking-widest ${
+                        backendStatus === 'clarification_response' ? 'text-slate-400 dark:text-slate-500' : 'text-primary'
+                      }`}>
+                        {backendStatus === 'clarification_response' ? 'Action taken — step 5 processing' : 'Your Action Required'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={handleResetClarificationDecision}
+                      disabled={uploadingResponse}
+                      title="Reset and choose again"
+                      className="p-1.5 text-slate-400 hover:text-primary transition-colors disabled:opacity-30"
+                    >
+                      <RefreshCw size={16} />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,.txt,.eml,.msg"
+                        onChange={handleFileUpload}
+                        disabled={uploadingResponse}
+                        className="hidden"
+                        id="response-file-upload"
+                      />
+                      <button
+                        onClick={() => !uploadingResponse && backendStatus === 'clarification' && document.getElementById('response-file-upload')?.click()}
+                        disabled={uploadingResponse || backendStatus === 'clarification_response'}
+                        className={`flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-bold text-sm transition-all ${
+                          uploadingResponse || backendStatus === 'clarification_response'
+                            ? 'bg-slate-100 dark:bg-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                            : 'bg-gradient-to-r from-primary to-secondary text-white hover:opacity-90 shadow-md hover:shadow-lg'
+                        }`}
+                      >
+                        {uploadingResponse
+                          ? <><Loader2 className="w-4 h-4 animate-spin" />Uploading…</>
+                          : <><Upload className="w-4 h-4" />Upload Client Response</>
+                        }
+                      </button>
+                      <p className="text-[10px] text-slate-400 text-center mt-1">.pdf · .docx · .txt · .msg</p>
+                    </div>
+                    <div>
+                      <button
+                        onClick={handleSkipResponses}
+                        disabled={uploadingResponse || backendStatus === 'clarification_response'}
+                        className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl font-bold text-sm bg-slate-700 hover:bg-slate-600 dark:bg-slate-600 dark:hover:bg-slate-500 text-white transition-all shadow-md hover:shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Skip — Use Assumptions
+                      </button>
+                      <p className="text-[10px] text-slate-400 text-center mt-1">Proceed without client input</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             <div className="relative pl-16 group">
             {/* Connecting Line */}
             {!isLast && (
@@ -622,6 +623,13 @@ export default function VerticalWorkflowTimeline({
                     ) : null;
                   })()}
 
+                  {/* Live elapsed timer for in-progress step */}
+                  {status === 'in-progress' && !step.uiOnly && elapsedSeconds > 0 && (
+                    <span className="text-[10px] font-semibold text-primary tabular-nums">
+                      {formatElapsed(elapsedSeconds)}
+                    </span>
+                  )}
+
                   {/* Spinner for in-progress with no progress yet */}
                   {status === 'in-progress' && getCurrentProgress() === 0 && (
                     <Loader2 className="w-4 h-4 text-primary animate-spin" />
@@ -653,17 +661,16 @@ export default function VerticalWorkflowTimeline({
                   ) : (
                     <div className="h-full bg-gradient-to-r from-primary to-secondary opacity-70 rounded-full absolute"
                          style={{
-                           width: '20%',
-                           animation: 'slideProgress 2s ease-in-out infinite'
+                           width: '30%',
+                           animation: 'slideProgress 1.6s linear infinite'
                          }} />
                   )}
                 </div>
               )}
               <style jsx>{`
                 @keyframes slideProgress {
-                  0% { left: 0%; }
-                  50% { left: 80%; }
-                  100% { left: 0%; }
+                  0% { left: -30%; }
+                  100% { left: 100%; }
                 }
               `}</style>
 
@@ -728,164 +735,69 @@ export default function VerticalWorkflowTimeline({
                       {step.id === 'clarification_response' && (
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {opportunity?.clarification?.client_responses
+                            {(opportunity?.clarification?.client_responses || opportunity?.clarification?.client_response_text)
                               ? 'Requirements brief updated with client responses'
                               : 'Requirements brief updated with assumptions (no client response received)'}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {opportunity?.clarification?.client_responses
-                              ? 'Client provided answers to clarification questions'
+                            {opportunity?.clarification?.client_response_text
+                              ? 'Client response parsed and applied to brief'
+                              : opportunity?.clarification?.client_responses
+                              ? 'Clarification processing complete'
                               : 'Proceeding with internally generated assumptions'}
                           </p>
                         </div>
                       )}
-                      {!opportunity?.brief && !opportunity?.gapAnalysis && !opportunity?.clarification && step.id !== 'clarification_response' && (
+                      {step.id === 'human_review' && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {opportunity?.clarification?.client_responses
+                              ? 'Client clarifications received and accepted'
+                              : 'Proceeded with assumptions — no client response'}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {opportunity?.clarification?.client_responses
+                              ? 'Client provided answers to all open questions'
+                              : 'All assumptions treated as confirmed for the brief'}
+                          </p>
+                        </div>
+                      )}
+                      {!opportunity?.brief && !opportunity?.gapAnalysis && !opportunity?.clarification && step.id !== 'clarification_response' && step.id !== 'human_review' && (
                         <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                           Step completed. Click View Analysis for details.
                         </p>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          if (step.id === 'intake') setIntakeModalOpen(true);
-                          else if (step.id === 'brief_extract') setBriefModalOpen(true);
-                          else if (step.id === 'gap_analysis') setGapModalOpen(true);
-                          else if (step.id === 'clarification') setClarificationModalOpen(true);
-                          else if (step.id === 'clarification_response') setClarificationResponseModalOpen(true);
-                          else if (step.id === 'scope_planning') setScopeModalOpen(true);
-                          else if (step.id === 'feasibility') setFeasibilityModalOpen(true);
-                        }}
-                        className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:border-primary hover:text-primary transition-all shrink-0"
-                      >
-                        <Eye size={14} />
-                        View {step.id === 'intake' ? 'Details' : step.id === 'clarification_response' ? 'Updated Brief' : step.id === 'scope_planning' ? 'Design' : step.id === 'feasibility' ? 'Feasibility' : 'Analysis'}
-                      </button>
-                    </div>
+                    {step.id !== 'human_review' && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            if (step.id === 'intake') setIntakeModalOpen(true);
+                            else if (step.id === 'brief_extract') setBriefModalOpen(true);
+                            else if (step.id === 'gap_analysis') setGapModalOpen(true);
+                            else if (step.id === 'clarification') setClarificationModalOpen(true);
+                            else if (step.id === 'clarification_response') setClarificationResponseModalOpen(true);
+                            else if (step.id === 'scope_planning') setScopeModalOpen(true);
+                            else if (step.id === 'feasibility') setFeasibilityModalOpen(true);
+                          }}
+                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:border-primary hover:text-primary transition-all shrink-0"
+                        >
+                          <Eye size={14} />
+                          View {step.id === 'intake' ? 'Details' : step.id === 'clarification_response' ? 'Updated Brief' : step.id === 'scope_planning' ? 'Design' : step.id === 'feasibility' ? 'Feasibility' : 'Analysis'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
 
-              {/* Human Review Point — two-box layout for email send + upload/skip */}
-              {step.id === 'human_review' && status === 'in-progress' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Box A: Email Preview + Approve & Send */}
-                  <div className="rounded-lg border-2 border-blue-200 dark:border-blue-800 bg-white dark:bg-gray-800 p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-500" />
-                      <h4 className="font-bold text-sm text-gray-900 dark:text-white">Clarification Email</h4>
-                    </div>
-                    {opportunity?.clarification?.sent_at && (
-                      <div className="mb-3 flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg px-3 py-2">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={3} />
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                          Sent to nithya@petasight.com
-                        </p>
-                      </div>
-                    )}
-                    <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3 mb-4 max-h-44 overflow-y-auto">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Questions Preview</p>
-                      <ol className="space-y-1.5 list-none">
-                        {(opportunity?.clarification?.questions || []).slice(0, 5).map((q: any, i: number) => (
-                          <li key={i} className="text-xs text-slate-600 dark:text-slate-400">
-                            {i + 1}. {typeof q === 'string' ? q : q.question || JSON.stringify(q)}
-                          </li>
-                        ))}
-                        {(opportunity?.clarification?.questions?.length || 0) > 5 && (
-                          <li className="text-xs text-slate-400 italic">
-                            +{opportunity.clarification.questions.length - 5} more…
-                          </li>
-                        )}
-                      </ol>
-                    </div>
-                    <button
-                      onClick={handleSendEmail}
-                      disabled={emailSending || !!opportunity?.clarification?.sent_at}
-                      className={`flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-lg font-bold text-sm transition-all ${
-                        opportunity?.clarification?.sent_at
-                          ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 cursor-not-allowed'
-                          : emailSending
-                          ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-secondary to-primary text-white shadow-md hover:opacity-90 cursor-pointer'
-                      }`}
-                    >
-                      {emailSending ? (
-                        <><Loader2 className="w-4 h-4 animate-spin" />Sending…</>
-                      ) : opportunity?.clarification?.sent_at ? (
-                        <><Check className="w-4 h-4" strokeWidth={3} />Email Sent</>
-                      ) : (
-                        <><MessageSquare className="w-4 h-4" />Approve &amp; Send</>
-                      )}
-                    </button>
-                    {!opportunity?.clarification?.sent_at && (
-                      <p className="text-[10px] text-slate-400 mt-2 text-center">Sends to nithya@petasight.com</p>
-                    )}
-                  </div>
-
-                  {/* Box B: Upload Response or Skip */}
-                  <div className="space-y-3">
-                    <div className="rounded-lg border-2 border-emerald-200 dark:border-emerald-800 bg-white dark:bg-gray-800 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Upload className="w-4 h-4 text-emerald-600 dark:text-emerald-500" />
-                        <h4 className="font-bold text-sm text-gray-900 dark:text-white">Upload Client Response</h4>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Upload the client's reply (.pdf, .docx, .txt, .msg)
-                      </p>
-                      <input
-                        type="file"
-                        accept=".pdf,.doc,.docx,.txt,.eml,.msg"
-                        onChange={handleFileUpload}
-                        disabled={uploadingResponse}
-                        className="hidden"
-                        id="response-file-upload"
-                      />
-                      <span
-                        role="button"
-                        className={`flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg font-bold text-sm transition-all ${
-                          uploadingResponse
-                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                            : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
-                        }`}
-                        onClick={() => !uploadingResponse && document.getElementById('response-file-upload')?.click()}
-                      >
-                        {uploadingResponse ? (
-                          <><Loader2 className="w-4 h-4 animate-spin" />Parsing…</>
-                        ) : (
-                          <><Upload className="w-4 h-4" />Choose File</>
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-gray-800 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <AlertTriangle className="w-4 h-4 text-orange-500" />
-                        <h4 className="font-bold text-sm text-gray-900 dark:text-white">Skip &amp; Continue</h4>
-                      </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
-                        Proceed with current assumptions — no client response needed
-                      </p>
-                      <button
-                        onClick={handleSkipResponses}
-                        disabled={uploadingResponse}
-                        className="flex items-center justify-center gap-2 w-full px-3 py-2 rounded-lg font-bold text-sm bg-slate-600 hover:bg-slate-700 text-white transition-colors disabled:opacity-50"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                        Skip &amp; Proceed
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Subtask List - In Progress */}
+              {/* Subtask List or Human Action — In Progress */}
               {status === 'in-progress' && !step.uiOnly && (
                 <div className="space-y-4">
                   {(() => {
                     const subtasks = STEP_SUBTASKS[step.id] || [];
                     if (subtasks.length === 0) return null;
-                    const progress = getCurrentProgress(); // 0-100
-                    // Map progress to current subtask index
+                    const progress = getCurrentProgress();
                     const currentSubIdx = progress === 0
                       ? 0
                       : Math.min(Math.floor((progress / 100) * subtasks.length), subtasks.length - 1);
@@ -929,6 +841,7 @@ export default function VerticalWorkflowTimeline({
                     );
                   })()}
                   </div>
+              )}
 
               {/* Approval required banner for document_gen (shown when in-progress) */}
               {step.id === 'document_gen' && status === 'in-progress' && (
@@ -1088,7 +1001,7 @@ export default function VerticalWorkflowTimeline({
           rfpTitle={opportunity.rfpTitle || 'Untitled RFP'}
           clientName={opportunity.clientName}
           onApprove={onApprove || onProcessNext}
-          isCompleted={clarificationCompleted}
+          isCompleted={backendStatus !== 'clarification'}
         />
       )}
 
@@ -1117,15 +1030,13 @@ export default function VerticalWorkflowTimeline({
       )}
 
       {/* Feasibility Modal */}
-      {opportunity?.feasibility && (
-        <FeasibilityModal
-          isOpen={feasibilityModalOpen}
-          onClose={() => setFeasibilityModalOpen(false)}
-          feasibility={opportunity.feasibility}
-          rfpTitle={opportunity.rfpTitle || 'Untitled RFP'}
-          opportunityId={opportunity.id}
-        />
-      )}
+      <FeasibilityModal
+        isOpen={feasibilityModalOpen}
+        onClose={() => setFeasibilityModalOpen(false)}
+        feasibility={opportunity?.feasibility ?? null}
+        rfpTitle={opportunity?.rfpTitle || 'Untitled RFP'}
+        opportunityId={opportunity?.id}
+      />
 
       {/* Redo Confirmation Dialog */}
       {redoConfirmStep && (

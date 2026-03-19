@@ -17,6 +17,61 @@ interface ChatInterfaceProps {
   onToggle?: (open: boolean) => void;
 }
 
+function MarkdownMessage({ content }: { content: string }) {
+  const lines = content.split('\n');
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  const renderInline = (text: string) => {
+    const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**'))
+        return <strong key={idx}>{part.slice(2, -2)}</strong>;
+      if (part.startsWith('*') && part.endsWith('*'))
+        return <em key={idx}>{part.slice(1, -1)}</em>;
+      if (part.startsWith('`') && part.endsWith('`'))
+        return <code key={idx} className="bg-gray-200 dark:bg-gray-600 rounded px-1 text-xs font-mono">{part.slice(1, -1)}</code>;
+      return part;
+    });
+  };
+
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.startsWith('### ')) {
+      elements.push(<p key={i} className="font-bold text-sm mt-2 mb-1">{renderInline(line.slice(4))}</p>);
+    } else if (line.startsWith('## ')) {
+      elements.push(<p key={i} className="font-bold text-base mt-3 mb-1">{renderInline(line.slice(3))}</p>);
+    } else if (line.startsWith('# ')) {
+      elements.push(<p key={i} className="font-bold text-base mt-3 mb-1">{renderInline(line.slice(2))}</p>);
+    } else if (/^[-*] /.test(line)) {
+      const items: React.ReactNode[] = [];
+      while (i < lines.length && /^[-*] /.test(lines[i])) {
+        items.push(<li key={i}>{renderInline(lines[i].slice(2))}</li>);
+        i++;
+      }
+      elements.push(<ul key={`ul-${i}`} className="list-disc pl-4 space-y-0.5 my-1">{items}</ul>);
+      continue;
+    } else if (/^\d+\. /.test(line)) {
+      const items: React.ReactNode[] = [];
+      while (i < lines.length && /^\d+\. /.test(lines[i])) {
+        items.push(<li key={i}>{renderInline(lines[i].replace(/^\d+\. /, ''))}</li>);
+        i++;
+      }
+      elements.push(<ol key={`ol-${i}`} className="list-decimal pl-4 space-y-0.5 my-1">{items}</ol>);
+      continue;
+    } else if (line.startsWith('> ')) {
+      elements.push(<blockquote key={i} className="border-l-2 border-gray-400 pl-3 italic text-gray-600 dark:text-gray-400 my-1">{renderInline(line.slice(2))}</blockquote>);
+    } else if (line.trim() === '') {
+      elements.push(<div key={i} className="h-2" />);
+    } else {
+      elements.push(<p key={i} className="leading-relaxed">{renderInline(line)}</p>);
+    }
+    i++;
+  }
+
+  return <div className="space-y-0.5 text-sm">{elements}</div>;
+}
+
 export default function ChatInterface({ opportunityId, isOpen = false, onToggle }: ChatInterfaceProps) {
   const [open, setOpen] = useState(isOpen);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -138,7 +193,7 @@ export default function ChatInterface({ opportunityId, isOpen = false, onToggle 
         transition-all duration-300 ease-in-out
         ${open ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}
       `}>
-        <div className="bg-white dark:bg-gray-800 rounded-lg-t-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col w-screen sm:w-[500px] md:w-[600px] h-[500px] m-4 mb-0">
+        <div className="bg-white dark:bg-gray-800 rounded-lg-t-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col w-screen sm:w-[560px] md:w-[680px] h-[75vh] max-h-[800px] m-4 mb-0">
           {/* Header */}
           <div className="flex h-14 items-center justify-between border-b border-gray-200 dark:border-gray-700 px-5 flex-shrink-0 rounded-lg-t-2xl bg-gradient-to-r from-cyan-50 to-white dark:from-gray-800 dark:to-gray-800">
             <div className="flex items-center gap-2">
@@ -177,13 +232,15 @@ export default function ChatInterface({ opportunityId, isOpen = false, onToggle 
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                      className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
                         message.role === 'user'
-                          ? 'bg-primary text-white'
+                          ? 'bg-primary text-white text-sm'
                           : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white'
                       }`}
                     >
-                      {message.content}
+                      {message.role === 'assistant'
+                        ? <MarkdownMessage content={message.content} />
+                        : message.content}
                     </div>
                   </div>
                 ))
