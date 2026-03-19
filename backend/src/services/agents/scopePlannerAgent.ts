@@ -249,20 +249,17 @@ Return ONLY valid JSON matching this schema:
 }`;
 
       // 4. Call LLM
-      const response = await this.aiService.generateText(
+      const responseText = await this.invokeAI(
         this.getSystemPrompt(context),
         userPrompt,
-        {
-          maxTokens: 4000,
-          temperature: 0.3,
-        }
+        context
       );
 
       // 5. Parse JSON response
       let scopePlanOutput: ScopePlanOutput;
       try {
         // Extract JSON from response (handle markdown code blocks)
-        let jsonText = response.text.trim();
+        let jsonText = responseText.trim();
         if (jsonText.startsWith('```json')) {
           jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
         } else if (jsonText.startsWith('```')) {
@@ -270,7 +267,7 @@ Return ONLY valid JSON matching this schema:
         }
         scopePlanOutput = JSON.parse(jsonText);
       } catch (parseError) {
-        console.error('Failed to parse LLM JSON response:', response.text);
+        console.error('Failed to parse LLM JSON response:', responseText);
         return {
           success: false,
           error: 'Failed to parse scope plan from LLM response',
