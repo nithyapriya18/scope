@@ -1534,12 +1534,15 @@ router.post('/:id/redo/:step', async (req, res) => {
       'intake',
       'brief_extract',
       'gap_analysis',
+      'assumption_analysis',
       'clarification',
+      'clarification_response',
+      'feasibility',
       'scope_planning',
-      'workplan',
       'wbs_estimate',
-      'proposal',
-      'approvals'
+      'pricing',
+      'document_gen',
+      'approvals',
     ];
 
     const stepIndex = workflowSteps.indexOf(step);
@@ -1553,7 +1556,7 @@ router.post('/:id/redo/:step', async (req, res) => {
       await sql`DELETE FROM briefs WHERE opportunity_id = ${id}`;
     }
 
-    if (stepIndex <= workflowSteps.indexOf('gap_analysis')) {
+    if (stepIndex <= workflowSteps.indexOf('assumption_analysis')) {
       // Clear gap analyses and everything after
       await sql`
         DELETE FROM gap_analyses
@@ -1563,16 +1566,25 @@ router.post('/:id/redo/:step', async (req, res) => {
       `;
     }
 
-    if (stepIndex <= workflowSteps.indexOf('clarification')) {
-      // For clarification step specifically: just reset status to allow resending
+    if (stepIndex <= workflowSteps.indexOf('clarification_response')) {
+      // For clarification / clarification_response: reset the clarification record
       if (step === 'clarification') {
+        // Just reset the email send state so it can be re-sent
         await sql`
           UPDATE clarifications
           SET status = 'pending_approval', sent_at = null, updated_at = now()
           WHERE opportunity_id = ${id}
         `;
+      } else if (step === 'clarification_response') {
+        // Reset client response so it can be re-uploaded
+        await sql`
+          UPDATE clarifications
+          SET client_responses = null, client_response_text = null,
+              status = 'sent', updated_at = now()
+          WHERE opportunity_id = ${id}
+        `;
       } else {
-        // For earlier steps: clear clarifications and everything after
+        // For earlier steps: clear clarifications entirely
         await sql`DELETE FROM clarifications WHERE opportunity_id = ${id}`;
       }
     }
@@ -1588,7 +1600,7 @@ router.post('/:id/redo/:step', async (req, res) => {
       `;
     }
 
-    if (stepIndex <= workflowSteps.indexOf('wbs_estimate')) {
+    if (stepIndex <= workflowSteps.indexOf('pricing')) {
       // Clear WBS and pricing
       await sql`
         DELETE FROM wbs
@@ -1599,7 +1611,7 @@ router.post('/:id/redo/:step', async (req, res) => {
       await sql`DELETE FROM pricing_packs WHERE opportunity_id = ${id}`;
     }
 
-    if (stepIndex <= workflowSteps.indexOf('proposal')) {
+    if (stepIndex <= workflowSteps.indexOf('document_gen')) {
       // Clear documents
       await sql`DELETE FROM documents WHERE opportunity_id = ${id}`;
     }
