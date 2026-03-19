@@ -48,23 +48,22 @@ export default function Header() {
 
   return (
     <header className="bg-white dark:bg-neutral-950 border-b border-gray-200 dark:border-neutral-800 sticky top-0 z-50 shadow-sm">
-      <div className="flex items-center h-14 px-6 gap-6">
+      <div className="flex items-center h-14 px-6">
 
-        {/* Branding */}
-        <Link href={authed ? '/dashboard' : '/'} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity flex-shrink-0">
-          <Image src="/petasight.png" alt="PetaSight" width={24} height={24} className="object-contain" priority unoptimized />
-          <div className="flex flex-col leading-tight">
-            <span className="text-[11px] tracking-widest text-gray-900 dark:text-white font-normal">
-              PETA<span className="font-bold">SIGHT</span>
-            </span>
-            <span className="text-[10px] font-bold tracking-wide text-primary">Lumina Scope</span>
-          </div>
-        </Link>
+        {/* Branding — fixed left */}
+        <div className="flex-1 flex items-center">
+          <Link href={authed ? '/dashboard' : '/'} className="flex items-center gap-2.5 hover:opacity-80 transition-opacity flex-shrink-0">
+            <Image src="/petasight.png" alt="PetaSight" width={24} height={24} className="object-contain" priority unoptimized />
+            <div className="flex flex-col leading-tight">
+              <span className="text-[11px] tracking-widest text-gray-900 dark:text-white font-normal">
+                PETA<span className="font-bold">SIGHT</span>
+              </span>
+              <span className="text-[10px] font-bold tracking-wide text-primary">Lumina Scope</span>
+            </div>
+          </Link>
+        </div>
 
-        {/* Divider */}
-        {showAppNav && <div className="h-6 w-px bg-gray-200 dark:bg-neutral-700 flex-shrink-0" />}
-
-        {/* App Nav */}
+        {/* Nav — absolute center */}
         {showAppNav && (
           <nav className="flex items-center gap-1">
             {appNav.map(item => {
@@ -88,18 +87,16 @@ export default function Header() {
           </nav>
         )}
 
-        {/* Landing nav */}
+        {/* Landing nav — center */}
         {isLandingPage && (
-          <nav className="flex items-center gap-1 ml-2">
+          <nav className="flex items-center gap-1">
             <a href="#features" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Features</a>
             <a href="#contact" className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">Contact</a>
           </nav>
         )}
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Right side */}
+        {/* Right side — fixed right */}
+        <div className="flex-1 flex justify-end">
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
