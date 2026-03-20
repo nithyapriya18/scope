@@ -246,10 +246,10 @@ Your role is to coordinate agent execution based on the current workflow state.`
     if (result.success) {
       await sql`
         UPDATE opportunities
-        SET status = 'feasibility', updated_at = now()
+        SET status = 'scope_planning', updated_at = now()
         WHERE id = ${context.opportunityId}
       `;
-      console.log('✅ Feasibility analysis complete');
+      console.log('✅ Feasibility analysis complete — advancing to scope_planning');
     }
 
     return result;
