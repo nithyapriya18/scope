@@ -223,10 +223,12 @@ export default function ClarificationModal({
     text += `CLARIFICATION QUESTIONS\n`;
     text += `═══════════════════════════════════════════════════════\n\n`;
 
-    questions.forEach((q: any, idx: number) => {
+    questions.forEach((rawQ: any, idx: number) => {
+      const q = normalizeQuestion(rawQ);
       text += `${idx + 1}. ${q.category ? `[${q.category.toUpperCase()}] ` : ''}${q.question}\n`;
-      if (q.context) {
-        text += `   Context: ${q.context}\n`;
+      const assumption = rawQ.defaultAssumption || rawQ.context;
+      if (assumption) {
+        text += `   Default assumption: ${assumption}\n`;
       }
       if (q.suggestedOptions && Array.isArray(q.suggestedOptions)) {
         text += `   Suggested Options:\n`;
@@ -267,16 +269,27 @@ export default function ClarificationModal({
     return text;
   };
 
+  // Normalize question to support both old schema (question/category/context)
+  // and new AI schema (questionText/topic/defaultAssumption)
+  const normalizeQuestion = (q: any) => ({
+    ...q,
+    question: q.questionText || q.question || '',
+    category: q.topic || q.category || '',
+    context: q.defaultAssumption ? `Default assumption: ${q.defaultAssumption}` : (q.context || ''),
+  });
+
   const getPriorityColor = (priority: string) => {
     switch (priority?.toLowerCase()) {
       case 'critical':
         return 'bg-red-600 text-white';
       case 'high':
         return 'bg-orange-500 text-white';
+      case 'helpful':
+        return 'bg-blue-500 text-white';
       case 'medium':
         return 'bg-yellow-500 text-white';
       default:
-        return 'bg-blue-500 text-white';
+        return 'bg-gray-500 text-white';
     }
   };
 
@@ -343,7 +356,7 @@ export default function ClarificationModal({
             />
             <StatCard
               label="High Priority"
-              value={questions.filter((q: any) => q.priority?.toLowerCase() === 'high').length}
+              value={questions.filter((q: any) => ['high', 'helpful'].includes(q.priority?.toLowerCase())).length}
               color="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
             />
             <StatCard
@@ -359,7 +372,9 @@ export default function ClarificationModal({
 
           {/* Questions List */}
           <div className="space-y-4">
-            {questions.map((question: any, idx: number) => (
+            {questions.map((question: any, idx: number) => {
+              const q = normalizeQuestion(question);
+              return (
               <div
                 key={idx}
                 className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-5 border border-gray-200 dark:border-gray-700"
@@ -368,41 +383,35 @@ export default function ClarificationModal({
                   // Edit Mode
                   <div className="space-y-3">
                     <div className="flex gap-2">
-                      <select
-                        value={editedQuestion.category}
-                        onChange={(e) => setEditedQuestion({ ...editedQuestion, category: e.target.value })}
+                      <input
+                        value={editedQuestion.topic || editedQuestion.category || ''}
+                        onChange={(e) => setEditedQuestion({ ...editedQuestion, topic: e.target.value, category: e.target.value })}
+                        placeholder="Topic"
                         className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                      >
-                        <option value="scope">Scope</option>
-                        <option value="deliverables">Deliverables</option>
-                        <option value="sample">Sample</option>
-                        <option value="methodology">Methodology</option>
-                        <option value="timeline">Timeline</option>
-                        <option value="budget">Budget</option>
-                        <option value="other">Other</option>
-                      </select>
+                      />
                       <select
                         value={editedQuestion.priority}
                         onChange={(e) => setEditedQuestion({ ...editedQuestion, priority: e.target.value })}
                         className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       >
                         <option value="critical">Critical</option>
+                        <option value="helpful">Helpful</option>
                         <option value="high">High</option>
                         <option value="medium">Medium</option>
                         <option value="low">Low</option>
                       </select>
                     </div>
                     <textarea
-                      value={editedQuestion.question}
-                      onChange={(e) => setEditedQuestion({ ...editedQuestion, question: e.target.value })}
+                      value={editedQuestion.questionText || editedQuestion.question || ''}
+                      onChange={(e) => setEditedQuestion({ ...editedQuestion, questionText: e.target.value, question: e.target.value })}
                       placeholder="Question"
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       rows={2}
                     />
                     <textarea
-                      value={editedQuestion.context || ''}
-                      onChange={(e) => setEditedQuestion({ ...editedQuestion, context: e.target.value })}
-                      placeholder="Context (why this matters)"
+                      value={editedQuestion.defaultAssumption || editedQuestion.context || ''}
+                      onChange={(e) => setEditedQuestion({ ...editedQuestion, defaultAssumption: e.target.value, context: e.target.value })}
+                      placeholder="Default assumption if no reply"
                       className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       rows={2}
                     />
@@ -442,9 +451,9 @@ export default function ClarificationModal({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          {question.category && (
+                          {q.category && (
                             <span className="px-2 py-0.5 text-xs font-bold rounded bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                              {question.category}
+                              {q.category}
                             </span>
                           )}
                           {question.priority && (
@@ -454,11 +463,12 @@ export default function ClarificationModal({
                           )}
                         </div>
                         <p className="text-base font-medium text-gray-900 dark:text-white mb-2">
-                          {question.question}
+                          {q.question}
                         </p>
-                        {question.context && (
+                        {(question.defaultAssumption || question.context) && (
                           <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <strong className="text-gray-700 dark:text-gray-300">Context:</strong> {question.context}
+                            <strong className="text-gray-700 dark:text-gray-300">Default assumption:</strong>{' '}
+                            {question.defaultAssumption || question.context}
                           </p>
                         )}
                         {question.suggestedOptions && Array.isArray(question.suggestedOptions) && question.suggestedOptions.length > 0 && (
@@ -499,7 +509,8 @@ export default function ClarificationModal({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
 
             {/* Add New Question Form */}
             {isAddingNew && (

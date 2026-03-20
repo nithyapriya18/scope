@@ -72,6 +72,7 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
   const missingFields = gapAnalysis.missing_fields || llmData.criticalGaps || [];
   const ambiguousRequirements = gapAnalysis.ambiguous_requirements || llmData.ambiguousRequirements || [];
   const conflictingInfo = gapAnalysis.conflicting_info || llmData.conflicts || [];
+  const defaultAssumptions: any[] = llmData.defaultAssumptions || [];
   // completenessScore from AI is 0-100 integer; overall_completeness (old) was 0-1 fraction
   const rawScore = llmData.completenessScore ?? (gapAnalysis.overall_completeness != null ? gapAnalysis.overall_completeness * 100 : null) ?? 0;
   const criticalGapsCount = missingFields.length;
@@ -359,7 +360,8 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                   const priority = item.priority || item.severity || 'medium';
                   const fieldLabel = item.missingField || item.field || '';
                   const section = item.section || '';
-                  const impact = item.impact || '';
+                  const impact = item.reason || item.impact || '';
+                  const defaultAssumption = item.defaultAssumption || '';
 
                   return (
                     <div
@@ -385,7 +387,12 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                       </div>
                       {impact && (
                         <p className="text-xs text-red-700 dark:text-red-300 mt-1">
-                          <strong>Impact:</strong> {impact}
+                          <strong>Reason:</strong> {impact}
+                        </p>
+                      )}
+                      {defaultAssumption && (
+                        <p className="text-xs text-red-600 dark:text-red-400 mt-1 italic">
+                          <strong>Default assumption:</strong> {defaultAssumption}
                         </p>
                       )}
                     </div>
@@ -479,6 +486,38 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                     </div>
                   );
                 })}
+              </div>
+            </Section>
+          )}
+
+          {/* Default Assumptions */}
+          {defaultAssumptions.length > 0 && (
+            <Section title="Default Assumptions" icon={Info} iconColor="text-blue-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                PetaSight will apply these assumptions if no client response is received.
+              </p>
+              <div className="space-y-2">
+                {defaultAssumptions.map((item: any, idx: number) => (
+                  <div
+                    key={idx}
+                    className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <span className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase mr-2">
+                          {item.category || 'general'}
+                        </span>
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {formatFieldName(item.field || '')}
+                        </span>
+                        <p className="text-sm text-blue-900 dark:text-blue-200 mt-1">{item.assumedValue}</p>
+                        {item.rationale && (
+                          <p className="text-xs text-blue-700 dark:text-blue-400 mt-1 italic">{item.rationale}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </Section>
           )}
