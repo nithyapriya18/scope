@@ -705,17 +705,21 @@ router.get('/:id', async (req, res) => {
       }
     }
 
-    // Parse feasibility assessment
+    // Parse feasibility assessment — DB columns may be double-encoded strings, parse if needed
+    const parseJsonField = (v: any) => {
+      if (typeof v === 'string') { try { return JSON.parse(v); } catch { return v; } }
+      return v;
+    };
     let parsedFeasibility = null;
     if (feasibilityRows.length > 0) {
       const f = feasibilityRows[0];
       parsedFeasibility = {
-        overallFeasibility: f.overall_feasibility,
-        geographicFeasibility: f.geographic_feasibility,
-        vendorAssessment: f.vendor_assessment,
-        hcpAvailability: f.hcp_availability,
-        riskFactors: f.risk_factors,
-        recommendations: f.recommendations,
+        overallFeasibility: parseJsonField(f.overall_feasibility),
+        geographicFeasibility: parseJsonField(f.geographic_feasibility),
+        vendorAssessment: parseJsonField(f.vendor_assessment),
+        hcpAvailability: parseJsonField(f.hcp_availability),
+        riskFactors: parseJsonField(f.risk_factors),
+        recommendations: parseJsonField(f.recommendations),
       };
     }
 
