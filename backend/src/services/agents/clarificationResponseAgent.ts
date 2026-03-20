@@ -13,8 +13,8 @@ export class ClarificationResponseAgent extends BaseAgent {
 
   constructor() {
     super();
-    // Use Haiku for speed — simple matching task, doesn't need Sonnet reasoning
-    this.aiService = new BedrockService('global.anthropic.claude-haiku-4-5-20251001');
+    // Use Sonnet — Haiku was unreliable at returning valid JSON for this structured extraction task
+    this.aiService = new BedrockService('global.anthropic.claude-sonnet-4-6');
   }
 
   protected getSystemPrompt(_context: AgentContext): string {
