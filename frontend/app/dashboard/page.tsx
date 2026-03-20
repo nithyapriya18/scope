@@ -356,7 +356,7 @@ export default function DashboardPage() {
               <colgroup>
                 <col className="w-10" />
                 <col className="w-24" />
-                <col /> {/* flex — takes remaining space */}
+                <col />{/* flex — takes remaining space */}
                 <col className="w-52" />
                 <col className="w-32" />
                 <col className="w-48" />
