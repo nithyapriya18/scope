@@ -405,7 +405,7 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
                 HCP Availability by Segment
               </h3>
               <div className="space-y-3">
-                {feasibility.hcpAvailability.map((seg: any, idx: number) => (
+                {(Array.isArray(feasibility.hcpAvailability) ? feasibility.hcpAvailability : []).map((seg: any, idx: number) => (
                   <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-bold text-sm text-gray-900 dark:text-white">{seg.segment}</h4>
