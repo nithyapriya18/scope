@@ -398,31 +398,73 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
           )}
 
           {/* HCP Availability */}
-          {Array.isArray(feasibility?.hcpAvailability) && feasibility.hcpAvailability.length > 0 && (
-            <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Users className="w-5 h-5 text-purple-600 dark:text-purple-500" />
-                HCP Availability by Segment
-              </h3>
-              <div className="space-y-3">
-                {(Array.isArray(feasibility.hcpAvailability) ? feasibility.hcpAvailability : []).map((seg: any, idx: number) => (
-                  <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-bold text-sm text-gray-900 dark:text-white">{seg.segment}</h4>
-                      <span className={`px-2 py-0.5 text-xs font-bold rounded uppercase ${getRiskColor(seg.riskLevel)}`}>{seg.riskLevel}</span>
+          {Array.isArray(feasibility?.hcpAvailability) && feasibility.hcpAvailability.length > 0 && (() => {
+            const segs = feasibility.hcpAvailability;
+            const totalPanel = segs.reduce((s: number, e: any) => s + (e.panelSize || e.estimatedPoolSize || 0), 0);
+            const totalActive = segs.reduce((s: number, e: any) => s + (e.activePool || 0), 0);
+            const targetSample = segs[0]?.neededSample || 0;
+            const specialties = [...new Set(segs.map((e: any) => e.specialty || e.segment?.split(' — ')[0]))].filter(Boolean);
+            return (
+              <div className="space-y-4">
+                {/* Summary header */}
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-purple-600 dark:text-purple-500" />
+                    HCP Panel Coverage
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 border border-purple-200 dark:border-purple-800 text-center">
+                      <div className="text-2xl font-black text-purple-700 dark:text-purple-400">{totalPanel.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Total Panel</div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-2">
-                      {seg.estimatedPoolSize && <Stat label="Pool Size" value={seg.estimatedPoolSize.toLocaleString()} />}
-                      {seg.incidenceRate && <Stat label="Incidence" value={`${seg.incidenceRate}%`} />}
-                      {seg.neededSample && <Stat label="Needed" value={seg.neededSample} />}
-                      {seg.recruitmentRatio && <Stat label="Ratio" value={`${seg.recruitmentRatio}x`} />}
+                    <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-xl p-4 border border-emerald-200 dark:border-emerald-800 text-center">
+                      <div className="text-2xl font-black text-emerald-700 dark:text-emerald-400">{totalActive.toLocaleString()}</div>
+                      <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Active Respondents</div>
                     </div>
-                    {seg.notes && <p className="text-xs text-gray-600 dark:text-gray-400 italic">{seg.notes}</p>}
+                    <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-4 border border-blue-200 dark:border-blue-800 text-center">
+                      <div className="text-2xl font-black text-blue-700 dark:text-blue-400">{targetSample}</div>
+                      <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Target Sample</div>
+                    </div>
+                    <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 border border-slate-200 dark:border-slate-700 text-center">
+                      <div className="text-2xl font-black text-slate-700 dark:text-slate-300">{segs.length}</div>
+                      <div className="text-xs text-gray-500 uppercase font-semibold mt-1">Segments</div>
+                    </div>
                   </div>
-                ))}
+                  {specialties.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-1">
+                      <span className="text-xs text-gray-500 font-semibold uppercase self-center">Specialties:</span>
+                      {specialties.map((sp: any, i: number) => (
+                        <span key={i} className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs font-medium rounded-full">{sp}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Per-segment table */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-bold text-gray-600 dark:text-gray-400 uppercase tracking-wide">By Specialty & Market</h4>
+                  {segs.map((seg: any, idx: number) => (
+                    <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-bold text-sm text-gray-900 dark:text-white">{seg.segment || `${seg.specialty} — ${seg.country}`}</h4>
+                        <span className={`px-2 py-0.5 text-xs font-bold rounded uppercase ${getRiskColor(seg.riskLevel)}`}>{seg.riskLevel}</span>
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-2">
+                        <Stat label="Panel Size" value={(seg.panelSize || seg.estimatedPoolSize || 0).toLocaleString()} />
+                        <Stat label="Active Pool" value={(seg.activePool || 0).toLocaleString()} />
+                        <Stat label="Active Rate" value={`${Math.round((seg.activeRate || 0) * 100)}%`} />
+                        <Stat label="Target Sample" value={seg.neededSample || '—'} />
+                        <Stat label="Recruit Ratio" value={seg.recruitmentRatio ? `${seg.recruitmentRatio}x` : '—'} />
+                      </div>
+                      {seg.recruitmentWeeks && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">Est. recruitment time: <span className="font-semibold text-gray-700 dark:text-gray-300">{seg.recruitmentWeeks} weeks</span></div>
+                      )}
+                      {seg.notes && <p className="text-xs text-gray-600 dark:text-gray-400 italic mt-1">{seg.notes}</p>}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Geographic Feasibility */}
           {Array.isArray(feasibility?.geographicFeasibility) && feasibility.geographicFeasibility.length > 0 && (
