@@ -324,7 +324,6 @@ Return ONLY valid JSON matching this schema:
           ...scopePlanOutput,
         },
         metadata: {
-          tokensUsed: response.usage.totalTokens,
           confidence: scopePlanOutput.detectedStudyType.confidence,
         },
       };
