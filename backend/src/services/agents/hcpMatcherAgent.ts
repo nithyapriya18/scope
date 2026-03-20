@@ -159,6 +159,13 @@ Respond with this JSON (no extra text):
       // If still nothing, use all panel entries as a fallback
       if (panelEntries.length === 0) panelEntries = panelDb.panel;
 
+      // Cap to 20 most relevant entries to keep prompt size manageable
+      if (panelEntries.length > 20) {
+        panelEntries = panelEntries
+          .sort((a, b) => b.panelSize - a.panelSize)
+          .slice(0, 20);
+      }
+
       const neededSample = parseInt(String(sampleSection.targetSampleSize || '50'), 10) || 50;
 
       // Compute availability per entry
