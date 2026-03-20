@@ -14,6 +14,7 @@ interface Opportunity {
   createdAt: string;
   rfpDeadline: string | null;
   therapeuticArea: string | null;
+  studyType: string | null;
 }
 
 const statusMap: Record<string, string> = {
@@ -351,10 +352,21 @@ export default function DashboardPage() {
         {/* Main Data Table */}
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+            <table className="w-full text-left border-collapse table-fixed">
+              <colgroup>
+                <col className="w-10" />
+                <col className="w-24" />
+                <col /> {/* flex — takes remaining space */}
+                <col className="w-52" />
+                <col className="w-32" />
+                <col className="w-48" />
+                <col className="w-32" />
+                <col className="w-20" />
+                <col className="w-24" />
+              </colgroup>
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
-                  <th className="px-4 py-4 w-12">
+                  <th className="px-3 py-3">
                     <input
                       type="checkbox"
                       checked={isAllSelected}
@@ -367,14 +379,14 @@ export default function DashboardPage() {
                       className="w-4 h-4 text-primary bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 rounded focus:ring-2 focus:ring-primary cursor-pointer"
                     />
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-28">Bid ID</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider min-w-[300px]">Client & Study Title</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-32">Study Type</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-36">Status</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-64">Pipeline Progress</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-40">Due Date</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-24">Comp %</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider w-28">Actions</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Bid ID</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client & Study Title</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Study Type</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Pipeline Progress</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Due Date</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Comp %</th>
+                  <th className="px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -398,7 +410,7 @@ export default function DashboardPage() {
                         key={opp.id}
                         className={`transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/50 ${isSelected ? 'bg-primary/5 dark:bg-primary/10' : ''}`}
                       >
-                        <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                        <td className="px-3 py-3" onClick={(e) => e.stopPropagation()}>
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -407,13 +419,13 @@ export default function DashboardPage() {
                           />
                         </td>
                         <td
-                          className="px-6 py-4 text-sm font-mono text-slate-500 cursor-pointer"
+                          className="px-3 py-3 text-sm font-mono text-slate-500 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           BID-{opp.id.substring(0, 3).toUpperCase()}
                         </td>
                         <td
-                          className="px-6 py-4 cursor-pointer"
+                          className="px-3 py-3 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           <div className="text-sm font-bold text-slate-900 dark:text-white">
@@ -422,15 +434,15 @@ export default function DashboardPage() {
                           <div className="text-xs text-slate-500">{opp.rfpTitle || 'Untitled Study'}</div>
                         </td>
                         <td
-                          className="px-6 py-4 cursor-pointer"
+                          className="px-3 py-3 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
-                          <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg ${studyType.color}`}>
+                          <span className={`inline-block px-2.5 py-1 text-[10px] font-bold uppercase rounded-lg max-w-full truncate ${studyType.color}`} title={studyType.label}>
                             {studyType.label}
                           </span>
                         </td>
                         <td
-                          className="px-6 py-4 cursor-pointer"
+                          className="px-3 py-3 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
@@ -438,7 +450,7 @@ export default function DashboardPage() {
                           </span>
                         </td>
                         <td
-                          className="px-6 py-4 cursor-pointer"
+                          className="px-3 py-3 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           <div className="flex gap-1">
@@ -458,7 +470,7 @@ export default function DashboardPage() {
                           </div>
                         </td>
                         <td
-                          className="px-6 py-4 cursor-pointer"
+                          className="px-3 py-3 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           {opp.rfpDeadline ? (
@@ -473,12 +485,12 @@ export default function DashboardPage() {
                           )}
                         </td>
                         <td
-                          className="px-6 py-4 cursor-pointer"
+                          className="px-3 py-3 cursor-pointer"
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           <div className="text-base font-bold text-primary">{progress}%</div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={(e) => {
