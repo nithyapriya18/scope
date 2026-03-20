@@ -64,17 +64,36 @@ PRINCIPLES:
 
       // ── 3. Build comprehensive agentic prompt ────────────────────────────
       const rx: any = brief.raw_extraction || {};
+      const rfpSnippet = (opp?.email_body || '').slice(0, 6000) +
+        ((opp?.email_body || '').length > 6000 ? '\n...[truncated — brief extraction covers full content]' : '');
+
+      // Compact gap analysis — only pass key fields, not full llm_analysis blob
+      const gapSummary = gapAnalysis ? {
+        criticalGaps: gapAnalysis.missing_fields || [],
+        ambiguous: gapAnalysis.ambiguous_requirements || [],
+        defaultAssumptions: (gapAnalysis.llm_analysis as any)?.defaultAssumptions || [],
+        completenessScore: (gapAnalysis.llm_analysis as any)?.completenessScore,
+      } : null;
+
+      // Normalize clarification questions (may be nested {questions:[...]} object)
+      let clarQs: any[] = [];
+      if (clarification?.questions) {
+        const raw = typeof clarification.questions === 'string'
+          ? JSON.parse(clarification.questions)
+          : clarification.questions;
+        clarQs = Array.isArray(raw) ? raw : (raw.questions || []);
+      }
 
       const userPrompt = `
 === GOAL ===
 Design a complete, fully AI-derived research plan for PetaSight's bid in response to this pharma RFP.
 Read ALL inputs below. Every decision (methodology, sample, timeline, discussion guide questions) must be derived from the actual RFP content and supporting intelligence — not templates or defaults.
 
-=== INPUT 1: FULL RFP TEXT ===
-${opp?.email_body || 'Not available — use brief sections below'}
+=== INPUT 1: RFP TEXT (first 6000 chars) ===
+${rfpSnippet || 'Not available — use brief sections below'}
 
 === INPUT 2: STRUCTURED BRIEF (extracted by AI in Step 2) ===
-${JSON.stringify(rx, null, 2)}
+${JSON.stringify(rx)}
 
 Supplementary fields:
 - Therapeutic area: ${brief.therapeutic_area || opp?.therapeutic_area || 'derive from RFP'}
@@ -86,15 +105,15 @@ Supplementary fields:
 - Budget indication: ${brief.budget_indication || 'Not disclosed'}
 
 === INPUT 3: GAP ANALYSIS (identified in Step 3) ===
-${gapAnalysis ? JSON.stringify({ missingFields: gapAnalysis.missing_fields, ambiguous: gapAnalysis.ambiguous_requirements, llmAnalysis: gapAnalysis.llm_analysis }, null, 2) : 'None available'}
+${gapSummary ? JSON.stringify(gapSummary) : 'None available'}
 
 === INPUT 4: CLARIFICATION Q&A (from client, Step 5-6) ===
-Questions sent to client: ${clarification?.questions ? JSON.stringify(clarification.questions, null, 2) : 'None sent'}
-Client responses: ${clarification?.client_responses ? JSON.stringify(clarification.client_responses, null, 2) : (clarification?.client_response_text || 'No response received — use assumptions')}
+Questions sent: ${JSON.stringify(clarQs.map((q: any) => ({ topic: q.topic || q.category, q: q.questionText || q.question, default: q.defaultAssumption })))}
+Client responses: ${clarification?.client_responses ? JSON.stringify(clarification.client_responses) : (clarification?.client_response_text || 'No response — use assumptions')}
 Clarification status: ${clarification?.status || 'not sent'}
 
 === INPUT 5: FEASIBILITY INTELLIGENCE (from HCP Matching, Step 7) ===
-${feasibility ? JSON.stringify({ feasibilityScore: (feasibility.overall_feasibility as any)?.feasibilityScore || (feasibility.overall_feasibility as any)?.score, hcpAvailable: (feasibility.hcp_availability as any)?.panelSize || (feasibility.hcp_availability as any)?.total_available, geographies: feasibility.geographic_feasibility, recommendations: feasibility.recommendations }, null, 2) : 'Not available'}
+${feasibility ? JSON.stringify({ feasibilityScore: (feasibility.overall_feasibility as any)?.feasibilityScore || (feasibility.overall_feasibility as any)?.score, hcpAvailable: (feasibility.hcp_availability as any)?.panelSize || (feasibility.hcp_availability as any)?.total_available, geographies: feasibility.geographic_feasibility, recommendations: feasibility.recommendations }) : 'Not available'}
 
 === INPUT 6: PANEL REFERENCE DATA ===
 ${panelData || 'Not available'}
