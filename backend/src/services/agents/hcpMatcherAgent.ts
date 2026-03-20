@@ -207,14 +207,24 @@ ${JSON.stringify(availabilityData, null, 2)}
 
 Interpret this data and return the feasibility verdict JSON. Do NOT invent numbers — use only the panelSize, activePool, recruitmentRatio values provided above. Note: costs/CPI are NOT part of feasibility — they are handled in the pricing step.`;
 
-      const response = await this.invokeAI(systemPrompt, userMessage, context);
+      // Race the AI call against a 45s timeout — if it hangs, fall through to computed fallback
+      let aiResponse: string | null = null;
+      try {
+        const timeout = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI call timed out after 45s')), 45000)
+        );
+        aiResponse = await Promise.race([this.invokeAI(systemPrompt, userMessage, context), timeout]);
+      } catch (aiErr) {
+        console.warn('HCPMatcherAgent: AI call failed/timed out — using computed fallback:', (aiErr as Error).message);
+      }
 
       if (currentJob) await jobQueueService.updateProgress(currentJob.id, 80, 'Storing feasibility assessment');
 
       let result: any;
       try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        result = JSON.parse(jsonMatch ? jsonMatch[0] : response);
+        if (!aiResponse) throw new Error('No AI response');
+        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+        result = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponse);
       } catch {
         // Fallback: build result from computed availability data
         const maxWeeks = Math.max(...availabilityData.map(e => e.recruitmentWeeks), 3);
