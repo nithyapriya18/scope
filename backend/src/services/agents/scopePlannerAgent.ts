@@ -1,399 +1,219 @@
 /**
- * Scope Planner Agent
- *
- * Responsibilities:
- * 1. Detect study type from RFP brief
- * 2. Generate 3 sample size options (conservative, recommended, aggressive)
- * 3. Create HCP shortlist if applicable
- * 4. Generate scope assumptions with risk flags
- *
- * Outputs:
- * - Study type detection with confidence
- * - 3 sample size options with cost estimates
- * - HCP shortlist (if HCP study)
- * - Scope assumptions log
+ * Scope Planner Agent — produces a full Research Plan (methodology, sample, timeline, deliverables).
+ * WBS and pricing are handled by the separate WBSEstimatorAgent in the next step.
  */
 
 import { BaseAgent, AgentContext, AgentResult } from './baseAgent';
 import { getSql } from '../../lib/sql';
-
-interface SampleSizeOption {
-  label: string; // 'conservative' | 'recommended' | 'aggressive'
-  n: number;
-  segments?: { segment: string; n: number }[];
-  confidenceInterval: string; // e.g., "±3% at 95% CI"
-  estimatedCost: number;
-  fieldDurationWeeks: number;
-  feasibilityScore: number; // 0-100
-  rationale: string;
-}
-
-interface HCPShortlistEntry {
-  npi: string;
-  name: string;
-  specialty: string;
-  subSpecialty?: string;
-  geography: string;
-  practiceType: string;
-  patientVolume: string;
-  yearsInPractice: number;
-  languagesSpoken: string[];
-  internalSignal: boolean; // 50% should be true
-  matchScore: number; // 0-100
-}
-
-interface ScopeAssumption {
-  assumptionId: string;
-  category: string; // 'sample' | 'timeline' | 'methodology' | 'deliverables' | 'costs'
-  assumption: string;
-  isStandard: boolean; // Standard industry practice vs custom
-  riskLevel: 'low' | 'medium' | 'high';
-  requiresClientConfirmation: boolean;
-}
-
-interface ScopePlanOutput {
-  detectedStudyType: {
-    typeCode: string;
-    displayName: string;
-    familyCode: string;
-    confidence: number; // 0-1
-    rationale: string;
-  };
-  sampleSizeOptions: SampleSizeOption[];
-  hcpShortlist?: HCPShortlistEntry[];
-  scopeAssumptions: ScopeAssumption[];
-  estimatedTotalCost: {
-    conservative: number;
-    recommended: number;
-    aggressive: number;
-  };
-}
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class ScopePlannerAgent extends BaseAgent {
   protected agentType = 'scope_planner';
 
-  protected getSystemPrompt(context: AgentContext): string {
-    return `You are an expert research methodology and scope designer for pharmaceutical market research projects.
+  protected getSystemPrompt(_context: AgentContext): string {
+    return `You are a Senior Research Director at PetaSight, a leading pharma market research firm. Your job is to design PetaSight's research proposal in response to a pharma client's RFP.
 
-Your task is to design a comprehensive research plan including:
+ROLE: You are writing an authoritative, specific internal research plan that will form the backbone of PetaSight's bid. Every decision you make — methodology, sample size, timeline, discussion guide questions — must be derived directly from the RFP and supporting intelligence provided.
 
-**1. Study Type Detection**: Analyze the RFP and select the most appropriate study type from 27 options across 6 families:
-- Understanding & Diagnosis (U&A, deep dive qual, patient journey, KOL advisory)
-- Tracking & Monitoring (brand tracker, awareness tracker, patient registry)
-- Testing & Optimization (concept test, positioning, message, creative, usability)
-- Trade-off & Choice Modeling (conjoint, DCE, MaxDiff, priority mapping)
-- Segmentation & Targeting (seg build, validation, sizing, personas)
-- Pricing & Market Access (WTP, payer research, HTA, formulary)
-
-**2. Methodology Design**: Create detailed methodology including:
-- Research approach (qualitative, quantitative, mixed methods)
-- Data collection methods (IDIs, focus groups, online surveys, CATI, etc.)
-- Interview/survey duration and structure
-- Discussion guide outline or questionnaire structure
-- Analysis approach and techniques
-
-**3. Sample Size Recommendations**: Provide 3 options (conservative, recommended, aggressive) with:
-- Total sample size
-- Segment breakdowns
-- Statistical justification (confidence intervals, margin of error)
-- Estimated fieldwork duration
-- Feasibility score
-
-**4. Project Delivery Plan**: Create full execution roadmap including:
-- Project phases and stages (kickoff, guide development, fieldwork, analysis, reporting)
-- Milestone dates and deliverable schedule
-- Resource requirements
-- Quality control checkpoints
-- Risk mitigation strategies
-
-**5. Deliverables Specification**: List all deliverables with specifications:
-- Report formats and page counts
-- Presentation formats
-- Data files and formats
-- Supporting materials
-
-**6. Scope Assumptions**: Document all assumptions with:
-- Assumption category (sample, timeline, methodology, deliverables, costs)
-- Risk level (low/medium/high)
-- Whether client confirmation is required
-
-Guidelines:
-- Design for actionability - ensure methodology will answer research objectives
-- Be conservative with sample sizes for rare audiences or complex studies
-- Factor in segments/subgroups when calculating total n
-- Consider timeline constraints and feasibility
-- Flag high-risk assumptions that need client confirmation
-- Use industry-standard assumptions (15-20% oversample, etc.)
-
-Output structured JSON matching the expected schema.`;
+PRINCIPLES:
+- Read the FULL RFP text and extract every relevant signal before designing.
+- Leverage clarification Q&A and gap analysis findings to fill gaps intelligently.
+- Make CONFIDENT design decisions. Assumptions = PetaSight's working decisions, not questions to ask the client.
+- The discussion guide must contain REAL, specific questions directly addressing the stated research objectives.
+- Do NOT include any costs, pricing, or WBS — those belong in the next step.
+- Output ONLY valid JSON. No markdown fences, no commentary outside the JSON.`;
   }
 
   protected async process(context: AgentContext): Promise<AgentResult> {
     const sql = getSql();
 
     try {
-      // 1. Fetch brief and gap analysis
-      const [brief] = await sql`
-        SELECT * FROM briefs
-        WHERE opportunity_id = ${context.opportunityId}
-        ORDER BY created_at DESC
-        LIMIT 1
-      `;
+      // ── 1. Fetch all available intelligence ──────────────────────────────
+      const [[opp], [brief], [gapAnalysis], [clarification], [feasibility], studyTypes] =
+        await Promise.all([
+          sql`SELECT email_body, rfp_title, client_name, therapeutic_area FROM opportunities WHERE id = ${context.opportunityId}`,
+          sql`SELECT id, tenant_id, study_type, target_audience, therapeutic_area,
+                     research_objectives, sample_requirements, timeline_requirements,
+                     deliverables, budget_indication, raw_extraction
+              FROM briefs WHERE opportunity_id = ${context.opportunityId}
+              ORDER BY created_at DESC LIMIT 1`,
+          sql`SELECT ga.llm_analysis, ga.missing_fields, ga.ambiguous_requirements
+              FROM gap_analyses ga JOIN briefs b ON ga.brief_id = b.id
+              WHERE b.opportunity_id = ${context.opportunityId}
+              ORDER BY ga.created_at DESC LIMIT 1`,
+          sql`SELECT questions, client_responses, client_response_text, status
+              FROM clarifications WHERE opportunity_id = ${context.opportunityId}
+              ORDER BY created_at DESC LIMIT 1`,
+          sql`SELECT overall_feasibility, hcp_availability, geographic_feasibility, recommendations
+              FROM feasibility_assessments WHERE opportunity_id = ${context.opportunityId}
+              ORDER BY created_at DESC LIMIT 1`,
+          sql`SELECT type_code, display_name, family_code FROM study_types WHERE tenant_id IS NULL ORDER BY family_code, type_code`,
+        ]);
 
-      if (!brief) {
-        return {
-          success: false,
-          error: 'No brief found for this opportunity',
-        };
-      }
+      if (!brief) return { success: false, error: 'No brief found for this opportunity' };
 
-      const [gapAnalysis] = await sql`
-        SELECT ga.* FROM gap_analyses ga
-        JOIN briefs b ON ga.brief_id = b.id
-        WHERE b.opportunity_id = ${context.opportunityId}
-        ORDER BY ga.created_at DESC
-        LIMIT 1
-      `;
+      // ── 2. Load panel reference data ─────────────────────────────────────
+      let panelData = '';
+      try {
+        const panel = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../../config/hcp_panel.json'), 'utf-8')).panel || [];
+        panelData = panel.slice(0, 20).map((p: any) =>
+          `${p.specialty}/${p.country}: panel=${p.panelSize}, activeRate=${Math.round(p.activeRate * 100)}%, recruitWeeks=${p.recruitmentWeeks}`
+        ).join('\n');
+      } catch { /* non-fatal */ }
 
-      // 2. Fetch study library for context
-      const studyTypes = await sql`
-        SELECT
-          st.type_code,
-          st.display_name,
-          st.family_code,
-          st.description,
-          st.tags,
-          sf.display_name as family_name,
-          sd.task_set_code,
-          sd.question_set_code,
-          sd.multiplier_set_code,
-          sd.default_deliverables
-        FROM study_types st
-        JOIN study_families sf ON sf.family_code = st.family_code
-        LEFT JOIN study_definitions sd ON sd.type_code = st.type_code
-        WHERE st.tenant_id IS NULL
-        ORDER BY sf.sort_order, st.type_code
-      `;
+      // ── 3. Build comprehensive agentic prompt ────────────────────────────
+      const rx: any = brief.raw_extraction || {};
 
-      // 3. Build prompt with brief context
-      const userPrompt = `Analyze this RFP and create a scope plan:
+      const userPrompt = `
+=== GOAL ===
+Design a complete, fully AI-derived research plan for PetaSight's bid in response to this pharma RFP.
+Read ALL inputs below. Every decision (methodology, sample, timeline, discussion guide questions) must be derived from the actual RFP content and supporting intelligence — not templates or defaults.
 
-**RFP BRIEF:**
-${JSON.stringify(brief, null, 2)}
+=== INPUT 1: FULL RFP TEXT ===
+${opp?.email_body || 'Not available — use brief sections below'}
 
-${gapAnalysis ? `\n**GAP ANALYSIS:**\n${JSON.stringify(gapAnalysis, null, 2)}` : ''}
+=== INPUT 2: STRUCTURED BRIEF (extracted by AI in Step 2) ===
+${JSON.stringify(rx, null, 2)}
 
-**AVAILABLE STUDY TYPES:**
-${studyTypes.map((st: any) =>
-  `- ${st.type_code}: ${st.display_name} (${st.family_name})\n  Tags: ${JSON.stringify(st.tags)}\n  Description: ${st.description}`
-).join('\n\n')}
+Supplementary fields:
+- Therapeutic area: ${brief.therapeutic_area || opp?.therapeutic_area || 'derive from RFP'}
+- Target audience: ${brief.target_audience || 'derive from RFP'}
+- Research objectives: ${JSON.stringify(brief.research_objectives || [])}
+- Sample requirements: ${JSON.stringify(brief.sample_requirements || {})}
+- Timeline requirements: ${brief.timeline_requirements || 'derive from RFP'}
+- Deliverables: ${JSON.stringify(brief.deliverables || [])}
+- Budget indication: ${brief.budget_indication || 'Not disclosed'}
 
-**YOUR TASK:**
-1. Detect the most appropriate study type based on the brief's objectives, methodology clues, and audience
-2. Generate 3 sample size options:
-   - Conservative: Higher n for tighter confidence intervals, safe feasibility
-   - Recommended: Balanced n for good precision and reasonable cost
-   - Aggressive: Lower n for cost efficiency, acceptable precision
-3. For each option, provide:
-   - Total n
-   - Breakdown by segments (if applicable)
-   - Confidence interval (e.g., "±3% at 95% CI" for quant, "saturation expected" for qual)
-   - Estimated field cost (panel + incentives + 15% contingency)
-   - Field duration in weeks
-   - Feasibility score (0-100, considering audience difficulty, geography, timeline)
-   - Rationale
-4. Generate scope assumptions covering:
-   - Sample assumptions (oversample, replacements, incidence)
-   - Timeline assumptions (holidays, response rates)
-   - Methodology assumptions (LOI, completion rate, dropout)
-   - Deliverables assumptions (formats, review cycles)
-   - Cost assumptions (buffer, OOP escalation)
-5. Flag high-risk assumptions that require client confirmation
+=== INPUT 3: GAP ANALYSIS (identified in Step 3) ===
+${gapAnalysis ? JSON.stringify({ missingFields: gapAnalysis.missing_fields, ambiguous: gapAnalysis.ambiguous_requirements, llmAnalysis: gapAnalysis.llm_analysis }, null, 2) : 'None available'}
 
-Return ONLY valid JSON matching this schema:
-{
-  "detectedStudyType": {
-    "typeCode": "string",
-    "displayName": "string",
-    "familyCode": "string",
-    "confidence": 0.0-1.0,
-    "rationale": "string"
-  },
-  "sampleSizeOptions": [
-    {
-      "label": "conservative",
-      "n": 400,
-      "segments": [{"segment": "Oncologists", "n": 200}, {"segment": "PCPs", "n": 200}],
-      "confidenceInterval": "±5% at 95% CI",
-      "estimatedCost": 45000,
-      "fieldDurationWeeks": 6,
-      "feasibilityScore": 85,
-      "rationale": "..."
-    }
-  ],
-  "scopeAssumptions": [
-    {
-      "assumptionId": "A001",
-      "category": "sample",
-      "assumption": "15% oversample to account for screen-outs and quota management",
-      "isStandard": true,
-      "riskLevel": "low",
-      "requiresClientConfirmation": false
-    }
-  ],
-  "estimatedTotalCost": {
-    "conservative": 65000,
-    "recommended": 50000,
-    "aggressive": 38000
-  }
-}`;
+=== INPUT 4: CLARIFICATION Q&A (from client, Step 5-6) ===
+Questions sent to client: ${clarification?.questions ? JSON.stringify(clarification.questions, null, 2) : 'None sent'}
+Client responses: ${clarification?.client_responses ? JSON.stringify(clarification.client_responses, null, 2) : (clarification?.client_response_text || 'No response received — use assumptions')}
+Clarification status: ${clarification?.status || 'not sent'}
 
-      // 4. Call LLM
-      const responseText = await this.invokeAI(
-        this.getSystemPrompt(context),
-        userPrompt,
-        context
+=== INPUT 5: FEASIBILITY INTELLIGENCE (from HCP Matching, Step 7) ===
+${feasibility ? JSON.stringify({ feasibilityScore: (feasibility.overall_feasibility as any)?.feasibilityScore || (feasibility.overall_feasibility as any)?.score, hcpAvailable: (feasibility.hcp_availability as any)?.panelSize || (feasibility.hcp_availability as any)?.total_available, geographies: feasibility.geographic_feasibility, recommendations: feasibility.recommendations }, null, 2) : 'Not available'}
+
+=== INPUT 6: PANEL REFERENCE DATA ===
+${panelData || 'Not available'}
+
+=== INPUT 7: AVAILABLE STUDY TYPES ===
+${studyTypes.map((s: any) => `${s.type_code}: ${s.display_name} (family: ${s.family_code})`).join('\n')}
+
+=== OUTPUT REQUIREMENTS ===
+Produce a JSON object with ALL of the following fields. Every field must be populated with content SPECIFIC to this RFP — never use placeholder text.
+
+1. executiveSummary: 3-4 sentences. (1) What the client wants to understand, (2) PetaSight's proposed methodology and why, (3) how our approach generates the insights needed. First-person plural. Specific to THIS RFP.
+
+2. detectedStudyType: Pick best-fit typeCode from the list above. Include typeCode, displayName, familyCode, confidence (0-1), rationale.
+
+3. methodology: approach (qualitative/quantitative/mixed), dataCollectionMethod, instrumentType, lengthOfInterviewMinutes, approximateQuestions, analysisApproach[], advancedAnalytics[], rationale. ALL derived from RFP objectives.
+
+4. discussionGuide: THIS IS CRITICAL. Generate a complete, RFP-specific discussion guide.
+   - format: e.g. "Semi-structured IDI" or "Online CAWI survey"
+   - totalDurationMinutes: match the methodology
+   - keyThemes[]: 3-5 themes derived DIRECTLY from the research objectives in the RFP
+   - sections[]: minimum 5 sections. Each section must have:
+     * section: descriptive name tied to a specific RFP objective
+     * durationMinutes: integer
+     * objective: what this section aims to uncover (specific to RFP)
+     * keyQuestions[]: 3-5 actual questions (not placeholders). Include probes labelled "Probe: ..."
+   - interviewerNotes: specific guidance for this study type and therapeutic area
+
+5. sampleSizeOptions: 3 options (conservative/recommended/aggressive). Each must have label, n, segments (with actual segment names from RFP audience), country, confidenceInterval, fieldDurationWeeks, feasibilityScore, rationale. NO estimatedCost.
+
+6. recruitmentStrategy: primarySource, sources[] (with vendor, role, coverage, estimatedContribution%, notes), incidenceRateAssumption, contactsNeeded, fraudControlMeasures[], complianceNotes.
+
+7. projectTimeline: totalWeeks, phases[]. Each phase: phase name, startWeek, durationWeeks, tasks[], milestone. Derive durations from RFP timeline hints and feasibility data.
+
+8. deliverables: list of deliverables with deliverable name, format, timing (Week N), description. Derived from RFP deliverables section.
+
+9. scopeAssumptions: 4-6 assumptions. Each: assumptionId (A001...), category (sample/methodology/timeline/scope), assumption (specific PetaSight design decision), isStandard, riskLevel (low/medium/high), requiresClientConfirmation: false.
+
+=== CONSTRAINTS ===
+- Output ONLY the JSON object. No markdown, no text before or after.
+- All section names, question topics, and segment names must reference the actual therapeutic area, indication, and HCP type from the RFP.
+- discussionGuide.sections must have 5+ sections with genuine questions — this is the most important deliverable.
+- Do NOT include any cost, price, or WBS fields anywhere.
+
+Return the JSON now:`;
+
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('AI call timed out after 180s')), 180000)
       );
 
-      // 5. Parse JSON response
-      let scopePlanOutput: ScopePlanOutput;
+      const responseText = await Promise.race([
+        this.invokeAI(this.getSystemPrompt(context), userPrompt, context),
+        timeout,
+      ]);
+
+      // Parse JSON
+      let plan: any;
       try {
-        // Extract JSON from response (handle markdown code blocks)
         let jsonText = responseText.trim();
-        if (jsonText.startsWith('```json')) {
-          jsonText = jsonText.replace(/```json\n?/, '').replace(/\n?```$/, '');
-        } else if (jsonText.startsWith('```')) {
-          jsonText = jsonText.replace(/```\n?/, '').replace(/\n?```$/, '');
+        if (jsonText.startsWith('```')) {
+          jsonText = jsonText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
         }
-        scopePlanOutput = JSON.parse(jsonText);
+        plan = JSON.parse(jsonText);
       } catch (parseError) {
-        console.error('Failed to parse LLM JSON response:', responseText);
-        return {
-          success: false,
-          error: 'Failed to parse scope plan from LLM response',
-        };
+        console.error('Failed to parse LLM JSON response:', responseText.substring(0, 500));
+        return { success: false, error: 'Failed to parse research plan from LLM response' };
       }
 
-      // 6. Validate and enrich with HCP shortlist (if HCP study)
-      if (brief.target_audience && brief.target_audience.includes('hcp')) {
-        const hcpShortlist = await this.generateHCPShortlist(brief);
-        scopePlanOutput.hcpShortlist = hcpShortlist;
+      if (!plan.discussionGuide) {
+        console.warn('⚠️  LLM did not return discussionGuide — plan may be incomplete');
       }
 
-      // 7. Save scope plan to database
+      // Save to DB
       const [scope] = await sql`
         INSERT INTO scopes (
-          opportunity_id,
-          brief_id,
-          tenant_id,
-          detected_study_type,
-          study_type_confidence,
+          opportunity_id, brief_id, tenant_id,
+          executive_summary,
+          detected_study_type, study_type_confidence,
+          methodology, methodology_detail,
           sample_size_options,
-          hcp_shortlist,
           scope_assumptions,
-          estimated_total_cost,
-          status,
-          created_at,
-          updated_at
+          deliverables, key_milestones,
+          recruitment_strategy,
+          discussion_guide_outline,
+          status, created_at, updated_at
         ) VALUES (
           ${context.opportunityId},
           ${brief.id},
           ${brief.tenant_id},
-          ${scopePlanOutput.detectedStudyType.typeCode},
-          ${scopePlanOutput.detectedStudyType.confidence},
-          ${JSON.stringify(scopePlanOutput.sampleSizeOptions)},
-          ${scopePlanOutput.hcpShortlist ? JSON.stringify(scopePlanOutput.hcpShortlist) : null},
-          ${JSON.stringify(scopePlanOutput.scopeAssumptions)},
-          ${JSON.stringify(scopePlanOutput.estimatedTotalCost)},
+          ${plan.executiveSummary},
+          ${plan.detectedStudyType.typeCode},
+          ${plan.detectedStudyType.confidence},
+          ${plan.methodology.approach},
+          ${JSON.stringify(plan.methodology)},
+          ${JSON.stringify(plan.sampleSizeOptions)},
+          ${JSON.stringify(plan.scopeAssumptions)},
+          ${JSON.stringify(plan.deliverables)},
+          ${JSON.stringify(plan.projectTimeline)},
+          ${JSON.stringify(plan.recruitmentStrategy)},
+          ${JSON.stringify(plan.discussionGuide || null)},
           'draft',
-          NOW(),
-          NOW()
+          NOW(), NOW()
         )
         RETURNING *
       `;
 
-      console.log(`✅ Scope plan created: ${scope.id}`);
-      console.log(`   Study type detected: ${scopePlanOutput.detectedStudyType.typeCode} (${scopePlanOutput.detectedStudyType.confidence * 100}% confidence)`);
-      console.log(`   Sample size options: ${scopePlanOutput.sampleSizeOptions.map(o => o.n).join(', ')}`);
-      console.log(`   Assumptions: ${scopePlanOutput.scopeAssumptions.length}`);
+      console.log(`✅ Research plan created: ${scope.id}`);
+      console.log(`   Study type: ${plan.detectedStudyType.typeCode} (${Math.round(plan.detectedStudyType.confidence * 100)}%)`);
+      console.log(`   Recommended: n=${plan.sampleSizeOptions?.find((o: any) => o.label === 'recommended')?.n}, ${plan.projectTimeline.totalWeeks}w`);
 
       return {
         success: true,
-        data: {
-          scopeId: scope.id,
-          ...scopePlanOutput,
-        },
-        metadata: {
-          confidence: scopePlanOutput.detectedStudyType.confidence,
-        },
+        data: { scopeId: scope.id, ...plan },
       };
     } catch (error: any) {
-      console.error('❌ Scope Planner Agent error:', error);
+      console.error('Scope Planner Agent error:', error);
       return {
         success: false,
         error: error.message || 'Unknown error in scope planner',
       };
-    }
-  }
-
-  /**
-   * Generate HCP shortlist from internal database
-   * Filter by criteria and ensure 50% internal signal overlap
-   */
-  private async generateHCPShortlist(brief: any): Promise<HCPShortlistEntry[]> {
-    const sql = getSql();
-
-    try {
-      // Extract filter criteria from brief
-      const specialty = brief.specialty || brief.target_audience_specialty || null;
-      const geography = brief.geography || brief.countries?.[0] || 'US';
-      const targetN = brief.target_n || 30;
-
-      // Query HCP database with filters
-      // Target: 2x the sample size to allow for selection
-      const hcps = await sql`
-        SELECT
-          npi,
-          name,
-          specialty,
-          sub_specialty as "subSpecialty",
-          geography,
-          practice_type as "practiceType",
-          patient_volume as "patientVolume",
-          years_in_practice as "yearsInPractice",
-          languages_spoken as "languagesSpoken",
-          internal_signal as "internalSignal",
-          100 as match_score
-        FROM hcp_database
-        WHERE
-          ${specialty ? sql`specialty = ${specialty}` : sql`1=1`}
-          AND ${geography ? sql`geography = ${geography}` : sql`1=1`}
-          AND is_active = true
-        ORDER BY
-          internal_signal DESC,
-          patient_volume DESC,
-          years_in_practice DESC
-        LIMIT ${targetN * 2}
-      `;
-
-      // Ensure 50% internal signal
-      const withSignal = hcps.filter((h: any) => h.internalSignal);
-      const withoutSignal = hcps.filter((h: any) => !h.internalSignal);
-
-      const targetSignal = Math.ceil(targetN * 0.5);
-      const targetNoSignal = targetN - targetSignal;
-
-      const shortlist = [
-        ...withSignal.slice(0, targetSignal),
-        ...withoutSignal.slice(0, targetNoSignal),
-      ];
-
-      console.log(`   Generated HCP shortlist: ${shortlist.length} (${withSignal.length} with internal signal)`);
-
-      return shortlist as HCPShortlistEntry[];
-    } catch (error) {
-      console.warn('Failed to generate HCP shortlist:', error);
-      return [];
     }
   }
 }

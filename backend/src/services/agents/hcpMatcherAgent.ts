@@ -1,7 +1,8 @@
 /**
- * HCP Matcher / Feasibility Agent
- * Assesses recruitment feasibility using PetaSight's actual HCP panel database.
- * Feasibility = availability only. Costs (CPI) are handled by the Pricing step.
+ * HCP Matcher / Feasibility Agent — Step 7
+ * Assesses recruitment feasibility and derives CPI from the full rate card.
+ * Fully AI-driven: GOAL / INPUTS / OUTPUT REQUIREMENTS pattern.
+ * AI does all semantic matching, CPI derivation, and feasibility verdict.
  */
 
 import { BaseAgent, AgentContext, AgentResult } from './baseAgent';
@@ -9,266 +10,131 @@ import { getSql } from '../../lib/sql';
 import fs from 'fs';
 import path from 'path';
 
-interface PanelEntry {
-  specialty: string;
-  country: string;
-  group: number;
-  panelSize: number;
-  activeRate: number;
-  recruitmentWeeks: number;
-}
-
-interface HcpPanelDb {
-  panel: PanelEntry[];
-  specialtyAliases: Record<string, string>;
-}
-
-function loadPanelDb(): HcpPanelDb {
-  const p = path.join(__dirname, '../../../config/hcp_panel.json');
+function loadJson(filename: string): any {
+  const p = path.join(__dirname, '../../../config', filename);
   return JSON.parse(fs.readFileSync(p, 'utf-8'));
-}
-
-/** Lookup panel entries for a given specialty + countries */
-function lookupPanel(db: HcpPanelDb, specialty: string, countries: string[]): PanelEntry[] {
-  const normSpec = specialty.toLowerCase().trim();
-  // Resolve alias
-  const resolved = db.specialtyAliases[normSpec] || specialty;
-  return db.panel.filter(e =>
-    e.specialty.toLowerCase() === resolved.toLowerCase() &&
-    (countries.length === 0 || countries.some(c => e.country.toLowerCase() === c.toLowerCase()))
-  );
-}
-
-/** Map overall risk from ratio */
-function riskFromRatio(ratio: number): 'LOW' | 'MEDIUM' | 'HIGH' {
-  if (ratio >= 3) return 'LOW';
-  if (ratio >= 1.5) return 'MEDIUM';
-  return 'HIGH';
 }
 
 export class HCPMatcherAgent extends BaseAgent {
   protected agentType = 'hcp_matching';
 
-  protected getSystemPrompt(context: AgentContext): string {
-    return `You are a PMR Feasibility Specialist at PetaSight. You receive structured panel availability data from PetaSight's HCP database and must produce a concise feasibility verdict.
-
-Your job is to:
-1. Interpret the panel data provided (do NOT invent numbers — they are given to you)
-2. Assess whether the required sample can realistically be recruited
-3. Identify geographic risks and recommend any mitigations
-4. Produce an overall feasibility verdict
-
-Recruitment ratio interpretation:
-- ≥3x needed sample available → LOW risk (GREEN)
-- 1.5–3x → MEDIUM risk (YELLOW)
-- <1.5x → HIGH risk (RED) — may need extended timeline or adjusted scope
-
-Respond with this JSON (no extra text):
-{
-  "overallFeasibility": {
-    "riskLevel": "LOW|MEDIUM|HIGH",
-    "feasible": true|false,
-    "summary": "2-3 sentence executive summary",
-    "keyRisks": ["risk1", "risk2", "risk3"],
-    "recommendations": ["rec1", "rec2", "rec3"],
-    "estimatedFieldworkWeeks": <number>,
-    "confidenceScore": <0-1>
-  },
-  "hcpAvailability": [
-    { "segment": "specialty+country", "panelSize": <n>, "activePool": <n>, "neededSample": <n>, "recruitmentRatio": <n>, "riskLevel": "LOW|MEDIUM|HIGH", "recruitmentWeeks": <n>, "notes": "..." }
-  ],
-  "geographicFeasibility": [
-    { "market": "country", "accessibility": "Open|Restricted|Challenging", "panelDepth": <n>, "recruitmentWeeks": <n>, "riskLevel": "LOW|MEDIUM|HIGH", "notes": "..." }
-  ]
-}`;
+  protected getSystemPrompt(_context: AgentContext): string {
+    return `You are a Senior Panel & Feasibility Specialist at PetaSight, a pharma market research firm.
+Your job is to assess HCP recruitment feasibility and estimate cost-per-interview (CPI) from the
+rate card for a pharma RFP. Use the FULL panel database and rate card provided — do not invent numbers.
+Output ONLY valid JSON. No markdown, no commentary.`;
   }
 
   protected async process(context: AgentContext): Promise<AgentResult> {
     try {
       const sql = getSql();
 
-      const data = await sql`
-        SELECT
-          b.id as "briefId",
-          b.target_audience as "targetAudience",
-          b.therapeutic_area as "therapeuticArea",
-          b.study_type as "studyType",
-          b.raw_extraction as "rawExtraction",
-          o.rfp_title as "rfpTitle",
-          o.client_name as "clientName",
-          o.geography
-        FROM briefs b
-        JOIN opportunities o ON b.opportunity_id = o.id
-        WHERE o.id = ${context.opportunityId}
-        ORDER BY b.created_at DESC
-        LIMIT 1
-      `;
+      const [[opp], [brief]] = await Promise.all([
+        sql`SELECT email_body, rfp_title, client_name, therapeutic_area, geography FROM opportunities WHERE id = ${context.opportunityId}`,
+        sql`SELECT id, target_audience, therapeutic_area, study_type, sample_requirements,
+                   timeline_requirements, raw_extraction
+            FROM briefs WHERE opportunity_id = ${context.opportunityId}
+            ORDER BY created_at DESC LIMIT 1`,
+      ]);
 
-      if (data.length === 0) {
-        return { success: false, error: 'No brief found for this opportunity' };
-      }
+      if (!brief) return { success: false, error: 'No brief found for this opportunity' };
 
-      const brief = data[0];
-      const raw = brief.rawExtraction || {};
-      const sampleSection = raw.section8_target_audience_sample || {};
-      const timelineSection = raw.section9_timeline_key_dates || {};
-      const methodSection = raw.section6_methodology_scope || {};
+      const panelData = loadJson('hcp_panel.json');
+      const rateCard = loadJson('rate_card.json');
 
-      const { jobQueueService } = await import('../jobQueue');
-      const jobs = await jobQueueService.getJobsByOpportunity(context.opportunityId);
-      const currentJob = jobs.find((j: any) => j.jobType === this.agentType && j.status === 'processing');
+      const rx: any = brief.raw_extraction || {};
+      const sampleSection = rx.section8_target_audience_sample || {};
+      const methodSection = rx.section6_methodology_scope || {};
 
-      if (currentJob) await jobQueueService.updateProgress(currentJob.id, 20, 'Loading HCP panel database');
+      const geographies: string[] = Array.isArray(opp?.geography) ? opp.geography
+        : (typeof opp?.geography === 'string' ? JSON.parse(opp.geography || '[]') : []);
 
-      // ── Load panel DB and compute availability ────────────────────────────
-      const panelDb = loadPanelDb();
+      const userMessage = `
+=== GOAL ===
+Assess HCP recruitment feasibility for this pharma RFP using PetaSight's panel database.
+Identify the correct specialty/country combinations for the study, determine panel availability,
+and derive CPI estimates from the rate card. Produce a feasibility verdict and a recommended
+per-interview cost for the WBS pricing step.
 
-      // Extract target specialties and countries from brief
-      const geographies: string[] = Array.isArray(brief.geography) ? brief.geography
-        : (typeof brief.geography === 'string' ? [brief.geography] : []);
-      const countries = geographies.map((g: string) => g.trim()).filter(Boolean);
+=== INPUT 1: FULL RFP TEXT ===
+${opp?.email_body || 'Not available — use brief sections below'}
 
-      // Try to extract specialty from targetAudience or therapeuticArea
-      const audienceText = (brief.targetAudience || '').toLowerCase();
-      const therapeuticArea = (brief.therapeuticArea || '').toLowerCase();
+=== INPUT 2: STRUCTURED BRIEF ===
+Therapeutic area: ${brief.therapeutic_area || opp?.therapeutic_area || 'unknown'}
+Target audience: ${brief.target_audience || 'unknown'}
+Study type: ${brief.study_type || 'unknown'}
+Geography: ${geographies.join(', ') || 'Not specified'}
+Sample requirements: ${JSON.stringify(brief.sample_requirements || {})}
+Target sample size (from brief): ${sampleSection.targetSampleSize || 'Not specified'}
+Sample breakdown: ${JSON.stringify(sampleSection.sampleBreakdown || {})}
+Methodology: ${methodSection.primaryMethodology || 'Not specified'}
+LOI: ${methodSection.loi || 'Not specified — assume 30 minutes if qualitative, 20 minutes if quantitative'}
 
-      // Find panel matches — try matching against known specialties
-      const specialtyKeywords = [
-        ...Object.keys(panelDb.specialtyAliases),
-        ...panelDb.panel.map(p => p.specialty.toLowerCase()),
-      ];
-      const matchedSpecialties = new Set<string>();
-      for (const kw of specialtyKeywords) {
-        if (audienceText.includes(kw) || therapeuticArea.includes(kw)) {
-          const resolved = panelDb.specialtyAliases[kw] ||
-            panelDb.panel.find(p => p.specialty.toLowerCase() === kw)?.specialty;
-          if (resolved) matchedSpecialties.add(resolved);
-        }
-      }
+=== INPUT 3: PETASIGHT HCP PANEL DATABASE ===
+${JSON.stringify(panelData, null, 2)}
 
-      // Fallback — if nothing matched, use all entries for matched countries or all entries
-      let panelEntries: PanelEntry[] = matchedSpecialties.size > 0
-        ? panelDb.panel.filter(e =>
-            matchedSpecialties.has(e.specialty) &&
-            (countries.length === 0 || countries.some(c => e.country.toLowerCase() === c.toLowerCase()))
-          )
-        : panelDb.panel.filter(e =>
-            countries.length === 0 || countries.some(c => e.country.toLowerCase() === c.toLowerCase())
-          );
+=== INPUT 4: PETASIGHT RATE CARD ===
+CPI = recruitment fee + HCP incentive. Rate card keys: specialty group → LOI → country.
+Specialty group mapping is in the specialtyGroups object.
+${JSON.stringify(rateCard, null, 2)}
 
-      // If still nothing, use all panel entries as a fallback
-      if (panelEntries.length === 0) panelEntries = panelDb.panel;
+=== OUTPUT REQUIREMENTS ===
+Return a JSON object with ALL of the following:
 
-      // Cap to 20 most relevant entries to keep prompt size manageable
-      if (panelEntries.length > 20) {
-        panelEntries = panelEntries
-          .sort((a, b) => b.panelSize - a.panelSize)
-          .slice(0, 20);
-      }
+1. matchedSpecialties: array of specialties AI identified as relevant to this RFP — each item:
+   {specialty, country, panelSize, activeRate, activePool, recruitmentWeeks, group}
+   - Use EXACT specialty names from the panel database
+   - Match ALL relevant countries from the brief geography
+   - If a specialty is not in the panel, note it in notes field but still include it with 0 panel
 
-      const neededSample = parseInt(String(sampleSection.targetSampleSize || '50'), 10) || 50;
+2. estimatedCpi: CPI per matched specialty/country/LOI — each item:
+   {specialty, country, loiMinutes, recruitmentFee, incentive, cpiAmount, group}
+   - Look up recruitment fee from rate_card.recruitment[groupN][loi][country]
+   - Look up incentive from rate_card.incentive[groupN][loi][country]
+   - CPI = recruitment fee + incentive
+   - Use the LOI from the brief (default 30 min for qualitative, 20 min for quantitative)
 
-      // Compute availability per entry
-      const availabilityData = panelEntries.map(e => {
-        const activePool = Math.round(e.panelSize * e.activeRate);
-        const ratio = Math.round((activePool / neededSample) * 10) / 10;
-        return {
-          specialty: e.specialty,
-          country: e.country,
-          group: e.group,
-          panelSize: e.panelSize,
-          activePool,
-          activeRate: e.activeRate,
-          recruitmentWeeks: e.recruitmentWeeks,
-          neededSample,
-          recruitmentRatio: ratio,
-          riskLevel: riskFromRatio(ratio),
-        };
-      });
+3. recruitmentRatio: {targetN, contactsNeeded, universeSize, ratio}
+   - contactsNeeded = targetN × 3 (standard 3:1 contact-to-complete ratio)
+   - universeSize = sum of activePool across all matched specialties/countries
+   - ratio = universeSize / targetN
 
-      if (currentJob) await jobQueueService.updateProgress(currentJob.id, 50, 'Running AI feasibility analysis');
+4. feasibilityVerdict: "FEASIBLE" | "CHALLENGING" | "IMPOSSIBLE"
+   - FEASIBLE: ratio ≥ 3, all specialties available in target countries
+   - CHALLENGING: ratio 1.5-3, or some specialties limited in target countries
+   - IMPOSSIBLE: ratio < 1.5, or critical specialties absent from panel in target countries
 
-      // ── AI interprets the panel data ──────────────────────────────────────
-      const systemPrompt = this.getSystemPrompt(context);
-      const userMessage = `Assess recruitment feasibility for this PMR study using the panel data below.
+5. feasibilityScore: 0-100 integer (higher = more feasible)
 
-**Study**: ${brief.rfpTitle}
-**Client**: ${brief.clientName}
-**Therapeutic Area**: ${brief.therapeuticArea || 'Not specified'}
-**Study Type**: ${brief.studyType || 'Not specified'}
-**Methodology**: ${methodSection.researchDesign || methodSection.dataCollection || 'Not specified'}
-**Target Audience**: ${brief.targetAudience || JSON.stringify(sampleSection) || 'Not specified'}
-**Sample Size Needed**: ${neededSample}
-**Geography**: ${countries.length > 0 ? countries.join(', ') : 'Not specified'}
-**Timeline**: ${timelineSection.projectEndDate || timelineSection.contractLength || 'Not specified'}
+6. overall_feasibility: {feasibilityScore, riskLevel: "LOW"|"MEDIUM"|"HIGH", summary, keyRisks[], recommendations[]}
 
-**PetaSight Panel Availability Data** (use these exact numbers):
-${JSON.stringify(availabilityData, null, 2)}
+7. geographic_feasibility: array per country — {market, panelDepth, recruitmentWeeks, riskLevel, notes}
 
-Interpret this data and return the feasibility verdict JSON. Do NOT invent numbers — use only the panelSize, activePool, recruitmentRatio values provided above. Note: costs/CPI are NOT part of feasibility — they are handled in the pricing step.`;
+8. hcp_availability: same as matchedSpecialties but formatted for DB storage
 
-      // Race the AI call against a 45s timeout — if it hangs, fall through to computed fallback
-      let aiResponse: string | null = null;
-      try {
-        const timeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI call timed out after 45s')), 45000)
-        );
-        aiResponse = await Promise.race([this.invokeAI(systemPrompt, userMessage, context), timeout]);
-      } catch (aiErr) {
-        console.warn('HCPMatcherAgent: AI call failed/timed out — using computed fallback:', (aiErr as Error).message);
-      }
+9. backupOptions: array of alternative specialties or countries if verdict is CHALLENGING/IMPOSSIBLE
 
-      if (currentJob) await jobQueueService.updateProgress(currentJob.id, 80, 'Storing feasibility assessment');
+10. recommendedCpiForBudget: single CPI number (USD) PetaSight should use for WBS estimation.
+    Use the weighted average CPI across all matched specialty/country/LOI combinations.
+
+11. recommendations: string array of 3-5 actionable recommendations
+
+Return ONLY the JSON object. No markdown.`;
+
+      const responseText = await this.invokeAI(this.getSystemPrompt(context), userMessage, context);
 
       let result: any;
       try {
-        if (!aiResponse) throw new Error('No AI response');
-        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-        result = JSON.parse(jsonMatch ? jsonMatch[0] : aiResponse);
+        let json = responseText.trim();
+        if (json.startsWith('```')) json = json.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+        const jsonMatch = json.match(/\{[\s\S]*\}/);
+        result = JSON.parse(jsonMatch ? jsonMatch[0] : json);
       } catch {
-        // Fallback: build result from computed availability data
-        const maxWeeks = Math.max(...availabilityData.map(e => e.recruitmentWeeks), 3);
-        const avgRatio = availabilityData.reduce((s, e) => s + e.recruitmentRatio, 0) / (availabilityData.length || 1);
-        result = {
-          overallFeasibility: {
-            riskLevel: riskFromRatio(avgRatio),
-            feasible: avgRatio >= 1.5,
-            summary: `Panel data available for ${availabilityData.length} specialty-country combinations. Average recruitment ratio: ${avgRatio.toFixed(1)}x.`,
-            keyRisks: avgRatio < 1.5 ? ['Insufficient panel depth for required sample'] : [],
-            recommendations: ['Monitor recruitment weekly', 'Pre-qualify respondents'],
-            estimatedFieldworkWeeks: maxWeeks,
-            confidenceScore: 0.75,
-          },
-          hcpAvailability: availabilityData.map(e => ({
-            segment: `${e.specialty} — ${e.country}`,
-            panelSize: e.panelSize,
-            activePool: e.activePool,
-            neededSample: e.neededSample,
-            recruitmentRatio: e.recruitmentRatio,
-            riskLevel: e.riskLevel,
-            recruitmentWeeks: e.recruitmentWeeks,
-            notes: '',
-          })),
-          geographicFeasibility: countries.map(c => {
-            const countryEntries = availabilityData.filter(e => e.country.toLowerCase() === c.toLowerCase());
-            const totalPanel = countryEntries.reduce((s, e) => s + e.panelSize, 0);
-            const weeks = Math.max(...countryEntries.map(e => e.recruitmentWeeks), 3);
-            return {
-              market: c,
-              accessibility: 'Open',
-              panelDepth: totalPanel,
-              recruitmentWeeks: weeks,
-              riskLevel: totalPanel > neededSample * 3 ? 'LOW' : totalPanel > neededSample * 1.5 ? 'MEDIUM' : 'HIGH',
-              notes: '',
-            };
-          }),
-        };
+        console.error('HCPMatcherAgent: failed to parse JSON:', responseText.substring(0, 300));
+        return { success: false, error: 'Failed to parse AI response as JSON' };
       }
 
-      // Attach raw panel data for reference in pricing step
-      result._panelData = availabilityData;
-
-      const inserted = await sql`
+      const [inserted] = await sql`
         INSERT INTO feasibility_assessments (
           opportunity_id,
           brief_id,
@@ -282,33 +148,38 @@ Interpret this data and return the feasibility verdict JSON. Do NOT invent numbe
           created_at
         ) VALUES (
           ${context.opportunityId},
-          ${brief.briefId},
-          ${JSON.stringify(result.overallFeasibility || {})}::jsonb,
-          ${JSON.stringify(result.geographicFeasibility || [])}::jsonb,
+          ${brief.id},
+          ${JSON.stringify(result.overall_feasibility || result.overallFeasibility || {})}::jsonb,
+          ${JSON.stringify(result.geographic_feasibility || result.geographicFeasibility || [])}::jsonb,
           ${JSON.stringify([])}::jsonb,
-          ${JSON.stringify(result.hcpAvailability || [])}::jsonb,
-          ${JSON.stringify(result.overallFeasibility?.keyRisks || [])}::jsonb,
-          ${JSON.stringify(result.overallFeasibility?.recommendations || [])}::jsonb,
+          ${JSON.stringify(result.hcp_availability || result.matchedSpecialties || [])}::jsonb,
+          ${JSON.stringify(result.overall_feasibility?.keyRisks || [])}::jsonb,
+          ${JSON.stringify(result.recommendations || [])}::jsonb,
           ${JSON.stringify(result)}::jsonb,
           now()
         )
         RETURNING id
       `;
 
-      console.log(`✅ Feasibility assessment complete for opportunity ${context.opportunityId}`);
+      console.log(`✅ HCP feasibility complete: ${result.feasibilityVerdict} | CPI=$${result.recommendedCpiForBudget}`);
+      console.log(`   Matched specialties: ${(result.matchedSpecialties || []).length}`);
+      console.log(`   Recruitment ratio: ${result.recruitmentRatio?.ratio?.toFixed(1)}x`);
 
       return {
         success: true,
         data: {
-          feasibilityId: inserted[0].id,
-          ...result,
+          feasibilityId: inserted.id,
+          feasibilityVerdict: result.feasibilityVerdict,
+          matchedSpecialties: result.matchedSpecialties || [],
+          estimatedCpi: result.estimatedCpi || [],
+          recommendedCpiForBudget: result.recommendedCpiForBudget,
+          recruitmentRatio: result.recruitmentRatio || {},
+          overallFeasibility: result.overall_feasibility || result.overallFeasibility || {},
         },
-        metadata: {
-          confidence: result.overallFeasibility?.confidenceScore || 0.80,
-        },
+        metadata: { confidence: (result.feasibilityScore || 70) / 100 },
       };
     } catch (error: any) {
-      console.error('HCP matcher error:', error);
+      console.error('HCPMatcherAgent error:', error);
       return { success: false, error: error.message };
     }
   }

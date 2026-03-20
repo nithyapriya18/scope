@@ -1,192 +1,117 @@
-/**
- * Assumption & Clash Analyzer Agent
- * Identifies required assumptions and potential conflicts/clashes in RFP requirements
- */
-
 import { BaseAgent, AgentContext, AgentResult } from './baseAgent';
 import { getSql } from '../../lib/sql';
 
 export class AssumptionAnalyzerAgent extends BaseAgent {
   protected agentType = 'assumption_analysis';
 
-  protected getSystemPrompt(context: AgentContext): string {
-    return `You are a PMR Assumptions & Clashes Analyst. Identify what we must ASSUME to proceed and what CLASHES exist in the RFP.
-
-**YOUR TASK**: Analyze the RFP to identify:
-
-**1. ASSUMPTIONS REQUIRED** (explicit or implicit assumptions we must make):
-- What must we assume to move forward?
-- What's the default interpretation if not specified?
-- Industry standard assumptions vs. client-specific assumptions?
-{
-  "category": "Sample|Timeline|Budget|Methodology|Scope|Compliance|Other",
-  "assumption": "Specific assumption (80 chars max)",
-  "basedOn": "Why we're making this assumption (60 chars)",
-  "riskLevel": "low" | "medium" | "high",
-  "canValidate": true | false,
-  "validateVia": "How to confirm this assumption (60 chars)" OR null
-}
-
-**2. CLASHES / CONFLICTS** (requirement contradictions or tensions):
-Examples:
-- "Budget $50K but wants 10 countries (impossible)"
-- "4-week timeline but requests 500 interviews (too fast)"
-- "Requires statistical significance but sample=50 (too small)"
-- "GDPR + US-only respondents (data location conflict)"
-- "Says confidential but requests raw data (IP conflict)"
-{
-  "clash": "Clear description of the clash (100 chars max)",
-  "elements": ["Element A", "Element B"],
-  "severity": "critical" | "high" | "medium",
-  "impact": "What could go wrong (80 chars)",
-  "resolution": "Possible workaround (80 chars)"
-}
-
-**3. FEASIBILITY CONCERNS** (realistic delivery concerns):
-{
-  "concern": "What's potentially difficult (80 chars)",
-  "reason": "Why (60 chars)",
-  "severity": "critical" | "high" | "medium"
-}
-
-**LIMITS**: Max 10 per category
-
-Respond with valid JSON:
-{
-  "assumptions": [],
-  "clashes": [],
-  "feasibilityConcerns": [],
-  "overallRiskLevel": "low" | "medium" | "high",
-  "recommendedClarifications": 3
-}`;
+  protected getSystemPrompt(_context: AgentContext): string {
+    return `You are a Senior PMR Research Strategist at PetaSight, a pharma market research firm.
+Your job is to classify every assumption as either PetaSight-owned (we decide unilaterally) or
+client-dependent (we need client input), determine whether the brief is ready to design from,
+and identify any risks or clashes that could affect the proposal.
+Output ONLY valid JSON. No markdown, no commentary.`;
   }
 
   protected async process(context: AgentContext): Promise<AgentResult> {
     try {
-      // Get the latest brief and gap analysis
       const sql = getSql();
 
-      const briefs = await sql`
-        SELECT
-          id,
-          raw_extraction as "rawExtraction",
-          confidence_score as "confidenceScore"
-        FROM briefs
-        WHERE opportunity_id = ${context.opportunityId}
-        ORDER BY created_at DESC
-        LIMIT 1
-      `;
+      const [[opp], [brief], [gapAnalysis]] = await Promise.all([
+        sql`SELECT email_body, rfp_title, client_name, therapeutic_area FROM opportunities WHERE id = ${context.opportunityId}`,
+        sql`SELECT id, tenant_id, study_type, target_audience, therapeutic_area,
+                   research_objectives, sample_requirements, timeline_requirements,
+                   deliverables, budget_indication, raw_extraction
+            FROM briefs WHERE opportunity_id = ${context.opportunityId}
+            ORDER BY created_at DESC LIMIT 1`,
+        sql`SELECT llm_analysis, missing_fields, ambiguous_requirements
+            FROM gap_analyses ga JOIN briefs b ON ga.brief_id = b.id
+            WHERE b.opportunity_id = ${context.opportunityId}
+            ORDER BY ga.created_at DESC LIMIT 1`,
+      ]);
 
-      if (briefs.length === 0) {
-        return {
-          success: false,
-          error: 'No brief found for this opportunity',
-        };
-      }
+      if (!brief) return { success: false, error: 'No brief found for this opportunity' };
 
-      const brief = briefs[0];
+      const rx: any = brief.raw_extraction || {};
+      const rfpText = opp?.email_body || '';
+      const rfpSnippet = rfpText.length > 4000
+        ? rfpText.slice(0, 4000) + '\n...[truncated — brief extraction above covers full content]'
+        : rfpText || 'Not available — use brief sections below';
 
-      const gaps = await sql`
-        SELECT
-          id,
-          missing_fields as "missingFields",
-          ambiguous_requirements as "ambiguousRequirements",
-          conflicting_info as "conflictingInfo",
-          llm_analysis as "llmAnalysis"
-        FROM gap_analyses
-        WHERE brief_id = ${brief.id}
-        ORDER BY created_at DESC
-        LIMIT 1
-      `;
+      const userMessage = `
+=== GOAL ===
+Classify every assumption required to design a research proposal for this RFP.
+For each assumption: is it PetaSight-owned (we decide unilaterally based on expertise) or
+client-dependent (the client must confirm before we can proceed)?
+Assess overall design readiness and identify any clashes or risks.
 
-      // Get job ID for progress tracking
-      const { jobQueueService } = await import('../jobQueue');
-      const jobs = await jobQueueService.getJobsByOpportunity(context.opportunityId);
-      const currentJob = jobs.find(j => j.jobType === this.agentType && j.status === 'processing');
+=== INPUT 1: RFP TEXT (first 4000 chars) ===
+${rfpSnippet}
 
-      // Update progress: 30% - Analyzing RFP context
-      if (currentJob) {
-        await jobQueueService.updateProgress(currentJob.id, 30, 'Analyzing RFP context and assumptions');
-      }
+=== INPUT 2: STRUCTURED BRIEF (from Step 2) ===
+Study type: ${brief.study_type || 'unknown'}
+Therapeutic area: ${brief.therapeutic_area || 'unknown'}
+Target audience: ${brief.target_audience || 'unknown'}
+Research objectives: ${JSON.stringify(brief.research_objectives || [])}
+Sample requirements: ${JSON.stringify(brief.sample_requirements || {})}
+Timeline: ${brief.timeline_requirements || 'Not specified'}
+Deliverables: ${JSON.stringify(brief.deliverables || [])}
+Budget: ${brief.budget_indication || 'Not disclosed'}
+Full extraction: ${JSON.stringify(rx)}
 
-      const systemPrompt = this.getSystemPrompt(context);
+=== INPUT 3: GAP ANALYSIS (from Step 3) ===
+${gapAnalysis ? JSON.stringify({
+  criticalGaps: gapAnalysis.missing_fields,
+  ambiguous: gapAnalysis.ambiguous_requirements,
+  analysis: gapAnalysis.llm_analysis,
+}) : 'None available'}
 
-      // Parse rawExtraction if double-encoded (stored as JSON string in JSONB column)
-      let rawExtractionData = brief.rawExtraction;
-      if (typeof rawExtractionData === 'string') {
-        try { rawExtractionData = JSON.parse(rawExtractionData); } catch {}
-      }
-      let gapLlmAnalysis = gaps.length > 0 ? gaps[0].llmAnalysis : null;
-      if (typeof gapLlmAnalysis === 'string') {
-        try { gapLlmAnalysis = JSON.parse(gapLlmAnalysis); } catch {}
-      }
+=== OUTPUT REQUIREMENTS ===
+Return a JSON object with ALL of the following:
 
-      const userMessage = `Analyze this RFP and identify all assumptions we must make and potential clashes/conflicts.
+1. assumptions: array of all assumptions needed to design the proposal — each item:
+   {
+     assumptionId: "A001", "A002", etc.,
+     category: "sample" | "methodology" | "timeline" | "geography" | "scope" | "compliance",
+     assumption: "The specific design decision or working assumption",
+     type: "petasightOwned" | "clientDependent",
+     typeRationale: "1 sentence explaining why this is petasightOwned or clientDependent",
+     riskLevel: "low" | "medium" | "high",
+     defaultValue: "what PetaSight will use if no client response"
+   }
 
-**BRIEF EXTRACTION**:
-${JSON.stringify(rawExtractionData || brief, null, 2)}
+2. clashes: array of requirement contradictions — each item:
+   {clash, elements: string[], severity: "critical"|"high"|"medium", impact, resolution}
 
-${gapLlmAnalysis ? `**GAP ANALYSIS**:
-${JSON.stringify(gapLlmAnalysis, null, 2)}` : ''}
+3. feasibilityConcerns: array of delivery risks — each item:
+   {concern, reason, severity: "critical"|"high"|"medium"}
 
-**TASK**:
-1. Identify all ASSUMPTIONS we must make to move forward
-   - Are sample sizes realistic for the methodology?
-   - Is the timeline feasible given the scope?
-   - Are budget and scope aligned?
-   - What compliance/regulatory assumptions are being made?
+4. designReadiness: "ready_to_design" | "needs_clarification" | "critical_blocker"
+   - ready_to_design: enough information to write a strong proposal
+   - needs_clarification: missing client-dependent info but can proceed with assumptions
+   - critical_blocker: cannot design without client response (e.g., no audience defined at all)
 
-2. Identify all CLASHES between requirements
-   - Budget vs. Scope: Is budget sufficient for the scope?
-   - Timeline vs. Scope: Can we deliver in the timeframe?
-   - Methodology vs. Sample: Does method fit the sample size?
-   - Compliance conflicts: Are there regulatory contradictions?
-   - Resource conflicts: Do we have capacity/expertise?
+5. designReadinessRationale: 1-2 sentences explaining the designReadiness verdict
 
-3. Identify FEASIBILITY CONCERNS
-   - What aspects might be challenging to deliver?
-   - What external dependencies exist?
-   - What could impact timeline or quality?
+6. overallRiskLevel: "low" | "medium" | "high"
 
-Respond with ONLY JSON.`;
+7. recommendedClarifications: integer count of questions to send
 
-      // Update progress: 40% - Running analysis
-      if (currentJob) {
-        await jobQueueService.updateProgress(currentJob.id, 40, 'Identifying assumptions and conflicts');
-      }
+Return ONLY the JSON object. No markdown.`;
 
-      const response = await this.invokeAI(systemPrompt, userMessage, context);
+      const response = await this.invokeAI(this.getSystemPrompt(context), userMessage, context);
 
-      // Update progress: 70% - Processing results
-      if (currentJob) {
-        await jobQueueService.updateProgress(currentJob.id, 70, 'Processing assumption analysis');
-      }
-
-      // Parse JSON response
-      let analysis;
+      let analysis: any;
       try {
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          analysis = JSON.parse(jsonMatch[0]);
-        } else {
-          analysis = JSON.parse(response);
-        }
-      } catch (parseError: any) {
-        console.error('Failed to parse assumption analysis response');
-        console.error('Parse error:', parseError);
-        return {
-          success: false,
-          error: `Failed to parse assumption analysis: ${parseError?.message || 'Unknown error'}`,
-        };
+        let json = response.trim();
+        if (json.startsWith('```')) json = json.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+        const jsonMatch = json.match(/\{[\s\S]*\}/);
+        analysis = JSON.parse(jsonMatch ? jsonMatch[0] : json);
+      } catch {
+        console.error('AssumptionAnalyzerAgent: failed to parse JSON:', response.substring(0, 300));
+        return { success: false, error: 'Failed to parse AI response as JSON' };
       }
 
-      // Update progress: 80% - Saving to database
-      if (currentJob) {
-        await jobQueueService.updateProgress(currentJob.id, 80, 'Saving assumption analysis to database');
-      }
-
-      // Store assumption analysis
-      const result = await sql`
+      const [aaRow] = await sql`
         INSERT INTO assumption_analyses (
           brief_id,
           assumptions,
@@ -209,42 +134,35 @@ Respond with ONLY JSON.`;
         RETURNING id
       `;
 
-      const analysisId = result[0].id;
-
-      // Update opportunity status
       await sql`
         UPDATE opportunities
         SET status = 'assumption_analysis', updated_at = now()
         WHERE id = ${context.opportunityId}
       `;
 
-      // Update progress: 90% - Complete
-      if (currentJob) {
-        await jobQueueService.updateProgress(currentJob.id, 90, 'Analysis complete');
-      }
-
-      console.log(`✅ Assumption analysis complete for opportunity ${context.opportunityId}`);
-      console.log(`   Assumptions: ${(analysis.assumptions || []).length} identified`);
-      console.log(`   Clashes: ${(analysis.clashes || []).length} identified`);
-      console.log(`   Feasibility Concerns: ${(analysis.feasibilityConcerns || []).length}`);
-      console.log(`   Overall Risk Level: ${analysis.overallRiskLevel || 'medium'}`);
-      console.log(`   Recommended Clarifications: ${analysis.recommendedClarifications || 0}`);
+      const petasightOwned = (analysis.assumptions || []).filter((a: any) => a.type === 'petasightOwned').length;
+      const clientDependent = (analysis.assumptions || []).filter((a: any) => a.type === 'clientDependent').length;
+      console.log(`✅ Assumption analysis complete: ${petasightOwned} petasightOwned, ${clientDependent} clientDependent`);
+      console.log(`   designReadiness: ${analysis.designReadiness}`);
 
       return {
         success: true,
         data: {
-          analysisId,
-          ...analysis,
+          analysisId: aaRow.id,
+          assumptions: analysis.assumptions || [],
+          clashes: analysis.clashes || [],
+          feasibilityConcerns: analysis.feasibilityConcerns || [],
+          designReadiness: analysis.designReadiness || 'needs_clarification',
+          overallRiskLevel: analysis.overallRiskLevel || 'medium',
+          recommendedClarifications: analysis.recommendedClarifications || 0,
           currentStatus: 'assumption_analysis',
           nextStatus: 'clarification',
         },
+        metadata: { confidence: analysis.overallRiskLevel === 'low' ? 0.9 : 0.7 },
       };
     } catch (error: any) {
-      console.error('Assumption analyzer error:', error);
-      return {
-        success: false,
-        error: error.message,
-      };
+      console.error('AssumptionAnalyzerAgent error:', error);
+      return { success: false, error: error.message };
     }
   }
 }
