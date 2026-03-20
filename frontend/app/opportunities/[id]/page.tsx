@@ -85,9 +85,9 @@ export default function OpportunityDetailPage() {
       'assumption_analysis',     // After gap analysis, runs assumption analyzer
       'clarification_response',  // After parsing client responses
       'feasibility',             // After HCP matching completes
-      'scope_planning',          // After scope design completes
-      'wbs_estimate',            // After WBS estimation
-      'pricing'                  // After pricing calculation
+      'scope_planning',          // After scope design completes — advances to wbs_estimate
+      'wbs_estimate',            // After WBS+pricing completes — advances to document_gen
+      'pricing',                 // Pricing combined with WBS — skip straight to document_gen
     ];
 
     // Other steps respect workflow mode setting
@@ -102,11 +102,13 @@ export default function OpportunityDetailPage() {
       scope_planning: 'scope_planner', wbs_estimate: 'wbs_estimate', pricing: 'pricing',
     };
     const jobType = jobTypeMap[status];
-    const recentFailedJob = jobType && allJobs.find(
-      (j: any) => j.jobType === jobType && j.status === 'failed'
-    );
+    // Check only the MOST RECENT job of this type — older failed jobs (e.g. from before a redo) should not block
+    const jobsForType = jobType ? allJobs.filter((j: any) => j.jobType === jobType) : [];
+    const mostRecentJob = jobsForType.length > 0 ? jobsForType[jobsForType.length - 1] : null;
+    const recentFailedJob = mostRecentJob?.status === 'failed' ? mostRecentJob : null;
 
     const shouldAutoAdvance =
+      !processing &&
       !recentFailedJob &&
       (alwaysAutoAdvance.includes(status) ||
       (workflowMode === 'automated' && conditionalAutoAdvance.includes(status)));

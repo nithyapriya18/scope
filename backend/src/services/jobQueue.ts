@@ -140,7 +140,7 @@ class JobQueueService {
         progress = 100,
         result = ${resultJson}::jsonb,
         completed_at = now(),
-        duration_ms = EXTRACT(EPOCH FROM (now() - COALESCE(started_at, now()))) * 1000,
+        duration_ms = EXTRACT(EPOCH FROM (now() - COALESCE(started_at, created_at))) * 1000,
         updated_at = now()
       WHERE id = ${jobId}
       RETURNING
@@ -174,7 +174,7 @@ class JobQueueService {
         status = 'failed',
         error = ${error},
         completed_at = now(),
-        duration_ms = EXTRACT(EPOCH FROM (now() - COALESCE(started_at, now()))) * 1000,
+        duration_ms = EXTRACT(EPOCH FROM (now() - COALESCE(started_at, created_at))) * 1000,
         updated_at = now()
       WHERE id = ${jobId}
       RETURNING

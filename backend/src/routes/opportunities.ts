@@ -551,11 +551,13 @@ router.get('/:id', async (req, res) => {
     // Fetch related workflow data
     const briefs = await sql`SELECT * FROM briefs WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
 
-    // Gap analyses link to briefs, not directly to opportunities
-    let gapAnalyses = [];
-    if (briefs.length > 0) {
-      gapAnalyses = await sql`SELECT * FROM gap_analyses WHERE brief_id = ${briefs[0].id} ORDER BY created_at DESC LIMIT 1`;
-    }
+    // Gap analyses link to briefs — search all briefs for this opportunity (handles double-run briefs)
+    const gapAnalyses = await sql`
+      SELECT ga.* FROM gap_analyses ga
+      JOIN briefs b ON ga.brief_id = b.id
+      WHERE b.opportunity_id = ${id}
+      ORDER BY ga.created_at DESC LIMIT 1
+    `;
 
     const clarifications = await sql`SELECT * FROM clarifications WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const scopes = await sql`SELECT * FROM scopes WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
@@ -574,7 +576,7 @@ router.get('/:id', async (req, res) => {
       LIMIT 1
     `;
 
-    // Fetch all completed jobs for this opportunity (for step duration display)
+    // Fetch all completed and failed jobs for this opportunity (for step duration display + failure guard)
     const allJobsResult = await sql`
       SELECT
         job_type as "jobType",
@@ -583,9 +585,8 @@ router.get('/:id', async (req, res) => {
         completed_at as "completedAt"
       FROM jobs
       WHERE opportunity_id = ${id}
-        AND status = 'completed'
-        AND duration_ms IS NOT NULL
-      ORDER BY completed_at ASC
+        AND status IN ('completed', 'failed')
+      ORDER BY completed_at ASC NULLS LAST, created_at ASC
     `;
 
     // Parse JSON strings in brief and gap analysis
@@ -703,6 +704,16 @@ router.get('/:id', async (req, res) => {
           console.error('Failed to parse questions:', e);
         }
       }
+
+      // Normalize: questions column stores {questions:[...], emailSubject, emailIntro, emailClosing}
+      // Flatten so opportunity.clarification.questions is the actual array
+      if (parsedClarification.questions && !Array.isArray(parsedClarification.questions) && typeof parsedClarification.questions === 'object') {
+        const qObj = parsedClarification.questions as any;
+        parsedClarification.emailSubject = qObj.emailSubject || parsedClarification.emailSubject || '';
+        parsedClarification.emailIntro = qObj.emailIntro || '';
+        parsedClarification.emailClosing = qObj.emailClosing || '';
+        parsedClarification.questions = qObj.questions || [];
+      }
     }
 
     // Parse feasibility assessment — DB columns may be double-encoded strings, parse if needed
@@ -730,7 +741,19 @@ router.get('/:id', async (req, res) => {
       gapAnalysis: parsedGapAnalysis,
       clarification: parsedClarification,
       feasibility: parsedFeasibility,
-      scope: scopes.length > 0 ? scopes[0] : null,
+      scope: scopes.length > 0 ? (() => {
+        const s = scopes[0];
+        return {
+          ...s,
+          methodology_detail: parseJsonField(s.methodology_detail),
+          sample_size_options: parseJsonField(s.sample_size_options),
+          scope_assumptions: parseJsonField(s.scope_assumptions),
+          deliverables: parseJsonField(s.deliverables),
+          key_milestones: parseJsonField(s.key_milestones),
+          recruitment_strategy: parseJsonField(s.recruitment_strategy),
+          discussion_guide_outline: parseJsonField(s.discussion_guide_outline),
+        };
+      })() : null,
       currentJob: currentJobs.length > 0 ? currentJobs[0] : null,
       allJobs: allJobsResult,
     };

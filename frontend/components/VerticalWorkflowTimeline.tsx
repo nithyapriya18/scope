@@ -723,29 +723,66 @@ export default function VerticalWorkflowTimeline({
                       {step.id === 'brief_extract' && opportunity?.brief && (
                         <div className="space-y-1">
                           <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            Requirements brief generated with {(() => {
-                              const rawData = opportunity.brief.raw_extraction || {};
-                              return (rawData.researchObjectives?.length || 0) + ' objectives';
-                            })()} and comprehensive scope details
+                            {(() => {
+                              const brief = opportunity.brief;
+                              const rx: any = brief.raw_extraction || {};
+                              // objectives: DB column first, then section5, then top-level
+                              const objs: any[] = brief.research_objectives?.length
+                                ? brief.research_objectives
+                                : (rx.section5_business_research_objectives?.researchObjectives
+                                   || rx.section5?.researchObjectives
+                                   || rx.researchObjectives
+                                   || []);
+                              return `Requirements brief generated with ${objs.length} objective${objs.length !== 1 ? 's' : ''} and comprehensive scope details`;
+                            })()}
                           </p>
                           <p className="text-xs text-gray-600 dark:text-gray-400">
                             {(() => {
-                              const rawData = opportunity.brief.raw_extraction || {};
-                              const confidence = Math.round((rawData.confidenceScores?.overall || 0) * 100);
-                              return `Confidence: ${confidence}% • Study Type: ${rawData.scopeOfWork?.studyType || 'Not specified'} • Geography: ${Array.isArray(rawData.scopeOfWork?.geographicCoverage) ? rawData.scopeOfWork.geographicCoverage[0] : 'Not specified'}`;
+                              const brief = opportunity.brief;
+                              const rx: any = brief.raw_extraction || {};
+                              // confidence: DB column (0-1 fraction)
+                              const confidence = Math.round((brief.confidence_score || rx.completenessScore / 100 || 0) * 100);
+                              // study type: DB column first
+                              const studyType = brief.study_type
+                                || rx.studyType
+                                || rx.section6_methodology_scope?.primaryMethodology
+                                || 'Not specified';
+                              // geography: sample_requirements → section7 → top-level
+                              const geoArr: string[] =
+                                brief.sample_requirements?.geographicCoverage
+                                || rx.section7_markets_geography?.markets
+                                || rx.section7?.markets
+                                || rx.geography
+                                || [];
+                              const geo = Array.isArray(geoArr) && geoArr.length > 0
+                                ? (geoArr.length === 1 ? geoArr[0] : `${geoArr[0]} +${geoArr.length - 1} more`)
+                                : 'Not specified';
+                              return `Confidence: ${confidence}% • Study Type: ${studyType} • Geography: ${geo}`;
                             })()}
                           </p>
                         </div>
                       )}
-                      {step.id === 'gap_analysis' && opportunity?.gapAnalysis && (
+                      {step.id === 'gap_analysis' && (
                         <div className="space-y-1">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            Identified {opportunity.gapAnalysis.missing_fields?.length || 0} missing fields, {opportunity.gapAnalysis.ambiguous_requirements?.length || 0} ambiguous items
-                          </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            Critical gaps: {opportunity.gapAnalysis.critical_gaps_count || 0} •
-                            Completeness: {Math.round((opportunity.gapAnalysis.overall_completeness || 0) * 100)}%
-                          </p>
+                          {opportunity?.gapAnalysis ? (() => {
+                            const ga = opportunity.gapAnalysis;
+                            const llm = ga.llm_analysis || {};
+                            const score = llm.completenessScore ?? Math.round((ga.overall_completeness || 0) * 100);
+                            const critical = ga.missing_fields?.length || llm.criticalGaps?.length || 0;
+                            const ambiguous = ga.ambiguous_requirements?.length || llm.ambiguousRequirements?.length || 0;
+                            return (
+                              <>
+                                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                                  Identified {critical} critical gaps, {ambiguous} ambiguous items
+                                </p>
+                                <p className="text-xs text-gray-600 dark:text-gray-400">
+                                  Completeness: {score}% • shouldSendClarification: {llm.shouldSendClarification === false ? 'No' : 'Yes'}
+                                </p>
+                              </>
+                            );
+                          })() : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">Analysis complete — click View Analysis for details</p>
+                          )}
                         </div>
                       )}
                       {step.id === 'clarification' && opportunity?.clarification && (
@@ -788,7 +825,62 @@ export default function VerticalWorkflowTimeline({
                           </p>
                         </div>
                       )}
-                      {!opportunity?.brief && !opportunity?.gapAnalysis && !opportunity?.clarification && step.id !== 'clarification_response' && step.id !== 'human_review' && (
+                      {step.id === 'feasibility' && opportunity?.feasibility && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {(() => {
+                              const of_ = opportunity.feasibility.overallFeasibility;
+                              const score = of_?.feasibilityScore ?? of_?.score ?? of_?.overall_score;
+                              const rec = of_?.recommendation || of_?.summary || '';
+                              return score != null
+                                ? `Feasibility score: ${score}/100 — ${rec || 'Assessment complete'}`
+                                : 'HCP feasibility assessment complete';
+                            })()}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {(() => {
+                              const avail = opportunity.feasibility.hcpAvailability;
+                              const geo = opportunity.feasibility.geographicFeasibility;
+                              const panels = avail?.panelSize ?? avail?.total_available ?? avail?.hcpsAvailable;
+                              const countries = geo?.countriesAssessed ?? geo?.countries_assessed ?? [];
+                              return [
+                                panels != null ? `${panels.toLocaleString()} HCPs available` : null,
+                                Array.isArray(countries) && countries.length > 0 ? `across ${countries.join(', ')}` : null,
+                              ].filter(Boolean).join(' ') || 'Recruitment feasibility confirmed';
+                            })()}
+                          </p>
+                        </div>
+                      )}
+                      {step.id === 'scope_planning' && opportunity?.scope && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {(() => {
+                              const sc = opportunity.scope;
+                              const opts: any[] = sc.sample_size_options || sc.sampleSizeOptions || [];
+                              const rec = opts.find((o: any) => o.label === 'recommended') || opts[0];
+                              const md: any = sc.methodology_detail || {};
+                              const rawType = sc.detected_study_type || sc.study_type || 'Study';
+                              const studyLabel = rawType.includes(' ') ? rawType : rawType.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+                              return `${studyLabel} — ${md.dataCollectionMethod || (md.approach === 'qualitative' ? 'IDI' : 'Online survey')}${rec ? `, n=${rec.n}` : ''}`;
+                            })()}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {(() => {
+                              const sc = opportunity.scope;
+                              const timeline: any = sc.key_milestones || {};
+                              const opts: any[] = sc.sample_size_options || sc.sampleSizeOptions || [];
+                              const rec = opts.find((o: any) => o.label === 'recommended') || opts[0];
+                              return [
+                                timeline.totalWeeks ? `${timeline.totalWeeks}-week timeline` : null,
+                                timeline.phases ? `${timeline.phases.length} project phases` : null,
+                              ].filter(Boolean).join(' · ') || 'Research design complete';
+                            })()}
+                          </p>
+                        </div>
+                      )}
+                      {!opportunity?.brief && !opportunity?.gapAnalysis && !opportunity?.clarification
+                        && step.id !== 'clarification_response' && step.id !== 'human_review'
+                        && step.id !== 'feasibility' && step.id !== 'scope_planning' && (
                         <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                           Step completed. Click View Analysis for details.
                         </p>
@@ -824,9 +916,10 @@ export default function VerticalWorkflowTimeline({
                     const subtasks = STEP_SUBTASKS[step.id] || [];
                     if (subtasks.length === 0) return null;
                     const progress = getCurrentProgress();
-                    const currentSubIdx = progress === 0
-                      ? 0
-                      : Math.min(Math.floor((progress / 100) * subtasks.length), subtasks.length - 1);
+                    // When no real backend progress, advance sub-tasks by time (every 12s per task, cap at last-1)
+                    const currentSubIdx = progress > 0
+                      ? Math.min(Math.floor((progress / 100) * subtasks.length), subtasks.length - 1)
+                      : Math.min(Math.floor(elapsedSeconds / 12), subtasks.length - 1);
                     return (
                       <div className="rounded-lg border border-slate-100 dark:border-slate-700 overflow-hidden">
                         <div className="bg-slate-50 dark:bg-slate-800/50 px-4 py-2 border-b border-slate-100 dark:border-slate-700">
@@ -995,27 +1088,23 @@ export default function VerticalWorkflowTimeline({
       )}
 
       {/* Brief Modal */}
-      {opportunity?.brief && (
-        <BriefModal
-          isOpen={briefModalOpen}
-          onClose={() => setBriefModalOpen(false)}
-          brief={opportunity.brief}
-          opportunityId={opportunity.id}
-          rfpTitle={opportunity.rfpTitle || 'Untitled RFP'}
-          clientName={opportunity.clientName}
-        />
-      )}
+      <BriefModal
+        isOpen={briefModalOpen}
+        onClose={() => setBriefModalOpen(false)}
+        brief={opportunity?.brief ?? null}
+        opportunityId={opportunity?.id}
+        rfpTitle={opportunity?.rfpTitle || 'Untitled RFP'}
+        clientName={opportunity?.clientName}
+      />
 
       {/* Gap Analysis Modal */}
-      {opportunity?.gapAnalysis && (
-        <GapAnalysisModal
-          isOpen={gapModalOpen}
-          onClose={() => setGapModalOpen(false)}
-          gapAnalysis={opportunity.gapAnalysis}
-          rfpTitle={opportunity.rfpTitle || 'Untitled RFP'}
-          opportunityId={opportunity.id}
-        />
-      )}
+      <GapAnalysisModal
+        isOpen={gapModalOpen}
+        onClose={() => setGapModalOpen(false)}
+        gapAnalysis={opportunity?.gapAnalysis ?? null}
+        rfpTitle={opportunity?.rfpTitle || 'Untitled RFP'}
+        opportunityId={opportunity?.id}
+      />
 
       {/* Clarification Modal */}
       {opportunity?.clarification && (

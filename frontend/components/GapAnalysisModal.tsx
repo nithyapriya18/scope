@@ -12,6 +12,12 @@ interface GapAnalysisModalProps {
   opportunityId?: string;
 }
 
+// Strip "sectionN_" prefix and format as readable label
+function formatSection(section: string): string {
+  if (!section) return '';
+  return formatFieldName(section.replace(/^section\d+_/, ''));
+}
+
 // Helper function to convert snake_case/camelCase to Title Case
 function formatFieldName(fieldName: string): string {
   if (!fieldName) return '';
@@ -62,14 +68,16 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
 
   if (!isOpen || !gapAnalysis) return null;
 
-  const missingFields = gapAnalysis.missing_fields || [];
-  const ambiguousRequirements = gapAnalysis.ambiguous_requirements || [];
-  const conflictingInfo = gapAnalysis.conflicting_info || [];
-  const overallCompleteness = gapAnalysis.overall_completeness || 0;
-  const criticalGapsCount = gapAnalysis.critical_gaps_count || 0;
-  const highPriorityGapsCount = gapAnalysis.high_priority_gaps_count || 0;
+  const llmData: any = gapAnalysis.llm_analysis || {};
+  const missingFields = gapAnalysis.missing_fields || llmData.criticalGaps || [];
+  const ambiguousRequirements = gapAnalysis.ambiguous_requirements || llmData.ambiguousRequirements || [];
+  const conflictingInfo = gapAnalysis.conflicting_info || llmData.conflicts || [];
+  // completenessScore from AI is 0-100 integer; overall_completeness (old) was 0-1 fraction
+  const rawScore = llmData.completenessScore ?? (gapAnalysis.overall_completeness != null ? gapAnalysis.overall_completeness * 100 : null) ?? 0;
+  const criticalGapsCount = missingFields.length;
+  const highPriorityGapsCount = (llmData.helpfulGaps || []).length;
 
-  const completenessPercentage = Math.round(overallCompleteness * 100);
+  const completenessPercentage = Math.round(rawScore);
   const completenessColor = completenessPercentage >= 80 ? 'text-emerald-600' : completenessPercentage >= 60 ? 'text-yellow-600' : 'text-red-600';
   const completenessBarColor = completenessPercentage >= 80 ? 'bg-emerald-500' : completenessPercentage >= 60 ? 'bg-yellow-500' : 'bg-red-500';
 
@@ -360,7 +368,7 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                     >
                       <div className="flex items-start justify-between mb-1">
                         <div>
-                          {section && <p className="text-xs text-red-600 dark:text-red-400 mb-0.5">{section}</p>}
+                          {section && <p className="text-xs text-red-600 dark:text-red-400 mb-0.5">{formatSection(section)}</p>}
                           <h4 className="text-sm font-bold text-red-900 dark:text-red-300">{formatFieldName(fieldLabel)}</h4>
                         </div>
                         <span
@@ -404,8 +412,8 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
                     >
                       <div className="flex items-start justify-between mb-1">
                         <div>
-                          {section && <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-0.5">{section}</p>}
-                          <h4 className="text-sm font-bold text-yellow-900 dark:text-yellow-300">{fieldName}</h4>
+                          {section && <p className="text-xs text-yellow-600 dark:text-yellow-400 mb-0.5">{formatSection(section)}</p>}
+                          <h4 className="text-sm font-bold text-yellow-900 dark:text-yellow-300">{formatFieldName(fieldName)}</h4>
                         </div>
                         <span className="px-2 py-0.5 text-xs font-bold rounded uppercase bg-yellow-500 text-white shrink-0 ml-3">
                           {severity}
@@ -438,28 +446,35 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
             <Section title="Conflicting Information" icon={AlertTriangle} iconColor="text-orange-600">
               <div className="space-y-3">
                 {conflictingInfo.map((item: any, idx: number) => {
-                  const section = item.section || '';
-                  const conflict = item.conflict || item.details || 'Conflict';
-                  const hasStatements = item.statement1 && item.statement2;
+                  const title = item.field || item.conflict || item.area || 'Conflict';
+                  const desc = item.clash || item.details || item.impact || '';
+                  const val1 = item.value1 || item.statement1 || '';
+                  const src1 = item.source1 || '';
+                  const val2 = item.value2 || item.statement2 || '';
+                  const src2 = item.source2 || '';
+                  const resolution = item.resolution || '';
 
                   return (
                     <div
                       key={idx}
                       className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4"
                     >
-                      {section && <p className="text-xs text-orange-600 dark:text-orange-400 mb-0.5">{section}</p>}
-                      <h4 className="text-sm font-bold text-orange-900 dark:text-orange-300 mb-2">{conflict}</h4>
-                      {hasStatements && (
-                        <div className="grid grid-cols-2 gap-3">
+                      <h4 className="text-sm font-bold text-orange-900 dark:text-orange-300 mb-1">{formatFieldName(title)}</h4>
+                      {desc && <p className="text-xs text-orange-800 dark:text-orange-200 mb-2">{desc}</p>}
+                      {(val1 || val2) && (
+                        <div className="grid grid-cols-2 gap-3 mt-2">
                           <div className="bg-white dark:bg-gray-800 rounded p-3">
-                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Statement 1</p>
-                            <p className="text-xs text-gray-700 dark:text-gray-300">{item.statement1}</p>
+                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{src1 || 'Value 1'}</p>
+                            <p className="text-xs text-gray-700 dark:text-gray-300">{val1}</p>
                           </div>
                           <div className="bg-white dark:bg-gray-800 rounded p-3">
-                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">Statement 2</p>
-                            <p className="text-xs text-gray-700 dark:text-gray-300">{item.statement2}</p>
+                            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1">{src2 || 'Value 2'}</p>
+                            <p className="text-xs text-gray-700 dark:text-gray-300">{val2}</p>
                           </div>
                         </div>
+                      )}
+                      {resolution && (
+                        <p className="text-xs text-orange-700 dark:text-orange-300 mt-2 italic">Resolution: {resolution}</p>
                       )}
                     </div>
                   );
