@@ -88,12 +88,12 @@ Your role is to coordinate agent execution based on the current workflow state.`
           return await this.executeClarificationParsing(context);
 
         case 'feasibility':
-          // After HCP matching, run research plan design (sets status=scope_planning)
-          return await this.executeResearchPlan(context);
+          // Run HCP matching — on success advances status to scope_planning
+          return await this.executeHCPMatching(context);
 
         case 'scope_planning':
-          // Research plan complete, proceed to WBS estimation
-          return await this.proceedToWBSEstimation(context);
+          // HCP matching done — now run research plan design, then WBS
+          return await this.executeResearchPlan(context);
 
         case 'wbs_estimate':
           return await this.executeWBSEstimation(context);
@@ -228,12 +228,11 @@ Your role is to coordinate agent execution based on the current workflow state.`
       // Non-fatal: proceed to HCP matching anyway
     }
 
-    // Step 5 done — advance status so the UI shows step 6 in-progress during HCP matching
+    // Step 5 done — advance status to feasibility so auto-advance triggers HCP matching
     const sql = getSql();
     await sql`UPDATE opportunities SET status = 'feasibility', updated_at = now() WHERE id = ${context.opportunityId}`;
 
-    // Now run HCP matching (feasibility)
-    return await this.executeHCPMatching(context);
+    return result;
   }
 
   private async executeHCPMatching(context: AgentContext): Promise<AgentResult> {
