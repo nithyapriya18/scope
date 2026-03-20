@@ -1583,6 +1583,14 @@ router.post('/:id/redo/:step', async (req, res) => {
               status = 'sent', updated_at = now()
           WHERE opportunity_id = ${id}
         `;
+        // Override the status reset below — go back to 'clarification' (waiting for user to re-upload)
+        // so the orchestrator does NOT fire immediately with no client text
+        await sql`UPDATE opportunities SET status = 'clarification', updated_at = now() WHERE id = ${id}`;
+        await sql`
+          UPDATE jobs SET status = 'failed', error = 'Cancelled due to step redo', updated_at = now()
+          WHERE opportunity_id = ${id} AND status IN ('pending', 'processing')
+        `;
+        return res.json({ message: `Step ${step} reset — re-upload client response or skip to proceed`, opportunityId: id });
       } else {
         // For earlier steps: clear clarifications entirely
         await sql`DELETE FROM clarifications WHERE opportunity_id = ${id}`;

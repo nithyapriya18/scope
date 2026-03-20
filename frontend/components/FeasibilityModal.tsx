@@ -398,7 +398,7 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
           )}
 
           {/* HCP Availability */}
-          {feasibility?.hcpAvailability && feasibility.hcpAvailability.length > 0 && (
+          {Array.isArray(feasibility?.hcpAvailability) && feasibility.hcpAvailability.length > 0 && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Users className="w-5 h-5 text-purple-600 dark:text-purple-500" />
