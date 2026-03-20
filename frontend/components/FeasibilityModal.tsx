@@ -425,14 +425,14 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
           )}
 
           {/* Geographic Feasibility */}
-          {feasibility?.geographicFeasibility && feasibility.geographicFeasibility.length > 0 && (
+          {Array.isArray(feasibility?.geographicFeasibility) && feasibility.geographicFeasibility.length > 0 && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-emerald-600 dark:text-emerald-500" />
                 Geographic Feasibility
               </h3>
               <div className="space-y-3">
-                {feasibility.geographicFeasibility.map((geo: any, idx: number) => (
+                {(Array.isArray(feasibility.geographicFeasibility) ? feasibility.geographicFeasibility : []).map((geo: any, idx: number) => (
                   <div key={idx} className="bg-gray-50 dark:bg-gray-800/50 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-bold text-gray-900 dark:text-white">{geo.market || geo.geography}</h4>
@@ -453,14 +453,14 @@ export default function FeasibilityModal({ isOpen, onClose, feasibility, rfpTitl
           )}
 
           {/* Vendor Assessment */}
-          {feasibility?.vendorAssessment && feasibility.vendorAssessment.length > 0 && (
+          {Array.isArray(feasibility?.vendorAssessment) && feasibility.vendorAssessment.length > 0 && (
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Target className="w-5 h-5 text-blue-600 dark:text-blue-500" />
                 Vendor Assessment
               </h3>
               <div className="space-y-3">
-                {feasibility.vendorAssessment.map((v: any, idx: number) => (
+                {(Array.isArray(feasibility.vendorAssessment) ? feasibility.vendorAssessment : []).map((v: any, idx: number) => (
                   <div key={idx} className={`rounded-xl p-4 border ${v.recommended ? 'border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-900/20' : 'border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
