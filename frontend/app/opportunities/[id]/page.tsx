@@ -99,7 +99,7 @@ export default function OpportunityDetailPage() {
       intake: 'intake', brief_extract: 'brief_extract', gap_analysis: 'gap_analysis',
       assumption_analysis: 'assumption_analysis', clarification: 'clarification',
       clarification_response: 'clarification_response', feasibility: 'hcp_matching',
-      scope_planning: 'scope_planner', wbs_estimate: 'wbs_estimate', pricing: 'pricing',
+      scope_planning: 'scope_planner', wbs_estimate: 'wbs_estimation', pricing: 'pricing',
     };
     const jobType = jobTypeMap[status];
     // Check only the MOST RECENT job of this type — older failed jobs (e.g. from before a redo) should not block

@@ -215,7 +215,7 @@ export default function VerticalWorkflowTimeline({
       clarification_response: 'clarification_response',
       feasibility: 'hcp_matching',
       scope_planning: 'scope_planner',
-      wbs_estimate: 'wbs_estimate',
+      wbs_estimate: 'wbs_estimation',
       document_gen: 'document_gen',
       approvals: 'approvals',
     };
