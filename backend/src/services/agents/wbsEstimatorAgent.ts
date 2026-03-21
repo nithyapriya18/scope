@@ -11,7 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 export class WBSEstimatorAgent extends BaseAgent {
-  protected agentType = 'wbs_estimate';
+  protected agentType = 'wbs_estimation';
 
   protected getSystemPrompt(_context: AgentContext): string {
     return `You are a Senior PMR Pricing Director at PetaSight, a pharma market research firm.

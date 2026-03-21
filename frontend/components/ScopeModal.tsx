@@ -244,8 +244,8 @@ export default function ScopeModal({ isOpen, onClose, scope, rfpTitle, opportuni
                   <div className="grid grid-cols-2 gap-4">
                     {[
                       { label: 'Instrument', value: methodology.instrumentType },
-                      { label: 'Length of Interview', value: `${methodology.lengthOfInterviewMinutes} minutes` },
-                      { label: 'Approx. Questions', value: methodology.approximateQuestions },
+                      { label: 'Length of Interview', value: typeof methodology.lengthOfInterviewMinutes === 'object' ? Object.entries(methodology.lengthOfInterviewMinutes).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v} min`).join(' · ') : `${methodology.lengthOfInterviewMinutes} minutes` },
+                      { label: 'Approx. Questions', value: typeof methodology.approximateQuestions === 'object' ? Object.entries(methodology.approximateQuestions).map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(' · ') : methodology.approximateQuestions },
                       { label: 'Data Collection Mode', value: methodology.dataCollectionMethod },
                     ].filter(r => r.value).map(({ label, value }) => (
                       <div key={label} className="bg-gray-50 dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
