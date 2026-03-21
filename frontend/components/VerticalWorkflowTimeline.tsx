@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Check, Loader2, FileText, BarChart2, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Eye, ChevronDown, Users, Search, Info, Upload, FileCheck, RefreshCw, Download, X } from 'lucide-react';
 import BriefModal from './BriefModal';
 import GapAnalysisModal from './GapAnalysisModal';
@@ -140,6 +141,7 @@ export default function VerticalWorkflowTimeline({
   onRefresh,
   processing = false,
 }: VerticalWorkflowTimelineProps) {
+  const router = useRouter();
   const [showAlls, setShowAlls] = useState(false);
   const [intakeModalOpen, setIntakeModalOpen] = useState(false);
   const [briefModalOpen, setBriefModalOpen] = useState(false);
@@ -436,11 +438,12 @@ export default function VerticalWorkflowTimeline({
       // Close confirmation dialog
       setRedoConfirmStep(null);
 
-      // Refresh opportunity data
+      // Refresh opportunity data and trigger re-processing
       if (onRefresh) {
-        setTimeout(() => onRefresh(), 1500);
-      } else if (onProcessNext) {
-        setTimeout(() => onProcessNext(), 1500);
+        setTimeout(() => {
+          onRefresh();
+          setTimeout(() => onProcessNext?.(), 1000);
+        }, 500);
       }
     } catch (error) {
       console.error('Error redoing step:', error);
@@ -991,12 +994,12 @@ export default function VerticalWorkflowTimeline({
               {/* Document gen — output summary with downloads */}
               {step.id === 'document_gen' && status === 'completed' && opportunity?.documents?.length > 0 && (
                 <div className="mt-3 space-y-2">
-                  {opportunity.documents.filter((d: any) => ['proposal','pricing'].includes(d.documentType)).map((doc: any) => (
+                  {opportunity.documents.filter((d: any) => ['proposal','internal_brief'].includes(d.documentType)).map((doc: any) => (
                     <div key={doc.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-blue-500 shrink-0" />
                         <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                          {doc.documentType === 'proposal' ? 'Proposal (.docx)' : 'Pricing Annex (.xlsx)'}
+                          {doc.documentType === 'proposal' ? 'Client Proposal (.docx)' : 'Internal Brief (.docx)'}
                         </span>
                         <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
                           {doc.status}
@@ -1017,7 +1020,7 @@ export default function VerticalWorkflowTimeline({
               )}
 
               {/* Approval required banner for document_gen */}
-              {step.id === 'document_gen' && status === 'in-progress' && (
+              {step.id === 'document_gen' && status === 'completed' && opportunity?.documents?.length > 0 && (
                 <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0" size={16} />
@@ -1062,9 +1065,9 @@ export default function VerticalWorkflowTimeline({
                         <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 max-h-40 overflow-y-auto">
                           <pre className="text-xs whitespace-pre-wrap font-sans text-gray-700 dark:text-gray-300">{defaultBody}</pre>
                         </div>
-                        {(opportunity?.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).length > 0 && (
+                        {(opportunity?.documents || []).filter((d: any) => ['proposal','internal_brief'].includes(d.documentType)).length > 0 && (
                           <div className="flex flex-wrap gap-2 pt-1">
-                            {(opportunity.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).map((doc: any) => (
+                            {(opportunity.documents || []).filter((d: any) => ['proposal','internal_brief'].includes(d.documentType)).map((doc: any) => (
                               <span key={doc.id} className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">
                                 <FileText className="w-3 h-3" />
                                 {doc.filename}
@@ -1075,9 +1078,15 @@ export default function VerticalWorkflowTimeline({
                       </div>
                     </div>
                     {bidSubmitted ? (
-                      <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-                        <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Bid submitted successfully!</span>
+                      <div className="flex flex-col items-center gap-3 px-4 py-6 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl text-center">
+                        <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                          <CheckCircle className="w-7 h-7 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                          <p className="text-base font-bold text-emerald-700 dark:text-emerald-400">Bid Submitted Successfully!</p>
+                          <p className="text-sm text-emerald-600 dark:text-emerald-500 mt-1">Congratulations — your proposal has been sent. Best of luck! 🎉</p>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Redirecting to dashboard...</p>
                       </div>
                     ) : (
                       <button
@@ -1090,7 +1099,10 @@ export default function VerticalWorkflowTimeline({
                               headers: { 'Content-Type': 'application/json' },
                               body: JSON.stringify({ subject: defaultSubject, body: defaultBody, recipientEmail: 'nithya@petasight.com' }),
                             });
-                            if (res.ok) { setBidSubmitted(true); setTimeout(() => onRefresh?.(), 1500); }
+                            if (res.ok) {
+                              setBidSubmitted(true);
+                              setTimeout(() => router.push('/dashboard'), 3000);
+                            }
                           } finally { setBidSubmitting(false); }
                         }}
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-secondary text-white text-sm font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
@@ -1306,17 +1318,17 @@ export default function VerticalWorkflowTimeline({
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Download and review the generated documents. Once satisfied, approve to finalize the bid.
                 </p>
-                {(opportunity?.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).length > 0 ? (
+                {(opportunity?.documents || []).filter((d: any) => ['proposal','internal_brief'].includes(d.documentType)).length > 0 ? (
                   <div className="space-y-3">
-                    {(opportunity.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).map((doc: any) => (
+                    {(opportunity.documents || []).filter((d: any) => ['proposal','internal_brief'].includes(d.documentType)).map((doc: any) => (
                       <div key={doc.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.documentType === 'proposal' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
-                            <FileText className={`w-5 h-5 ${doc.documentType === 'proposal' ? 'text-blue-600' : 'text-emerald-600'}`} />
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.documentType === 'proposal' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-purple-100 dark:bg-purple-900/30'}`}>
+                            <FileText className={`w-5 h-5 ${doc.documentType === 'proposal' ? 'text-blue-600' : 'text-purple-600'}`} />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-gray-900 dark:text-white">
-                              {doc.documentType === 'proposal' ? 'Research Proposal' : 'Pricing Annex'}
+                              {doc.documentType === 'proposal' ? 'Client Proposal' : 'Internal Brief'}
                             </p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">
                               {doc.filename} · {doc.format?.toUpperCase()}

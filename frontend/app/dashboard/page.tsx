@@ -45,10 +45,15 @@ const getStudyTypeDisplay = (studyType: string | null) => {
   return { label: parts[parts.length - 1], color: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' };
 };
 
+const WORKFLOW_STEPS = [
+  'intake', 'brief_extract', 'gap_analysis', 'assumption_analysis',
+  'clarification', 'clarification_response', 'feasibility', 'scope_planning',
+  'wbs_estimate', 'pricing', 'document_gen', 'approvals', 'approved',
+];
+
 const getProgressPercent = (status: string): number => {
-  const steps = ['intake', 'brief_extract', 'gap_analysis', 'clarification', 'scope_planning', 'feasibility', 'workplan', 'wbs_estimate', 'pricing', 'proposal', 'approvals'];
-  const index = steps.indexOf(status);
-  return index >= 0 ? Math.round(((index + 1) / steps.length) * 100) : 5;
+  const index = WORKFLOW_STEPS.indexOf(status);
+  return index >= 0 ? Math.round(((index + 1) / WORKFLOW_STEPS.length) * 100) : 5;
 };
 
 const getStatusLabel = (status: string): string => {
@@ -56,16 +61,19 @@ const getStatusLabel = (status: string): string => {
     intake: 'Intake',
     brief_extract: 'Brief Parsing',
     gap_analysis: 'Gap Analysis',
+    assumption_analysis: 'Assumptions',
     clarification: 'Clarifications',
+    clarification_response: 'Client Response',
+    feasibility: 'Feasibility',
     scope_planning: 'Research Design',
-    feasibility: 'Feasibility Check',
-    workplan: 'Workplan',
-    wbs_estimate: 'WBS Estimation',
+    wbs_estimate: 'WBS & Pricing',
     pricing: 'Pricing',
-    proposal: 'Proposal Generation',
-    approvals: 'Internal Approvals',
+    document_gen: 'Proposal Creation',
+    approvals: 'Submit Bid',
+    approved: 'Bid Submitted',
+    rejected: 'Rejected',
   };
-  return statusLabels[status] || 'Unknown';
+  return statusLabels[status] || status || 'Unknown';
 };
 
 const getDaysUntilDeadline = (deadline: string | null): number => {

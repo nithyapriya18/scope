@@ -29,7 +29,7 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
   private async generateDocx(c: any, outputPath: string): Promise<void> {
     const {
       Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
-      HeadingLevel, AlignmentType, WidthType, BorderStyle, PageBreak,
+      AlignmentType, WidthType, BorderStyle, PageBreak,
     } = await getDocx();
 
     const NAVY   = '1F3864';
@@ -403,9 +403,201 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
     fs.writeFileSync(outputPath, buffer);
   }
 
-  // ─── XLSX helpers ───────────────────────────────────────────────────────────
+  // ─── Internal Brief DOCX ────────────────────────────────────────────────────
 
-  private async generateXlsx(content: any, pricingOptions: any[], outputPath: string): Promise<void> {
+  private async generateInternalBrief(data: {
+    opp: any; brief: any; scope: any; feasibility: any; pricing: any;
+    pricingOptions: any[]; clarification: any; content: any;
+  }, outputPath: string): Promise<void> {
+    const {
+      Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+      AlignmentType, WidthType, BorderStyle,
+    } = await getDocx();
+
+    const NAVY  = '1F3864';
+    const BLUE  = '2E75B6';
+    const LGRAY = 'F2F5FB';
+    const WHITE = 'FFFFFF';
+    const DTEXT = '222222';
+    const W = 9200;
+
+    const b = (s: string) => new TextRun({ text: s, bold: true, color: DTEXT, font: 'Calibri', size: 20 });
+    const t = (s: string) => new TextRun({ text: s, color: DTEXT, font: 'Calibri', size: 20 });
+
+    const borders = () => ({
+      top:    { style: BorderStyle.SINGLE, size: 4, color: 'C8D4E8' },
+      bottom: { style: BorderStyle.SINGLE, size: 4, color: 'C8D4E8' },
+      left:   { style: BorderStyle.SINGLE, size: 4, color: 'C8D4E8' },
+      right:  { style: BorderStyle.SINGLE, size: 4, color: 'C8D4E8' },
+    });
+
+    const secHdr = (title: string) => new Paragraph({
+      children: [new TextRun({ text: title, bold: true, color: WHITE, font: 'Calibri', size: 24, allCaps: true })],
+      shading: { fill: NAVY },
+      spacing: { before: 300, after: 100 },
+      indent: { left: 100 },
+    });
+
+    const row2 = (label: string, value: string, shade = false) => new TableRow({
+      children: [
+        new TableCell({ children: [new Paragraph({ children: [b(label)] })], width: { size: 2800, type: WidthType.DXA }, shading: { fill: shade ? LGRAY : WHITE }, borders: borders() }),
+        new TableCell({ children: [new Paragraph({ children: [t(value || '—')] })], width: { size: 6400, type: WidthType.DXA }, shading: { fill: WHITE }, borders: borders() }),
+      ],
+    });
+
+    const kv = (pairs: [string, string][], shade = false) => new Table({
+      width: { size: W, type: WidthType.DXA },
+      rows: pairs.map(([k, v], i) => row2(k, v, shade || i % 2 === 1)),
+    });
+
+    const hdrRow = (cols: string[]) => new TableRow({
+      children: cols.map(c => new TableCell({
+        children: [new Paragraph({ children: [new TextRun({ text: c, bold: true, color: WHITE, font: 'Calibri', size: 20 })] })],
+        shading: { fill: BLUE }, borders: borders(),
+      })),
+      tableHeader: true,
+    });
+
+    const money = (v: number) => v == null ? '—' : '$' + Math.round(v).toLocaleString();
+    const str = (v: any) => typeof v === 'object' ? JSON.stringify(v, null, 2) : String(v ?? '—');
+    const arr = (v: any) => Array.isArray(v) ? v.map((x: any) => typeof x === 'string' ? x : JSON.stringify(x)).join('\n') : str(v);
+
+    const { opp, brief, scope, feasibility, pricing, pricingOptions, clarification } = data;
+    const cb = pricing?.cost_breakdown || {};
+    const scopeMd = scope?.methodology_detail || {};
+    const feasLlm = feasibility?.llm_result || {};
+    const clqArr: any[] = Array.isArray(clarification?.questions) ? clarification.questions : [];
+    const clAns: any = clarification?.client_responses || {};
+
+    const children: any[] = [
+      // ── Cover ─────────────────────────────────────────────────────────────
+      new Paragraph({ children: [new TextRun({ text: 'INTERNAL PROJECT BRIEF', bold: true, color: WHITE, font: 'Calibri', size: 48, allCaps: true })], shading: { fill: NAVY }, alignment: AlignmentType.CENTER, spacing: { before: 200, after: 100 } }),
+      new Paragraph({ children: [new TextRun({ text: opp?.rfp_title || 'Research Project', bold: true, color: BLUE, font: 'Calibri', size: 28 })], alignment: AlignmentType.CENTER, spacing: { after: 80 } }),
+      new Paragraph({ children: [new TextRun({ text: `Client: ${opp?.client_name || '—'} | Generated: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} | CONFIDENTIAL`, color: '666666', font: 'Calibri', size: 18 })], alignment: AlignmentType.CENTER, spacing: { after: 300 } }),
+
+      // ── 1. Opportunity Summary ─────────────────────────────────────────────
+      secHdr('1. Opportunity Summary'),
+      kv([
+        ['Client',           opp?.client_name || '—'],
+        ['RFP Title',        opp?.rfp_title || '—'],
+        ['Study Type',       brief?.study_type || '—'],
+        ['Therapeutic Area', brief?.therapeutic_area || opp?.therapeutic_area || '—'],
+        ['Markets',          (opp?.markets || []).join(', ') || '—'],
+        ['Budget Indication',brief?.budget_indication || 'Not disclosed'],
+        ['Timeline',         str(brief?.timeline_requirements)],
+      ], true),
+
+      // ── 2. Research Objectives ─────────────────────────────────────────────
+      secHdr('2. Research Objectives & Brief'),
+      kv([
+        ['Target Audience',  str(brief?.target_audience)],
+        ['Objectives',       arr(brief?.research_objectives)],
+        ['Sample Requirements', str(brief?.sample_requirements)],
+        ['Deliverables',     arr(brief?.deliverables)],
+      ], true),
+
+      // ── 3. Clarification Q&A ──────────────────────────────────────────────
+      secHdr('3. Clarification Questions & Client Responses'),
+      ...(clqArr.length > 0 ? clqArr.flatMap((q: any, i: number) => {
+        const qText = typeof q === 'string' ? q : (q.question || JSON.stringify(q));
+        const ans = clAns[`q${i + 1}`] || clAns[String(i)] || clAns[qText] || '(no response)';
+        return [
+          new Paragraph({ children: [b(`Q${i + 1}: ${qText}`)], spacing: { before: 160, after: 60 } }),
+          new Paragraph({ children: [t(`A: ${ans}`)], indent: { left: 360 }, spacing: { after: 80 } }),
+        ];
+      }) : [new Paragraph({ children: [t('No clarification questions were raised.')] })]),
+
+      // ── 4. Scope & Methodology ─────────────────────────────────────────────
+      secHdr('4. Scope & Methodology'),
+      kv([
+        ['Study Type',       scope?.detected_study_type || '—'],
+        ['Methodology',      str(scopeMd)],
+        ['Sample Options',   str(scope?.sample_size_options)],
+        ['Key Milestones',   str(scope?.key_milestones)],
+        ['Assumptions',      arr(scope?.scope_assumptions)],
+        ['Recruitment',      str(scope?.recruitment_strategy)],
+      ], true),
+
+      // ── 5. Feasibility Assessment ─────────────────────────────────────────
+      secHdr('5. Feasibility Assessment (HCP Matching)'),
+      kv([
+        ['Overall Feasibility', str(feasLlm.overallFeasibility || feasLlm.feasibilityScore || '—')],
+        ['HCP Segments',        str(feasLlm.hcpSegments || feasLlm.segments || '—')],
+        ['Key Risks',           str(feasLlm.keyRisks || feasLlm.risks || '—')],
+        ['Mitigation',          str(feasLlm.mitigation || feasLlm.mitigationStrategies || '—')],
+        ['Recommended Timeline', str(feasLlm.recommendedTimeline || '—')],
+      ], true),
+
+      // ── 6. WBS & Pricing ──────────────────────────────────────────────────
+      secHdr('6. WBS & Pricing — All Tiers'),
+      new Table({
+        width: { size: W, type: WidthType.DXA },
+        rows: [
+          hdrRow(['Tier', 'Sample (n)', 'Labor', 'HCP/CPI', 'OOP', 'Overhead', 'Margin', 'TOTAL', 'Field Wks']),
+          ...pricingOptions.map((o: any, i: number) => new TableRow({
+            children: [
+              new TableCell({ children: [new Paragraph({ children: [b(o.tier)] })], shading: { fill: i % 2 === 0 ? LGRAY : WHITE }, borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [t(String(o.n || '—'))] })], borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [t(money(o.laborCost))] })], borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [t(money(o.hcpCpiCost))] })], borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [t(money(o.oopCosts))] })], borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [t(money(o.overhead))] })], borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [t(money(o.margin))] })], borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [b(money(o.totalPrice))] })], shading: { fill: LGRAY }, borders: borders() }),
+              new TableCell({ children: [new Paragraph({ children: [t(String(o.fieldWeeks || '—'))] })], borders: borders() }),
+            ],
+          })),
+        ],
+      }),
+      new Paragraph({ spacing: { after: 200 } }),
+      // Rationale per tier
+      ...pricingOptions.flatMap((o: any) => [
+        new Paragraph({ children: [b(`${o.tier}: `), t(o.rationale || '—')], spacing: { before: 100, after: 60 } }),
+      ]),
+      // Work packages per recommended tier
+      ...(() => {
+        const rec = pricingOptions.find((o: any) => o.tier === cb.recommendedTier) || pricingOptions[1] || pricingOptions[0];
+        const roles: any[] = rec?.costBreakdown?.laborCostDetail?.roles || [];
+        if (!roles.length) return [];
+        return [
+          new Paragraph({ children: [b('Labor Breakdown — Recommended Tier')], spacing: { before: 200, after: 80 } }),
+          new Table({
+            width: { size: W, type: WidthType.DXA },
+            rows: [
+              hdrRow(['Role', 'Rate/hr', 'Base Hrs', 'Billed Hrs', 'Cost']),
+              ...roles.map((r: any) => new TableRow({
+                children: [
+                  new TableCell({ children: [new Paragraph({ children: [t(r.role || '—')] })], borders: borders() }),
+                  new TableCell({ children: [new Paragraph({ children: [t(money(r.rate))] })], borders: borders() }),
+                  new TableCell({ children: [new Paragraph({ children: [t(String(r.baseHours ?? '—'))] })], borders: borders() }),
+                  new TableCell({ children: [new Paragraph({ children: [t(String(r.multipliedHours ?? r.billedHours ?? '—'))] })], borders: borders() }),
+                  new TableCell({ children: [new Paragraph({ children: [t(money(r.cost))] })], borders: borders() }),
+                ],
+              })),
+            ],
+          }),
+        ];
+      })(),
+
+      // ── 7. Commercial Terms ────────────────────────────────────────────────
+      secHdr('7. Commercial Terms'),
+      kv([
+        ['Recommended Tier',  cb.recommendedTier || '—'],
+        ['Payment Terms',     cb.paymentTerms || '50% on signature, 50% on final delivery'],
+        ['Budget Alignment',  cb.budgetAlignment || '—'],
+        ['Proposal Validity', '30 days from date of issue'],
+      ], true),
+    ];
+
+    const doc = new Document({
+      sections: [{ children }],
+      styles: { default: { document: { run: { font: 'Calibri', size: 20, color: DTEXT } } } },
+    });
+    const buffer = await Packer.toBuffer(doc);
+    fs.writeFileSync(outputPath, buffer);
+  }
+
+  private async _unused_generateXlsx(content: any, pricingOptions: any[], outputPath: string): Promise<void> {
     const ExcelJS = await getExcelJs();
     const wb = new ExcelJS.Workbook();
 
@@ -582,115 +774,171 @@ ${clarification ? JSON.stringify({ q: clarification.questions, a: clarification.
       const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
       const clientUC = (opp?.client_name || 'CLIENT').toUpperCase();
 
-      // ── 3 parallel AI calls: sections 1-3 | 4-6 | 7-9+cover ──────────────
-      const withTimeout = (p: Promise<string>, ms = 90000) =>
+      // ── 6 parallel AI calls (2 sections each max) to stay under 2 min ───────
+      const withTimeout = (p: Promise<string>, ms = 150000) =>
         Promise.race([p, new Promise<string>((_, rej) => setTimeout(() => rej(new Error(`AI call timed out after ${ms/1000}s`)), ms))]);
 
-      const [raw1, raw2, raw3] = await Promise.all([
+      const [raw1, raw2, raw3, raw4, raw5, raw6] = await Promise.all([
 
-        // ── CALL 1: Cover + Sections 1-3 ────────────────────────────────────
+        // ── CALL 1: Cover + Section 1 ────────────────────────────────────────
         withTimeout(this.invokeAI(sys, `${sharedCtx}
 
 === YOUR TASK ===
-Generate the cover page + sections 1-3 for this proposal. Every field: specific content, no placeholders.
+Format the data above into the cover page and executive summary (section 1) of the proposal.
+Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
 Return ONLY this JSON (no markdown):
 {
-  "coverPage": {"clientName":"${opp?.client_name}","projectTitle":"<specific title>","date":"${date}","version":"v1.0","scopeMode":"Proposal","confidentiality":"STRICTLY CONFIDENTIAL — FOR ${clientUC} REVIEW ONLY"},
+  "coverPage": {"clientName":"${opp?.client_name}","projectTitle":"WRITE: specific study title derived from the RFP","date":"${date}","version":"v1.0","scopeMode":"Proposal","confidentiality":"STRICTLY CONFIDENTIAL — FOR ${clientUC} REVIEW ONLY"},
   "section1_executiveSummary": {
-    "clientChallenge":"<specific business issue>","decisionToSupport":"<exact decision this study informs>",
-    "recommendedPmrResponse":"<one sentence: type, method, audience, markets, timing>","businessValue":"<what client can do differently>",
-    "coreOutputs":"<list deliverables>","timing":"<headline timing + key dependency>",
-    "commercialRecommendation":"<recommended option, fee, payment, validity>","decisionAsk":"<what client approves now>",
-    "draftingLine":"<[Client] needs [evidence] to [action]. We recommend [approach] to deliver [outputs] within [timeline].>"
-  },
-  "section2_decisionContext": {
-    "currentSituation":"<market/brand situation>","whyNow":"<urgency driver>","businessChallenge":"<uncertainty/gap>",
-    "riskOfInaction":"<what happens without evidence>","actionPath":"<what client does differently with evidence>",
-    "priorityDecisions":[{"decision":"<d1>","evidence":"<e1>"},{"decision":"<d2>","evidence":"<e2>"},{"decision":"<d3>","evidence":"<e3>"}]
-  },
-  "section3_recommendedApproach": {
-    "clientNeedsTable":[{"clientNeed":"<n1>","recommendedResponse":"<r1>","valueCreated":"<v1>"},{"clientNeed":"<n2>","recommendedResponse":"<r2>","valueCreated":"<v2>"},{"clientNeed":"<n3>","recommendedResponse":"<r3>","valueCreated":"<v3>"}],
-    "whyThisDesignFits":"<rationale>","whatClientWillKnow":"<decision-ready outcomes>",
-    "whyNarrowerOptionIsWeaker":"<what would be lost>","successCriteria":"<how usefulness judged>"
+    "clientChallenge":"WRITE: 3-4 sentences describing the specific business/commercial challenge this client faces based on the RFP and brief",
+    "decisionToSupport":"WRITE: 2-3 sentences on the exact business decision this research will inform",
+    "recommendedPmrResponse":"WRITE: 2-3 sentences describing the recommended study type, method, audience, markets and timing from scope",
+    "businessValue":"WRITE: 3-4 sentences explaining what the client can decide or do differently with this evidence",
+    "coreOutputs":"WRITE: list the deliverables from the brief in 2-3 sentences",
+    "timing":"WRITE: 2-3 sentences on headline timeline and key dependency from milestones",
+    "commercialRecommendation":"WRITE: recommended pricing tier, total price, and payment terms",
+    "decisionAsk":"WRITE: one clear sentence on what the client is approving",
+    "draftingLine":"WRITE: one complete sentence: [Client] needs [specific evidence] to [specific decision]. We recommend [specific approach] to deliver [specific outputs] within [specific timeline]."
   }
 }`, context)),
 
-        // ── CALL 2: Sections 4-6 ────────────────────────────────────────────
+        // ── CALL 2: Sections 2-3 ─────────────────────────────────────────────
         withTimeout(this.invokeAI(sys, `${sharedCtx}
 
 === YOUR TASK ===
-Generate sections 4-6 for this proposal. Every field: specific content, no placeholders.
+Format the data above into sections 2-3 of the proposal.
+Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
+Return ONLY this JSON (no markdown):
+{
+  "section2_decisionContext": {
+    "currentSituation":"WRITE: 3-4 sentences on the current market/brand situation drawn from the RFP and brief context",
+    "whyNow":"WRITE: 2-3 sentences explaining the urgency driver — why this research is needed now",
+    "businessChallenge":"WRITE: 3-4 sentences on the specific gap or uncertainty this research addresses",
+    "riskOfInaction":"WRITE: 2-3 sentences on what commercial decision gets impaired without this evidence",
+    "actionPath":"WRITE: 2-3 sentences on what the client will do differently once they have this evidence",
+    "priorityDecisions":[{"decision":"WRITE: first priority decision from research objectives","evidence":"WRITE: evidence type this study provides"},{"decision":"WRITE: second priority decision","evidence":"WRITE: evidence type"},{"decision":"WRITE: third priority decision","evidence":"WRITE: evidence type"}]
+  },
+  "section3_recommendedApproach": {
+    "clientNeedsTable":[{"clientNeed":"WRITE: first specific client need from brief","recommendedResponse":"WRITE: recommended method or approach from scope","valueCreated":"WRITE: specific value or insight outcome"},{"clientNeed":"WRITE: second client need","recommendedResponse":"WRITE: approach","valueCreated":"WRITE: value"},{"clientNeed":"WRITE: third client need","recommendedResponse":"WRITE: approach","valueCreated":"WRITE: value"}],
+    "whyThisDesignFits":"WRITE: 3-4 sentences on why the recommended methodology fits this client's needs",
+    "whatClientWillKnow":"WRITE: 3-4 sentences on the decision-ready insights the client will have after this study",
+    "whyNarrowerOptionIsWeaker":"WRITE: 2-3 sentences on what would be lost with a simpler/cheaper design",
+    "successCriteria":"WRITE: 2-3 sentences on how the usefulness of this research will be judged"
+  }
+}`, context)),
+
+        // ── CALL 3: Section 4 ────────────────────────────────────────────────
+        withTimeout(this.invokeAI(sys, `${sharedCtx}
+
+=== YOUR TASK ===
+Format the data above into section 4 (scope baseline) of the proposal.
+Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
 Return ONLY this JSON (no markdown):
 {
   "section4_scopeBaseline": {
-    "primaryStudyType":"<tracker/U&A/concept test/etc>","methodFamily":"<Quant/Qual/Hybrid>",
-    "audience":"<HCP specialty/patients/etc>","geographicScope":"<countries + languages>",
-    "timingModel":"<one-time/wave/ongoing>","deliverables":"<report/dashboard/workshop>",
-    "reviewRounds":"<review cycles priced>","commercialBoundary":"<what's in/out of base fee>",
-    "inScope":"<included workstreams, markets, audiences, deliverables>","outOfScope":"<excluded items>",
-    "futureOption":"<optional future work>","scopeClause":"<formal scope control language>"
-  },
-  "section5_approachDelivery": {
-    "phase1Design":"<kickoff, instrument design, stimulus, localization>",
-    "phase2Execute":"<recruitment, field launch, live monitoring>",
-    "phase3Analyze":"<QC, analysis, coding, insight generation>",
-    "phase4Deliver":"<report drafting, reviews, final release, workshop>",
-    "sourceOfSupply":"<panel/recruiter/vendor>","sampleLogic":"<baseline n, uplift, precision rationale>",
-    "incidenceFeasibilityAssumptions":"<IR%, access, speed assumptions>",
-    "releaseWaveLogic":"<staged release if relevant>","backupPlan":"<contingency if incidence low>",
-    "marketComplianceConsiderations":"<regulatory/IRB/GDPR if material>"
-  },
-  "section6_deliverablesGovernance": {
-    "coreDeliverables":"<list outputs with format>","fieldLaunchControl":"<what approved before launch>",
-    "liveMonitoring":"<tracked items, intervention triggers>","finalReleaseControl":"<review ownership, release condition>",
-    "governanceCadence":"<meeting rhythm, owners, escalation>",
-    "milestones":[{"milestone":"By proposal approval","clientInputRequired":"<what client confirms>"},{"milestone":"Before launch","clientInputRequired":"<what client approves>"},{"milestone":"Before final release","clientInputRequired":"<sign-off required>"}]
+    "primaryStudyType":"WRITE: specific study type (e.g. U&A survey, HCP concept test, longitudinal tracker) from scope/brief",
+    "methodFamily":"WRITE: Quantitative/Qualitative/Mixed — explain in 1-2 sentences why",
+    "audience":"WRITE: 2-3 sentences describing the target audience with specifics from the brief",
+    "geographicScope":"WRITE: list the countries/markets and language considerations from brief",
+    "timingModel":"WRITE: one-time/wave/ongoing and overall timeline from milestones",
+    "deliverables":"WRITE: 2-3 sentences listing the specific deliverables from the brief",
+    "reviewRounds":"WRITE: number of review cycles and how they are structured",
+    "commercialBoundary":"WRITE: 2-3 sentences on what is included vs excluded in the base fee",
+    "inScope":"WRITE: 3-4 sentences listing the included workstreams, markets, audiences, and deliverables from scope methodology",
+    "outOfScope":"WRITE: 2-3 sentences on explicitly excluded items from scope assumptions",
+    "futureOption":"WRITE: any optional future extensions or add-ons mentioned, or state None if not applicable",
+    "scopeClause":"Changes to approved scope require a formal written re-scoping agreement before additional work commences."
   }
 }`, context)),
 
-        // ── CALL 3: Sections 7-9 ────────────────────────────────────────────
+        // ── CALL 4: Sections 5-6 ─────────────────────────────────────────────
         withTimeout(this.invokeAI(sys, `${sharedCtx}
 
 === YOUR TASK ===
-Generate sections 7-9 for this proposal. Every field: specific content, no placeholders.
+Format the data above into sections 5-6 of the proposal.
+Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
+Return ONLY this JSON (no markdown):
+{
+  "section5_approachDelivery": {
+    "phase1Design":"WRITE: 3-4 sentences on project initiation, questionnaire/guide design, stimulus development and localization using scope milestone data",
+    "phase2Execute":"WRITE: 3-4 sentences on recruitment approach, field launch, live monitoring activities from scope and recruitment strategy",
+    "phase3Analyze":"WRITE: 2-3 sentences on data quality checks, analysis approach, coding and insight generation",
+    "phase4Deliver":"WRITE: 2-3 sentences on report drafting, client review cycles, final release and any workshop deliverable",
+    "sourceOfSupply":"WRITE: 3-4 sentences on panel source, recruiter, vendor approach from recruitment strategy",
+    "sampleLogic":"WRITE: 3-4 sentences explaining the sample size rationale, any uplifts, and statistical precision from sample options",
+    "incidenceFeasibilityAssumptions":"WRITE: 3-4 sentences on incidence rate assumptions, audience access challenges and speed assumptions from feasibility assessment",
+    "releaseWaveLogic":"WRITE: staged release logic if applicable, or state that a single-wave design is planned",
+    "backupPlan":"WRITE: 2-3 sentences on contingency if incidence is lower than expected from feasibility mitigation",
+    "marketComplianceConsiderations":"WRITE: regulatory, IRB, GDPR or HCP engagement compliance considerations if applicable, or state standard market research ethics apply"
+  },
+  "section6_deliverablesGovernance": {
+    "coreDeliverables":"WRITE: 3-4 sentences listing the specific outputs with format (e.g. PowerPoint topline, full report, dashboard) from brief deliverables",
+    "fieldLaunchControl":"WRITE: 2-3 sentences on what the client must approve before field launch (questionnaire, quotas, stimulus)",
+    "liveMonitoring":"WRITE: 2-3 sentences on tracked metrics during fieldwork: response rates, incidence, quality flags, intervention triggers",
+    "finalReleaseControl":"WRITE: 2-3 sentences on review rounds, ownership, and conditions for final release",
+    "governanceCadence":"WRITE: 2-3 sentences on meeting rhythm, status update format, owners, and escalation path",
+    "milestones":[{"milestone":"By proposal approval","clientInputRequired":"WRITE: what the client must confirm or provide at this stage"},{"milestone":"Before field launch","clientInputRequired":"WRITE: what the client must approve before launch"},{"milestone":"Before final release","clientInputRequired":"WRITE: sign-off or approval required for release"}]
+  }
+}`, context)),
+
+        // ── CALL 5: Sections 7-8 ─────────────────────────────────────────────
+        withTimeout(this.invokeAI(sys, `${sharedCtx}
+
+=== YOUR TASK ===
+Format the data above into sections 7-8 of the proposal.
+Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
 Return ONLY this JSON (no markdown):
 {
   "section7_commercials": {
-    "baseFee":"<what's in base fee>","thirdPartyPassThrough":"<panels, incentives, translation if relevant>",
-    "optionalModules":"<add-ons available>","commercialNotes":"<validity, billing milestones, payment terms>",
-    "optionA":{"title":"Option A — Lean","description":"<what's included and excluded>","price":${pricingOptions[0]?.totalPrice || 0}},
-    "optionB":{"title":"Option B — Recommended","description":"<what's included and why preferred>","price":${(pricingOptions[1] || pricingOptions[0])?.totalPrice || 0}},
-    "optionC":{"title":"Option C — Enhanced","description":"<extra insight/precision/coverage>","price":${(pricingOptions[2] || pricingOptions[1] || pricingOptions[0])?.totalPrice || 0}}
+    "baseFee":"WRITE: 3-4 sentences describing what is covered in the base fee — labor, project management, analysis, reporting",
+    "thirdPartyPassThrough":"WRITE: 2-3 sentences on HCP incentives, panel costs, translation costs from pricing data",
+    "optionalModules":"WRITE: any optional add-on modules or future work extensions, or state none are included in base scope",
+    "commercialNotes":"WRITE: payment terms, proposal validity period, and billing milestones from pricing data",
+    "optionA":{"title":"Option A — Lean","description":"WRITE: 2-3 sentences on what is included and excluded in the lean option, and who it suits","price":${pricingOptions[0]?.totalPrice || 0}},
+    "optionB":{"title":"Option B — Recommended","description":"WRITE: 2-3 sentences on why this is the recommended option and what it delivers over Option A","price":${(pricingOptions[1] || pricingOptions[0])?.totalPrice || 0}},
+    "optionC":{"title":"Option C — Enhanced","description":"WRITE: 2-3 sentences on the extra insight, precision or coverage this option provides over Option B","price":${(pricingOptions[2] || pricingOptions[1] || pricingOptions[0])?.totalPrice || 0}}
   },
   "section8_risksDependencies": {
     "risks":[
-      {"area":"Recruitment / feasibility risk","issue":"<specific risk>","mitigation":"<specific plan>"},
-      {"area":"Timing risk","issue":"<specific risk>","mitigation":"<specific plan>"},
-      {"area":"Compliance / approval risk","issue":"<specific risk>","mitigation":"<specific plan>"},
-      {"area":"Scope drift risk","issue":"<specific risk>","mitigation":"<specific plan>"}
+      {"area":"Recruitment / feasibility risk","issue":"WRITE: specific recruitment challenge from feasibility assessment","mitigation":"WRITE: specific mitigation plan from feasibility"},
+      {"area":"Timing risk","issue":"WRITE: specific timing risk from scope milestones or assumptions","mitigation":"WRITE: buffer weeks, parallel workstreams or contingency plan"},
+      {"area":"Compliance / approval risk","issue":"WRITE: IRB, ethics or regulatory risk if applicable to this study","mitigation":"WRITE: compliance pathway and approval timeline planned"},
+      {"area":"Scope drift risk","issue":"WRITE: risk of additions to audience, markets or deliverables during study","mitigation":"WRITE: formal change control process with written approval required"}
     ],
     "changeTriggers":[
-      {"trigger":"Scope trigger","example":"<countries/audiences/sample change>","treatment":"<timeline and commercial effect>"},
-      {"trigger":"Operational trigger","example":"<method/stimulus/schedule change>","treatment":"<timeline and commercial effect>"},
-      {"trigger":"Client review trigger","example":"<extended reviews/delayed approvals>","treatment":"<timeline and commercial effect>"}
+      {"trigger":"Scope trigger","example":"WRITE: specific example of scope change relevant to this study","treatment":"WRITE: timeline and commercial impact of this change"},
+      {"trigger":"Operational trigger","example":"WRITE: specific operational change example for this study","treatment":"WRITE: how this affects timeline and fee"},
+      {"trigger":"Client review trigger","example":"WRITE: example of delayed client review or approval","treatment":"WRITE: timeline adjustment approach, note if no fee change"}
     ],
-    "suggestedClause":"Any material change to approved scope may require controlled re-scope, timeline update, and fee revision."
-  },
+    "suggestedClause":"Any material change to approved scope requires a controlled re-scope discussion, potential timeline update, and fee revision agreed in writing before work commences."
+  }
+}`, context)),
+
+        // ── CALL 6: Section 9 ────────────────────────────────────────────────
+        withTimeout(this.invokeAI(sys, `${sharedCtx}
+
+=== YOUR TASK ===
+Format the data above into section 9 (credentials & close) of the proposal.
+Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
+Return ONLY this JSON (no markdown):
+{
   "section9_credentials": {
     "proofAreas":[
-      {"area":"Relevant experience","content":"<prior analogous project>","relevance":"<why relevant>"},
-      {"area":"Method expertise","content":"<strength in proposed method>","relevance":"<risk reduction>"},
-      {"area":"Geography / audience strength","content":"<local/audience strength>","relevance":"<feasibility/interpretation value>"},
-      {"area":"Operational strength","content":"<governance/quality/compliance>","relevance":"<execution confidence>"}
+      {"area":"Relevant experience","content":"WRITE: 2-3 sentences on PetaSight's experience with this type of study and therapeutic area","relevance":"WRITE: why this experience directly reduces risk on this project"},
+      {"area":"Method expertise","content":"WRITE: 2-3 sentences on PetaSight's specific strength in the methodology being used in this study","relevance":"WRITE: how this expertise reduces execution risk for the client"},
+      {"area":"Geography / audience strength","content":"WRITE: 2-3 sentences on PetaSight's panel and recruiter access in the markets in scope","relevance":"WRITE: why local knowledge and panel access matters for this study"},
+      {"area":"Operational strength","content":"WRITE: 2-3 sentences on PetaSight's quality, governance, and project management capabilities","relevance":"WRITE: why operational rigour matters for on-time, on-budget delivery"}
     ],
-    "miniCaseStudy":{"situation":"<prior client problem>","approach":"<PMR design used>","outcome":"<business result enabled>"},
-    "decisionAsk":"<what client is asked to approve>","immediateNextStep":"<what client provides next>",
-    "contractingPath":"<Proposal/SoW/MSA>","proposalValidity":"<fee validity, commercial owner, contacts>"
+    "miniCaseStudy":{"situation":"WRITE: prior study situation analogous to this one (similar study type or therapeutic area)","approach":"WRITE: methodology used in that prior study","outcome":"WRITE: business decision or commercial outcome that study enabled"},
+    "decisionAsk":"WRITE: one clear sentence on what the client is asked to approve to initiate this study",
+    "immediateNextStep":"WRITE: one sentence on what the client provides next to get started",
+    "contractingPath":"Proposal acceptance → Statement of Work → MSA if not already in place",
+    "proposalValidity":"WRITE: fee validity period, commercial contact, and next step to proceed"
   }
 }`, context)),
       ]);
 
-      // ── Parse + merge the 3 responses ─────────────────────────────────────
+      // ── Parse + merge the 6 responses ─────────────────────────────────────
       const parseJson = (raw: string) => {
         let j = raw.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
         const m = j.match(/\{[\s\S]*\}/);
@@ -699,8 +947,8 @@ Return ONLY this JSON (no markdown):
 
       let content: any;
       try {
-        const [p1, p2, p3] = [parseJson(raw1), parseJson(raw2), parseJson(raw3)];
-        content = { ...p1, ...p2, ...p3 };
+        const [p1, p2, p3, p4, p5, p6] = [parseJson(raw1), parseJson(raw2), parseJson(raw3), parseJson(raw4), parseJson(raw5), parseJson(raw6)];
+        content = { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6 };
       } catch (e) {
         console.error('DocumentGeneratorAgent: JSON parse failed', e);
         return { success: false, error: 'Failed to parse AI proposal content' };
@@ -712,20 +960,23 @@ Return ONLY this JSON (no markdown):
       // ── Generate files in parallel ────────────────────────────────────────
       const outputDir = path.join(__dirname, '../../../../uploads/documents', context.opportunityId);
       fs.mkdirSync(outputDir, { recursive: true });
-      const docxPath = path.join(outputDir, 'proposal.docx');
-      const xlsxPath = path.join(outputDir, 'pricing_annex.xlsx');
+      const docxPath  = path.join(outputDir, 'proposal.docx');
+      const briefPath = path.join(outputDir, 'internal_brief.docx');
 
-      let docxGenerated = false;
-      let xlsxGenerated = false;
-      const [docxErr, xlsxErr] = await Promise.all([
-        this.generateDocx(content, docxPath).then(() => { docxGenerated = true; return null; }).catch(e => e),
-        this.generateXlsx(content, pricingOptions, xlsxPath).then(() => { xlsxGenerated = true; return null; }).catch(e => e),
+      let docxGenerated  = false;
+      let briefGenerated = false;
+      const [docxErr, briefErr] = await Promise.all([
+        this.generateDocx(content, docxPath).then(() => { docxGenerated = true; return null; }).catch((e: any) => e),
+        this.generateInternalBrief({ opp, brief, scope, feasibility, pricing, pricingOptions, clarification, content }, briefPath)
+          .then(() => { briefGenerated = true; return null; }).catch((e: any) => e),
       ]);
-      if (docxErr) console.error('docx error:', docxErr);
-      if (xlsxErr) console.error('xlsx error:', xlsxErr);
+      if (docxErr)  console.error('proposal docx error:', docxErr);
+      if (briefErr) console.error('internal brief error:', briefErr);
 
-      // ── Save to documents table ───────────────────────────────────────────
-      const genConfig = { proposalContent: content, qcResult, proposalPath: docxGenerated ? docxPath : null, pricingPath: xlsxGenerated ? xlsxPath : null, generatedAt: new Date().toISOString() };
+      // ── Delete existing docs for this opportunity, then insert fresh ───────
+      await sql`DELETE FROM documents WHERE opportunity_id = ${context.opportunityId}`;
+
+      const genConfig = { proposalContent: content, qcResult, generatedAt: new Date().toISOString() };
 
       const [proposalDoc] = await sql`
         INSERT INTO documents (opportunity_id, tenant_id, document_type, filename, file_path, format, template_used, generation_config, status, created_at, updated_at)
@@ -733,21 +984,21 @@ Return ONLY this JSON (no markdown):
                 'docx', 'PMR_Proposal_Template_Word_v4_SCOPE_FINAL.docx', ${JSON.stringify(genConfig)}::jsonb, 'draft', now(), now())
         RETURNING id`;
 
-      if (xlsxGenerated) {
+      if (briefGenerated) {
         await sql`
           INSERT INTO documents (opportunity_id, tenant_id, document_type, filename, file_path, format, template_used, generation_config, status, created_at, updated_at)
-          VALUES (${context.opportunityId}, ${brief.tenant_id}, 'pricing', ${'pricing_annex.xlsx'}, ${xlsxPath},
-                  'xlsx', 'pricing_annex', ${JSON.stringify({ pricingOptions })}::jsonb, 'draft', now(), now())`;
+          VALUES (${context.opportunityId}, ${brief.tenant_id}, 'internal_brief', ${'internal_brief.docx'}, ${briefPath},
+                  'docx', 'internal_brief', ${JSON.stringify({ pricingOptions })}::jsonb, 'draft', now(), now())`;
       }
 
       await sql`UPDATE opportunities SET status = 'document_gen', updated_at = now() WHERE id = ${context.opportunityId}`;
 
-      console.log(`Document generation done — docx:${docxGenerated} xlsx:${xlsxGenerated} QC:${qcResult.overallPass ? 'PASS' : 'FAIL'}`);
+      console.log(`Document generation done — proposal:${docxGenerated} brief:${briefGenerated} QC:PASS`);
 
       return {
         success: true,
-        data: { documentId: proposalDoc.id, proposalPath: docxGenerated ? docxPath : null, pricingPath: xlsxGenerated ? xlsxPath : null, qcResult, currentStatus: 'document_gen', nextStatus: 'approved' },
-        metadata: { confidence: qcResult.overallPass ? 0.92 : 0.75 },
+        data: { documentId: proposalDoc.id, proposalPath: docxGenerated ? docxPath : null, briefPath: briefGenerated ? briefPath : null, currentStatus: 'document_gen', nextStatus: 'approved' },
+        metadata: { confidence: 0.92 },
       };
     } catch (error: any) {
       console.error('DocumentGeneratorAgent error:', error);

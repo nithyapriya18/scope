@@ -153,7 +153,7 @@ Return a JSON object with ALL of the following:
 Return ONLY the JSON object. No markdown.`;
 
     const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('AI call timed out after 180s')), 180000)
+      setTimeout(() => reject(new Error('AI call timed out after 300s')), 300000)
     );
 
     const responseText = await Promise.race([

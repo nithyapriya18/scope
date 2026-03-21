@@ -1223,8 +1223,8 @@ router.post('/:id/submit-bid', async (req, res) => {
 router.get('/:id/documents/:type/download', async (req, res) => {
   try {
     const { id, type } = req.params;
-    if (!['proposal', 'pricing'].includes(type)) {
-      return res.status(400).json({ error: 'type must be proposal or pricing' });
+    if (!['proposal', 'pricing', 'internal_brief'].includes(type)) {
+      return res.status(400).json({ error: 'type must be proposal, pricing, or internal_brief' });
     }
     const sql = getSql();
     const rows = await sql`
