@@ -79,11 +79,29 @@ PRINCIPLES:
         budget: brief.budget_indication || 'Not disclosed',
       };
 
+      // Parse double-encoded JSONB fields from gap_analyses table
+      const parseJsonbField = (v: any): any[] => {
+        if (!v) return [];
+        if (Array.isArray(v)) return v;
+        if (typeof v === 'string') { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; } }
+        return [];
+      };
+      const parseJsonbObj = (v: any): any => {
+        if (!v) return {};
+        if (typeof v === 'object' && !Array.isArray(v)) return v;
+        if (typeof v === 'string') { try { return JSON.parse(v); } catch { return {}; } }
+        return {};
+      };
+
+      const missingFields = parseJsonbField(gapAnalysis?.missing_fields);
+      const ambiguousReqs = parseJsonbField(gapAnalysis?.ambiguous_requirements);
+      const llmAnalysis = parseJsonbObj(gapAnalysis?.llm_analysis);
+
       const gapSummary = gapAnalysis ? {
-        completenessScore: (gapAnalysis.llm_analysis as any)?.completenessScore,
-        criticalGaps: (gapAnalysis.missing_fields || []).map((g: any) => ({ field: g.field, defaultAssumption: g.defaultAssumption })),
-        ambiguous: (gapAnalysis.ambiguous_requirements || []).map((a: any) => ({ field: a.field, ambiguity: a.ambiguity })),
-        defaultAssumptions: (gapAnalysis.llm_analysis as any)?.defaultAssumptions || [],
+        completenessScore: llmAnalysis?.completenessScore,
+        criticalGaps: missingFields.map((g: any) => ({ field: g.field, defaultAssumption: g.defaultAssumption })),
+        ambiguous: ambiguousReqs.map((a: any) => ({ field: a.field, ambiguity: a.ambiguity })),
+        defaultAssumptions: llmAnalysis?.defaultAssumptions || [],
       } : null;
 
       let clarQs: any[] = [];
