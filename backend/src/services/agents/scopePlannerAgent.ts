@@ -57,110 +57,105 @@ PRINCIPLES:
       let panelData = '';
       try {
         const panel = JSON.parse(fs.readFileSync(path.join(__dirname, '../../../../config/hcp_panel.json'), 'utf-8')).panel || [];
-        panelData = panel.slice(0, 20).map((p: any) =>
+        panelData = panel.slice(0, 10).map((p: any) =>
           `${p.specialty}/${p.country}: panel=${p.panelSize}, activeRate=${Math.round(p.activeRate * 100)}%, recruitWeeks=${p.recruitmentWeeks}`
         ).join('\n');
       } catch { /* non-fatal */ }
 
-      // ── 3. Build comprehensive agentic prompt ────────────────────────────
+      // ── 3. Build compact prompt — trim all inputs to avoid AI timeout ─────
       const rx: any = brief.raw_extraction || {};
-      const rfpSnippet = (opp?.email_body || '').slice(0, 6000) +
-        ((opp?.email_body || '').length > 6000 ? '\n...[truncated — brief extraction covers full content]' : '');
+      // Only pass key brief sections — not the full raw_extraction blob
+      const briefSummary = {
+        therapeuticArea: brief.therapeutic_area || opp?.therapeutic_area,
+        targetAudience: brief.target_audience,
+        objectives: (brief.research_objectives || []).slice(0, 5),
+        methodology: rx.section6_methodology_scope || rx.methodology || '',
+        geography: rx.section7_markets_geography || rx.geography || '',
+        sample: rx.section8_target_audience_sample || rx.sampleRequirements || brief.sample_requirements || '',
+        timeline: brief.timeline_requirements || rx.section9_timeline_key_dates || '',
+        deliverables: (brief.deliverables || []).slice(0, 4),
+        budget: brief.budget_indication || 'Not disclosed',
+      };
 
-      // Compact gap analysis — only pass key fields, not full llm_analysis blob
+      const rfpSnippet = (opp?.email_body || '').slice(0, 4000) +
+        ((opp?.email_body || '').length > 4000 ? '\n...[truncated]' : '');
+
+      // Compact gap analysis — top 5 critical gaps only
       const gapSummary = gapAnalysis ? {
-        criticalGaps: gapAnalysis.missing_fields || [],
-        ambiguous: gapAnalysis.ambiguous_requirements || [],
-        defaultAssumptions: (gapAnalysis.llm_analysis as any)?.defaultAssumptions || [],
         completenessScore: (gapAnalysis.llm_analysis as any)?.completenessScore,
+        criticalGaps: (gapAnalysis.missing_fields || []).slice(0, 5).map((g: any) => ({ field: g.field, defaultAssumption: g.defaultAssumption })),
+        ambiguous: (gapAnalysis.ambiguous_requirements || []).slice(0, 3).map((a: any) => ({ field: a.field, ambiguity: a.ambiguity })),
       } : null;
 
-      // Normalize clarification questions (may be nested {questions:[...]} object)
+      // Normalize clarification questions — top 6 only
       let clarQs: any[] = [];
       if (clarification?.questions) {
         const raw = typeof clarification.questions === 'string'
           ? JSON.parse(clarification.questions)
           : clarification.questions;
-        clarQs = Array.isArray(raw) ? raw : (raw.questions || []);
+        const arr = Array.isArray(raw) ? raw : (raw.questions || []);
+        clarQs = arr.slice(0, 6);
       }
 
       const userPrompt = `
 === GOAL ===
-Design a complete, fully AI-derived research plan for PetaSight's bid in response to this pharma RFP.
-Read ALL inputs below. Every decision (methodology, sample, timeline, discussion guide questions) must be derived from the actual RFP content and supporting intelligence — not templates or defaults.
+Design a research plan for PetaSight's pharma RFP bid. All decisions must be specific to this RFP.
 
-=== INPUT 1: RFP TEXT (first 6000 chars) ===
-${rfpSnippet || 'Not available — use brief sections below'}
+=== INPUT 1: RFP TEXT ===
+${rfpSnippet || 'Not available — use brief below'}
 
-=== INPUT 2: STRUCTURED BRIEF (extracted by AI in Step 2) ===
-${JSON.stringify(rx)}
+=== INPUT 2: STRUCTURED BRIEF ===
+${JSON.stringify(briefSummary)}
 
-Supplementary fields:
-- Therapeutic area: ${brief.therapeutic_area || opp?.therapeutic_area || 'derive from RFP'}
-- Target audience: ${brief.target_audience || 'derive from RFP'}
-- Research objectives: ${JSON.stringify(brief.research_objectives || [])}
-- Sample requirements: ${JSON.stringify(brief.sample_requirements || {})}
-- Timeline requirements: ${brief.timeline_requirements || 'derive from RFP'}
-- Deliverables: ${JSON.stringify(brief.deliverables || [])}
-- Budget indication: ${brief.budget_indication || 'Not disclosed'}
-
-=== INPUT 3: GAP ANALYSIS (identified in Step 3) ===
+=== INPUT 3: GAP ANALYSIS ===
 ${gapSummary ? JSON.stringify(gapSummary) : 'None available'}
 
-=== INPUT 4: CLARIFICATION Q&A (from client, Step 5-6) ===
-Questions sent: ${JSON.stringify(clarQs.map((q: any) => ({ topic: q.topic || q.category, q: q.questionText || q.question, default: q.defaultAssumption })))}
-Client responses: ${clarification?.client_responses ? JSON.stringify(clarification.client_responses) : (clarification?.client_response_text || 'No response — use assumptions')}
-Clarification status: ${clarification?.status || 'not sent'}
+=== INPUT 4: CLARIFICATION Q&A ===
+Questions: ${JSON.stringify(clarQs.map((q: any) => ({ topic: q.topic || q.category, q: q.questionText || q.question, default: q.defaultAssumption })))}
+Responses: ${clarification?.client_responses ? JSON.stringify(clarification.client_responses) : (clarification?.client_response_text || 'None — use default assumptions')}
 
-=== INPUT 5: FEASIBILITY INTELLIGENCE (from HCP Matching, Step 7) ===
-${feasibility ? JSON.stringify({ feasibilityScore: (feasibility.overall_feasibility as any)?.feasibilityScore || (feasibility.overall_feasibility as any)?.score, hcpAvailable: (feasibility.hcp_availability as any)?.panelSize || (feasibility.hcp_availability as any)?.total_available, geographies: feasibility.geographic_feasibility, recommendations: feasibility.recommendations }) : 'Not available'}
+=== INPUT 5: FEASIBILITY ===
+${feasibility ? JSON.stringify({ score: (feasibility.overall_feasibility as any)?.feasibilityScore || (feasibility.overall_feasibility as any)?.score, hcpAvailable: (feasibility.hcp_availability as any)?.panelSize || (feasibility.hcp_availability as any)?.total_available, recommendations: feasibility.recommendations }) : 'Not available'}
 
-=== INPUT 6: PANEL REFERENCE DATA ===
+=== INPUT 6: PANEL DATA ===
 ${panelData || 'Not available'}
 
-=== INPUT 7: AVAILABLE STUDY TYPES ===
-${studyTypes.map((s: any) => `${s.type_code}: ${s.display_name} (family: ${s.family_code})`).join('\n')}
+=== INPUT 7: STUDY TYPES ===
+${studyTypes.map((s: any) => `${s.type_code}: ${s.display_name}`).join(', ')}
 
 === OUTPUT REQUIREMENTS ===
-Produce a JSON object with ALL of the following fields. Every field must be populated with content SPECIFIC to this RFP — never use placeholder text.
+Return a JSON object with these fields:
 
-1. executiveSummary: 3-4 sentences. (1) What the client wants to understand, (2) PetaSight's proposed methodology and why, (3) how our approach generates the insights needed. First-person plural. Specific to THIS RFP.
+1. executiveSummary: 2-3 sentences — client objective, PetaSight methodology, expected outcome.
 
-2. detectedStudyType: Pick best-fit typeCode from the list above. Include typeCode, displayName, familyCode, confidence (0-1), rationale.
+2. detectedStudyType: { typeCode, displayName, familyCode, confidence (0-1), rationale }
 
-3. methodology: approach (qualitative/quantitative/mixed), dataCollectionMethod, instrumentType, lengthOfInterviewMinutes, approximateQuestions, analysisApproach[], advancedAnalytics[], rationale. ALL derived from RFP objectives.
+3. methodology: { approach, dataCollectionMethod, instrumentType, lengthOfInterviewMinutes, approximateQuestions, analysisApproach[], rationale }
 
-4. discussionGuide: THIS IS CRITICAL. Generate a complete, RFP-specific discussion guide.
-   - format: e.g. "Semi-structured IDI" or "Online CAWI survey"
-   - totalDurationMinutes: match the methodology
-   - keyThemes[]: 3-5 themes derived DIRECTLY from the research objectives in the RFP
-   - sections[]: minimum 5 sections. Each section must have:
-     * section: descriptive name tied to a specific RFP objective
-     * durationMinutes: integer
-     * objective: what this section aims to uncover (specific to RFP)
-     * keyQuestions[]: 3-5 actual questions (not placeholders). Include probes labelled "Probe: ..."
-   - interviewerNotes: specific guidance for this study type and therapeutic area
+4. discussionGuide: {
+     format, totalDurationMinutes,
+     keyThemes[]: 3-4 themes from RFP objectives,
+     sections[]: 4 sections each with { section, durationMinutes, objective, keyQuestions[3 real questions] },
+     interviewerNotes
+   }
 
-5. sampleSizeOptions: 3 options (conservative/recommended/aggressive). Each must have label, n, segments (with actual segment names from RFP audience), country, confidenceInterval, fieldDurationWeeks, feasibilityScore, rationale. NO estimatedCost.
+5. sampleSizeOptions: 3 options [{label:"conservative"|"recommended"|"aggressive", n, segments[{name,n}], country, fieldDurationWeeks, rationale}]
 
-6. recruitmentStrategy: primarySource, sources[] (with vendor, role, coverage, estimatedContribution%, notes), incidenceRateAssumption, contactsNeeded, fraudControlMeasures[], complianceNotes.
+6. projectTimeline: { totalWeeks, phases[{phase, startWeek, durationWeeks, milestone}] }
 
-7. projectTimeline: totalWeeks, phases[]. Each phase: phase name, startWeek, durationWeeks, tasks[], milestone. Derive durations from RFP timeline hints and feasibility data.
+7. deliverables: [{deliverable, format, timing, description}] — max 5 items
 
-8. deliverables: list of deliverables with deliverable name, format, timing (Week N), description. Derived from RFP deliverables section.
-
-9. scopeAssumptions: 4-6 assumptions. Each: assumptionId (A001...), category (sample/methodology/timeline/scope), assumption (specific PetaSight design decision), isStandard, riskLevel (low/medium/high), requiresClientConfirmation: false.
+8. scopeAssumptions: 4 items [{assumptionId, category, assumption, riskLevel}]
 
 === CONSTRAINTS ===
-- Output ONLY the JSON object. No markdown, no text before or after.
-- All section names, question topics, and segment names must reference the actual therapeutic area, indication, and HCP type from the RFP.
-- discussionGuide.sections must have 5+ sections with genuine questions — this is the most important deliverable.
-- Do NOT include any cost, price, or WBS fields anywhere.
+- Output ONLY valid JSON. No markdown.
+- All content must reference the actual RFP therapeutic area, HCP type, and objectives.
+- Do NOT include any cost, price, or budget fields.
 
 Return the JSON now:`;
 
       const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI call timed out after 180s')), 180000)
+        setTimeout(() => reject(new Error('AI call timed out after 240s')), 240000)
       );
 
       const responseText = await Promise.race([
