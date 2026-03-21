@@ -62,47 +62,41 @@ PRINCIPLES:
         ).join('\n');
       } catch { /* non-fatal */ }
 
-      // ── 3. Build compact prompt — trim all inputs to avoid AI timeout ─────
+      // ── 3. Build shared context inputs ───────────────────────────────────
       const rx: any = brief.raw_extraction || {};
-      // Only pass key brief sections — not the full raw_extraction blob
+      const rfpSnippet = (opp?.email_body || '').slice(0, 6000) +
+        ((opp?.email_body || '').length > 6000 ? '\n...[truncated — brief extraction covers full content]' : '');
+
       const briefSummary = {
         therapeuticArea: brief.therapeutic_area || opp?.therapeutic_area,
         targetAudience: brief.target_audience,
-        objectives: (brief.research_objectives || []).slice(0, 5),
+        objectives: brief.research_objectives || [],
         methodology: rx.section6_methodology_scope || rx.methodology || '',
         geography: rx.section7_markets_geography || rx.geography || '',
-        sample: rx.section8_target_audience_sample || rx.sampleRequirements || brief.sample_requirements || '',
+        sample: rx.section8_target_audience_sample || brief.sample_requirements || '',
         timeline: brief.timeline_requirements || rx.section9_timeline_key_dates || '',
-        deliverables: (brief.deliverables || []).slice(0, 4),
+        deliverables: brief.deliverables || [],
         budget: brief.budget_indication || 'Not disclosed',
       };
 
-      const rfpSnippet = (opp?.email_body || '').slice(0, 4000) +
-        ((opp?.email_body || '').length > 4000 ? '\n...[truncated]' : '');
-
-      // Compact gap analysis — top 5 critical gaps only
       const gapSummary = gapAnalysis ? {
         completenessScore: (gapAnalysis.llm_analysis as any)?.completenessScore,
-        criticalGaps: (gapAnalysis.missing_fields || []).slice(0, 5).map((g: any) => ({ field: g.field, defaultAssumption: g.defaultAssumption })),
-        ambiguous: (gapAnalysis.ambiguous_requirements || []).slice(0, 3).map((a: any) => ({ field: a.field, ambiguity: a.ambiguity })),
+        criticalGaps: (gapAnalysis.missing_fields || []).map((g: any) => ({ field: g.field, defaultAssumption: g.defaultAssumption })),
+        ambiguous: (gapAnalysis.ambiguous_requirements || []).map((a: any) => ({ field: a.field, ambiguity: a.ambiguity })),
+        defaultAssumptions: (gapAnalysis.llm_analysis as any)?.defaultAssumptions || [],
       } : null;
 
-      // Normalize clarification questions — top 6 only
       let clarQs: any[] = [];
       if (clarification?.questions) {
         const raw = typeof clarification.questions === 'string'
           ? JSON.parse(clarification.questions)
           : clarification.questions;
-        const arr = Array.isArray(raw) ? raw : (raw.questions || []);
-        clarQs = arr.slice(0, 6);
+        clarQs = Array.isArray(raw) ? raw : (raw.questions || []);
       }
 
-      const userPrompt = `
-=== GOAL ===
-Design a research plan for PetaSight's pharma RFP bid. All decisions must be specific to this RFP.
-
-=== INPUT 1: RFP TEXT ===
-${rfpSnippet || 'Not available — use brief below'}
+      const sharedContext = `
+=== INPUT 1: RFP TEXT (first 6000 chars) ===
+${rfpSnippet || 'Not available — use brief sections below'}
 
 === INPUT 2: STRUCTURED BRIEF ===
 ${JSON.stringify(briefSummary)}
@@ -111,73 +105,116 @@ ${JSON.stringify(briefSummary)}
 ${gapSummary ? JSON.stringify(gapSummary) : 'None available'}
 
 === INPUT 4: CLARIFICATION Q&A ===
-Questions: ${JSON.stringify(clarQs.map((q: any) => ({ topic: q.topic || q.category, q: q.questionText || q.question, default: q.defaultAssumption })))}
-Responses: ${clarification?.client_responses ? JSON.stringify(clarification.client_responses) : (clarification?.client_response_text || 'None — use default assumptions')}
+Questions sent: ${JSON.stringify(clarQs.map((q: any) => ({ topic: q.topic || q.category, q: q.questionText || q.question, default: q.defaultAssumption })))}
+Client responses: ${clarification?.client_responses ? JSON.stringify(clarification.client_responses) : (clarification?.client_response_text || 'No response — use default assumptions')}
 
-=== INPUT 5: FEASIBILITY ===
-${feasibility ? JSON.stringify({ score: (feasibility.overall_feasibility as any)?.feasibilityScore || (feasibility.overall_feasibility as any)?.score, hcpAvailable: (feasibility.hcp_availability as any)?.panelSize || (feasibility.hcp_availability as any)?.total_available, recommendations: feasibility.recommendations }) : 'Not available'}
+=== INPUT 5: FEASIBILITY INTELLIGENCE ===
+${feasibility ? JSON.stringify({ feasibilityScore: (feasibility.overall_feasibility as any)?.feasibilityScore || (feasibility.overall_feasibility as any)?.score, hcpAvailable: (feasibility.hcp_availability as any)?.panelSize || (feasibility.hcp_availability as any)?.total_available, geographies: feasibility.geographic_feasibility, recommendations: feasibility.recommendations }) : 'Not available'}
 
-=== INPUT 6: PANEL DATA ===
+=== INPUT 6: PANEL REFERENCE DATA ===
 ${panelData || 'Not available'}
 
-=== INPUT 7: STUDY TYPES ===
-${studyTypes.map((s: any) => `${s.type_code}: ${s.display_name}`).join(', ')}
+=== INPUT 7: AVAILABLE STUDY TYPES ===
+${studyTypes.map((s: any) => `${s.type_code}: ${s.display_name} (family: ${s.family_code})`).join('\n')}`;
+
+      // ── 4. Two parallel AI calls to avoid single-call timeout ────────────
+      // Call A: Core plan (studyType, methodology, sample, timeline, deliverables, assumptions)
+      const promptA = `
+=== GOAL ===
+Design the core research plan for PetaSight's pharma RFP bid. Every decision must be derived from the RFP and supporting inputs — not templates.
+
+${sharedContext}
 
 === OUTPUT REQUIREMENTS ===
-Return a JSON object with these fields:
+Return a JSON object with EXACTLY these fields:
 
-1. executiveSummary: 2-3 sentences — client objective, PetaSight methodology, expected outcome.
+1. executiveSummary: 3-4 sentences — (1) what the client wants to understand, (2) PetaSight's proposed methodology and why, (3) how our approach generates the insights needed. First-person plural. Specific to THIS RFP.
 
-2. detectedStudyType: { typeCode, displayName, familyCode, confidence (0-1), rationale }
+2. detectedStudyType: { typeCode (from study types list), displayName, familyCode, confidence (0-1), rationale }
 
-3. methodology: { approach, dataCollectionMethod, instrumentType, lengthOfInterviewMinutes, approximateQuestions, analysisApproach[], rationale }
+3. methodology: { approach (qualitative/quantitative/mixed), dataCollectionMethod, instrumentType, lengthOfInterviewMinutes, approximateQuestions, analysisApproach[], advancedAnalytics[], rationale }
 
-4. discussionGuide: {
-     format, totalDurationMinutes,
-     keyThemes[]: 3-4 themes from RFP objectives,
-     sections[]: 4 sections each with { section, durationMinutes, objective, keyQuestions[3 real questions] },
-     interviewerNotes
-   }
+4. sampleSizeOptions: 3 options — each: { label ("conservative"|"recommended"|"aggressive"), n, segments[{name,n}], country, confidenceInterval, fieldDurationWeeks, feasibilityScore, rationale }. NO estimatedCost.
 
-5. sampleSizeOptions: 3 options [{label:"conservative"|"recommended"|"aggressive", n, segments[{name,n}], country, fieldDurationWeeks, rationale}]
+5. recruitmentStrategy: { primarySource, sources[{vendor, role, coverage, estimatedContribution%, notes}], incidenceRateAssumption, contactsNeeded, fraudControlMeasures[], complianceNotes }
 
-6. projectTimeline: { totalWeeks, phases[{phase, startWeek, durationWeeks, milestone}] }
+6. projectTimeline: { totalWeeks, phases[{phase, startWeek, durationWeeks, tasks[], milestone}] }
 
-7. deliverables: [{deliverable, format, timing, description}] — max 5 items
+7. deliverables: [{deliverable, format, timing (Week N), description}]
 
-8. scopeAssumptions: 4 items [{assumptionId, category, assumption, riskLevel}]
+8. scopeAssumptions: 4-6 items [{assumptionId (A001...), category, assumption, isStandard, riskLevel, requiresClientConfirmation: false}]
 
 === CONSTRAINTS ===
-- Output ONLY valid JSON. No markdown.
-- All content must reference the actual RFP therapeutic area, HCP type, and objectives.
-- Do NOT include any cost, price, or budget fields.
+- Output ONLY valid JSON. No markdown, no commentary.
+- All segment names, HCP types, and deliverable names must reference the actual RFP content.
+- Do NOT include any cost, price, or WBS fields.
 
 Return the JSON now:`;
 
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('AI call timed out after 240s')), 240000)
+      // Call B: Discussion guide only (content-heavy — deserves its own call)
+      const promptB = `
+=== GOAL ===
+Create a complete, client-ready discussion guide for PetaSight's pharma research study. Every question must directly address the stated research objectives from the RFP.
+
+${sharedContext}
+
+=== OUTPUT REQUIREMENTS ===
+Return a JSON object with a SINGLE field: discussionGuide
+
+discussionGuide: {
+  format: e.g. "Semi-structured IDI" or "Online CAWI survey",
+  totalDurationMinutes: match the study methodology,
+  keyThemes[]: 3-5 major research themes derived DIRECTLY from the RFP objectives,
+  sections[]: minimum 5 sections — each section MUST have:
+    {
+      section: descriptive name tied to a specific RFP objective,
+      durationMinutes: integer,
+      objective: what this section aims to uncover (specific to this RFP),
+      keyQuestions[]: 3-5 REAL questions (not placeholders). Include probes labelled "Probe: ..."
+    }
+  interviewerNotes: specific moderator/interviewer guidance for this therapeutic area and study type
+}
+
+=== CONSTRAINTS ===
+- Output ONLY valid JSON: { "discussionGuide": { ... } }
+- Every question must reference the actual therapeutic area, indication, and HCP/patient audience from the RFP.
+- Questions must be substantive and interview-ready — not generic templates.
+
+Return the JSON now:`;
+
+      console.log('🔄 ScopePlanner: running two parallel AI calls (core plan + discussion guide)...');
+
+      const callTimeout = 240000;
+      const makeTimeout = (label: string) => new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`${label} timed out after 240s`)), callTimeout)
       );
 
-      const responseText = await Promise.race([
-        this.invokeAI(this.getSystemPrompt(context), userPrompt, context),
-        timeout,
+      const [responseA, responseB] = await Promise.all([
+        Promise.race([this.invokeAI(this.getSystemPrompt(context), promptA, context), makeTimeout('Call A (core plan)')]),
+        Promise.race([this.invokeAI(this.getSystemPrompt(context), promptB, context), makeTimeout('Call B (discussion guide)')]),
       ]);
 
-      // Parse JSON
-      let plan: any;
-      try {
-        let jsonText = responseText.trim();
-        if (jsonText.startsWith('```')) {
-          jsonText = jsonText.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+      // ── 5. Parse both responses ───────────────────────────────────────────
+      const parseJson = (text: string, label: string) => {
+        let t = text.trim();
+        if (t.startsWith('```')) t = t.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+        try { return JSON.parse(t); }
+        catch (e) {
+          console.error(`Failed to parse ${label}:`, t.substring(0, 300));
+          return null;
         }
-        plan = JSON.parse(jsonText);
-      } catch (parseError) {
-        console.error('Failed to parse LLM JSON response:', responseText.substring(0, 500));
-        return { success: false, error: 'Failed to parse research plan from LLM response' };
-      }
+      };
+
+      const planA = parseJson(responseA, 'Call A');
+      const planB = parseJson(responseB, 'Call B');
+
+      if (!planA) return { success: false, error: 'Failed to parse core research plan from AI response' };
+
+      // Merge: core plan + discussion guide
+      const plan = { ...planA, discussionGuide: planB?.discussionGuide || null };
 
       if (!plan.discussionGuide) {
-        console.warn('⚠️  LLM did not return discussionGuide — plan may be incomplete');
+        console.warn('⚠️  Call B did not return discussionGuide — saving core plan without it');
       }
 
       // Safely extract nested fields (AI may return null/string instead of expected object)
