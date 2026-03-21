@@ -17,6 +17,17 @@ interface ScopeModalProps {
 
 type Tab = 'overview' | 'methodology' | 'sample' | 'recruitment' | 'timeline' | 'guide' | 'deliverables' | 'assumptions';
 
+// Normalize an AI field that should be an array of strings but may be an object or array of objects
+function toStringArray(val: any): string[] {
+  if (!val) return [];
+  if (typeof val === 'string') return [val];
+  if (Array.isArray(val)) return val.map((item: any) =>
+    typeof item === 'string' ? item : typeof item === 'object' ? Object.entries(item).map(([k, v]) => `${k}: ${v}`).join('; ') : String(item)
+  );
+  if (typeof val === 'object') return Object.entries(val).map(([k, v]) => `${k}: ${v}`);
+  return [String(val)];
+}
+
 const TABS: { id: Tab; label: string; icon: any }[] = [
   { id: 'overview', label: 'Overview', icon: Target },
   { id: 'methodology', label: 'Methodology', icon: Activity },
@@ -245,11 +256,11 @@ export default function ScopeModal({ isOpen, onClose, scope, rfpTitle, opportuni
                   </div>
 
                   {/* Analysis approach */}
-                  {methodology.analysisApproach?.length > 0 && (
+                  {toStringArray(methodology.analysisApproach).length > 0 && (
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
                       <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-3">Analysis Approach</h4>
                       <div className="flex flex-wrap gap-2">
-                        {methodology.analysisApproach.map((a: string, i: number) => (
+                        {toStringArray(methodology.analysisApproach).map((a: string, i: number) => (
                           <span key={i} className="px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-sm rounded-lg font-medium">
                             {a}
                           </span>
@@ -259,11 +270,11 @@ export default function ScopeModal({ isOpen, onClose, scope, rfpTitle, opportuni
                   )}
 
                   {/* Advanced analytics */}
-                  {methodology.advancedAnalytics?.length > 0 && (
+                  {toStringArray(methodology.advancedAnalytics).length > 0 && (
                     <div className="bg-white dark:bg-gray-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700">
                       <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-3">Advanced Analytics</h4>
                       <div className="flex flex-wrap gap-2">
-                        {methodology.advancedAnalytics.map((a: string, i: number) => (
+                        {toStringArray(methodology.advancedAnalytics).map((a: string, i: number) => (
                           <span key={i} className="px-3 py-1.5 bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 text-sm rounded-lg font-medium">
                             {a}
                           </span>
@@ -557,9 +568,9 @@ export default function ScopeModal({ isOpen, onClose, scope, rfpTitle, opportuni
                         </span>
                       )}
                     </div>
-                    {discussionGuide.keyThemes?.length > 0 && (
+                    {toStringArray(discussionGuide.keyThemes).length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-3">
-                        {discussionGuide.keyThemes.map((theme: string, i: number) => (
+                        {toStringArray(discussionGuide.keyThemes).map((theme: string, i: number) => (
                           <span key={i} className="px-2.5 py-1 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 text-xs font-medium rounded-lg">
                             {theme}
                           </span>
@@ -590,7 +601,7 @@ export default function ScopeModal({ isOpen, onClose, scope, rfpTitle, opportuni
                             </div>
                           )}
                           <ul className="divide-y divide-gray-50 dark:divide-gray-700/50">
-                            {(section.keyQuestions || []).map((q: string, qi: number) => {
+                            {toStringArray(section.keyQuestions).map((q: string, qi: number) => {
                               const isProbe = q.toLowerCase().startsWith('probe:') || q.toLowerCase().startsWith('follow');
                               return (
                                 <li key={qi} className={`flex items-start gap-3 px-5 py-2.5 ${isProbe ? 'bg-amber-50/40 dark:bg-amber-900/10' : ''}`}>
