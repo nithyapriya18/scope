@@ -1,7 +1,7 @@
 'use client';
 
 import { X, MessageSquare, Send, Download, Copy, CheckCircle, AlertCircle, Info, Plus, Edit2, Trash2, Save } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface ClarificationModalProps {
   isOpen: boolean;
@@ -27,24 +27,27 @@ export default function ClarificationModal({
   const [copied, setCopied] = useState(false);
   const [approving, setApproving] = useState(false);
 
-  // Parse initial questions
-  const parseQuestions = () => {
-    if (clarification.questions) {
-      if (typeof clarification.questions === 'string') {
-        try {
-          return JSON.parse(clarification.questions);
-        } catch (e) {
-          console.error('Failed to parse clarification questions:', e);
-          return [];
-        }
-      } else if (Array.isArray(clarification.questions)) {
-        return clarification.questions;
-      }
+  // Parse questions — handles flat array, nested object, or double-encoded string
+  const parseQuestions = (cl: any = clarification) => {
+    if (!cl?.questions) return [];
+    let q = cl.questions;
+    if (typeof q === 'string') {
+      try { q = JSON.parse(q); } catch { return []; }
     }
-    return [];
+    // Handle nested {questions:[...], emailSubject:...} object
+    if (!Array.isArray(q) && typeof q === 'object' && q.questions) {
+      q = q.questions;
+    }
+    return Array.isArray(q) ? q : [];
   };
 
-  const [questions, setQuestions] = useState(parseQuestions());
+  const [questions, setQuestions] = useState(() => parseQuestions());
+
+  // Re-sync questions when clarification prop updates (e.g. after polling)
+  useEffect(() => {
+    const parsed = parseQuestions(clarification);
+    if (parsed.length > 0) setQuestions(parsed);
+  }, [clarification?.id, clarification?.questions]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editedQuestion, setEditedQuestion] = useState<any>(null);
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -273,7 +276,7 @@ export default function ClarificationModal({
   // and new AI schema (questionText/topic/defaultAssumption)
   const normalizeQuestion = (q: any) => ({
     ...q,
-    question: q.questionText || q.question || '',
+    question: q.questionText || q.text || q.question || q.question_text || q.content || '',
     category: q.topic || q.category || '',
     context: q.defaultAssumption ? `Default assumption: ${q.defaultAssumption}` : (q.context || ''),
   });

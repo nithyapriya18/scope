@@ -185,6 +185,19 @@ Return the JSON now:`;
         console.warn('⚠️  LLM did not return discussionGuide — plan may be incomplete');
       }
 
+      // Safely extract nested fields (AI may return null/string instead of expected object)
+      const detectedStudyType = plan.detectedStudyType || {};
+      const studyTypeCode = typeof detectedStudyType === 'object'
+        ? (detectedStudyType.typeCode || detectedStudyType.type_code || 'qualitative_idi')
+        : String(detectedStudyType);
+      const studyTypeConfidence = typeof detectedStudyType === 'object'
+        ? (detectedStudyType.confidence ?? 0.8)
+        : 0.8;
+      const methodology = plan.methodology || {};
+      const methodologyApproach = typeof methodology === 'object'
+        ? (methodology.approach || 'qualitative')
+        : String(methodology);
+
       // Save to DB
       const [scope] = await sql`
         INSERT INTO scopes (
@@ -202,11 +215,11 @@ Return the JSON now:`;
           ${context.opportunityId},
           ${brief.id},
           ${brief.tenant_id},
-          ${plan.executiveSummary},
-          ${plan.detectedStudyType.typeCode},
-          ${plan.detectedStudyType.confidence},
-          ${plan.methodology.approach},
-          ${JSON.stringify(plan.methodology)},
+          ${plan.executiveSummary || ''},
+          ${studyTypeCode},
+          ${studyTypeConfidence},
+          ${methodologyApproach},
+          ${JSON.stringify(methodology)},
           ${JSON.stringify(plan.sampleSizeOptions)},
           ${JSON.stringify(plan.scopeAssumptions)},
           ${JSON.stringify(plan.deliverables)},

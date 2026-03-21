@@ -66,7 +66,18 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
   const [downloading, setDownloading] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  if (!isOpen || !gapAnalysis) return null;
+  if (!isOpen) return null;
+
+  if (!gapAnalysis) {
+    return (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg p-8 text-center">
+          <p className="text-gray-500 dark:text-gray-400 text-sm mb-4">No gap analysis data available for this opportunity.</p>
+          <button onClick={onClose} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-bold">Close</button>
+        </div>
+      </div>
+    );
+  }
 
   const llmData: any = gapAnalysis.llm_analysis || {};
   const missingFields = gapAnalysis.missing_fields || llmData.criticalGaps || [];
