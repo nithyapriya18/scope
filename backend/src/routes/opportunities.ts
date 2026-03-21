@@ -612,6 +612,7 @@ router.get('/:id', async (req, res) => {
         if (typeof parsedGapAnalysis.llm_analysis === 'string') {
           try {
             llmData = JSON.parse(parsedGapAnalysis.llm_analysis);
+            parsedGapAnalysis.llm_analysis = llmData; // replace string with parsed object
           } catch (e) {
             console.error('Failed to parse llm_analysis:', e);
           }
@@ -679,6 +680,10 @@ router.get('/:id', async (req, res) => {
         parsedGapAnalysis.overall_completeness = llmData.overall_completeness || llmData.overallCompleteness || 0;
         parsedGapAnalysis.critical_gaps_count = llmData.critical_gaps_count || llmData.criticalGapsCount || 0;
         parsedGapAnalysis.high_priority_gaps_count = llmData.high_priority_gaps_count || llmData.highPriorityGapsCount || 0;
+        // Hoist completenessScore to top level so modal can find it without re-parsing llm_analysis
+        if (llmData.completenessScore != null) {
+          parsedGapAnalysis.completenessScore = llmData.completenessScore;
+        }
       }
     }
 

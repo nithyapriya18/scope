@@ -85,7 +85,7 @@ export default function GapAnalysisModal({ isOpen, onClose, gapAnalysis, rfpTitl
   const conflictingInfo = gapAnalysis.conflicting_info || llmData.conflicts || [];
   const defaultAssumptions: any[] = llmData.defaultAssumptions || [];
   // completenessScore from AI is 0-100 integer; overall_completeness (old) was 0-1 fraction
-  const rawScore = llmData.completenessScore ?? (gapAnalysis.overall_completeness != null ? gapAnalysis.overall_completeness * 100 : null) ?? 0;
+  const rawScore = llmData.completenessScore ?? gapAnalysis.completenessScore ?? (gapAnalysis.overall_completeness != null ? gapAnalysis.overall_completeness * 100 : null) ?? 0;
   const criticalGapsCount = missingFields.length;
   const highPriorityGapsCount = (llmData.helpfulGaps || []).length;
 
