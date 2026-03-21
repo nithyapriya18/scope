@@ -878,9 +878,29 @@ export default function VerticalWorkflowTimeline({
                           </p>
                         </div>
                       )}
+                      {step.id === 'wbs_estimate' && opportunity?.pricingPack && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {(() => {
+                              const pp = opportunity.pricingPack;
+                              const cb = pp.cost_breakdown || {};
+                              const rec = (cb.pricingOptions || []).find((o: any) => o.tier === cb.recommendedTier) || (cb.pricingOptions || [])[1];
+                              const tiers = (cb.pricingOptions || []).map((o: any) => `${o.tier}: $${(o.totalPrice || 0).toLocaleString()}`).join(' · ');
+                              return tiers || `Total: $${(pp.total_price || 0).toLocaleString()}`;
+                            })()}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {(() => {
+                              const cb = opportunity.pricingPack.cost_breakdown || {};
+                              return cb.recommendedTier ? `Recommended tier: ${cb.recommendedTier} — ${cb.recommendedRationale || ''}` : 'Pricing complete';
+                            })()}
+                          </p>
+                        </div>
+                      )}
                       {!opportunity?.brief && !opportunity?.gapAnalysis && !opportunity?.clarification
                         && step.id !== 'clarification_response' && step.id !== 'human_review'
-                        && step.id !== 'feasibility' && step.id !== 'scope_planning' && (
+                        && step.id !== 'feasibility' && step.id !== 'scope_planning'
+                        && step.id !== 'wbs_estimate' && (
                         <p className="text-sm text-gray-600 dark:text-gray-400 italic">
                           Step completed. Click View Analysis for details.
                         </p>

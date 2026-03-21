@@ -562,6 +562,7 @@ router.get('/:id', async (req, res) => {
     const clarifications = await sql`SELECT * FROM clarifications WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const scopes = await sql`SELECT * FROM scopes WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const feasibilityRows = await sql`SELECT * FROM feasibility_assessments WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
+    const pricingRows = await sql`SELECT id, labor_cost, hcp_incentives, travel_cost, overhead_cost, margin_percentage, margin_amount, total_price, currency, cost_breakdown FROM pricing_packs WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
 
     // Fetch current job progress (include recently completed jobs for 60 seconds)
     const currentJobs = await sql`
@@ -758,6 +759,10 @@ router.get('/:id', async (req, res) => {
           recruitment_strategy: parseJsonField(s.recruitment_strategy),
           discussion_guide_outline: parseJsonField(s.discussion_guide_outline),
         };
+      })() : null,
+      pricingPack: pricingRows.length > 0 ? (() => {
+        const p = pricingRows[0];
+        return { ...p, cost_breakdown: parseJsonField(p.cost_breakdown) };
       })() : null,
       currentJob: currentJobs.length > 0 ? currentJobs[0] : null,
       allJobs: allJobsResult,
