@@ -8,6 +8,7 @@ import ClarificationModal from './ClarificationModal';
 import ClarificationResponseModal from './ClarificationResponseModal';
 import ScopeModal from './ScopeModal';
 import FeasibilityModal from './FeasibilityModal';
+import WBSModal from './WBSModal';
 
 interface WorkflowStep {
   id: string;
@@ -147,6 +148,7 @@ export default function VerticalWorkflowTimeline({
   const [clarificationResponseModalOpen, setClarificationResponseModalOpen] = useState(false);
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [feasibilityModalOpen, setFeasibilityModalOpen] = useState(false);
+  const [wbsModalOpen, setWbsModalOpen] = useState(false);
   const [uploadingResponse, setUploadingResponse] = useState(false);
   const [redoConfirmStep, setRedoConfirmStep] = useState<string | null>(null);
   const [redoing, setRedoing] = useState(false);
@@ -917,6 +919,7 @@ export default function VerticalWorkflowTimeline({
                             else if (step.id === 'clarification_response') setClarificationResponseModalOpen(true);
                             else if (step.id === 'scope_planning') setScopeModalOpen(true);
                             else if (step.id === 'feasibility') setFeasibilityModalOpen(true);
+                            else if (step.id === 'wbs_estimate') setWbsModalOpen(true);
                           }}
                           className="flex items-center gap-2 px-3 py-1.5 text-xs font-bold text-slate-600 dark:text-slate-400 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg hover:border-primary hover:text-primary transition-all shrink-0"
                         >
@@ -1171,6 +1174,13 @@ export default function VerticalWorkflowTimeline({
         feasibility={opportunity?.feasibility ?? null}
         rfpTitle={opportunity?.rfpTitle || 'Untitled RFP'}
         opportunityId={opportunity?.id}
+      />
+
+      <WBSModal
+        isOpen={wbsModalOpen}
+        onClose={() => setWbsModalOpen(false)}
+        pricingPack={opportunity?.pricingPack ?? null}
+        rfpTitle={opportunity?.rfpTitle || 'Untitled RFP'}
       />
 
       {/* Redo Confirmation Dialog */}
