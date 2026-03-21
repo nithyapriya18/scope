@@ -62,11 +62,12 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
   });
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-sm py-4 px-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-6xl w-full max-h-[92vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 z-40 overflow-y-auto bg-black/50 backdrop-blur-sm">
+      <div className="flex min-h-full items-start justify-center p-4 pt-6 pb-8">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-6xl w-full">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-emerald-500/5 via-blue-500/5 to-violet-500/10">
+        {/* Header — sticky */}
+        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-t-2xl bg-gradient-to-r from-emerald-500/5 via-blue-500/5 to-violet-500/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center shadow">
               <DollarSign className="w-5 h-5 text-white" />
@@ -81,8 +82,8 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 px-6 pt-3 pb-0 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+        {/* Tabs — sticky below header */}
+        <div className="sticky top-[73px] z-10 flex gap-1 px-6 pt-3 pb-0 border-b border-gray-200 dark:border-gray-700 overflow-x-auto bg-white dark:bg-gray-900">
           {TABS.map(tab => {
             const Icon = tab.icon;
             return (
@@ -103,7 +104,7 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="p-6">
 
           {/* ── PRICING TIERS ─────────────────────────────────────── */}
           {activeTab === 'pricing' && (
@@ -458,6 +459,7 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
           )}
 
         </div>
+      </div>
       </div>
     </div>
   );

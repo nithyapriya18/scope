@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Check, Loader2, FileText, BarChart2, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Eye, ChevronDown, Users, Search, Info, Upload, FileCheck, RefreshCw } from 'lucide-react';
+import { Check, Loader2, FileText, BarChart2, MessageSquare, ClipboardList, CheckCircle, AlertTriangle, Eye, ChevronDown, Users, Search, Info, Upload, FileCheck, RefreshCw, Download, X } from 'lucide-react';
 import BriefModal from './BriefModal';
 import GapAnalysisModal from './GapAnalysisModal';
 import ClarificationModal from './ClarificationModal';
@@ -31,7 +31,7 @@ const STEP_SUBTASKS: Record<string, string[]> = {
   scope_planning: ['Detect study type', 'Generate sample size options', 'Design delivery timeline', 'Create scope assumptions'],
   wbs_estimate: ['Build work breakdown structure', 'Estimate task hours', 'Apply rate card', 'Calculate total cost'],
   document_gen: ['Generate proposal narrative', 'Build pricing annex', 'Create Statement of Work'],
-  approvals: ['Route to reviewers', 'Track approval status', 'Log final decision'],
+  approvals: ['Compose bid submission email', 'Attach proposal documents', 'Send to client'],
 };
 
 function formatDuration(ms: number): string {
@@ -125,9 +125,9 @@ const workflowSteps: WorkflowStep[] = [
   },
   {
     id: 'approvals',
-    label: 'Approvals & Closure',
-    agentName: 'Approval Router',
-    description: 'Route documents to finance, legal, and compliance approvers. Log final bid decision.',
+    label: 'Submit Bid',
+    agentName: 'Bid Submission',
+    description: 'Review and send the final proposal to the client. Confirm bid submission and close the opportunity.',
     icon: CheckCircle,
     statusMapping: ['approvals'],
   },
@@ -149,6 +149,9 @@ export default function VerticalWorkflowTimeline({
   const [scopeModalOpen, setScopeModalOpen] = useState(false);
   const [feasibilityModalOpen, setFeasibilityModalOpen] = useState(false);
   const [wbsModalOpen, setWbsModalOpen] = useState(false);
+  const [proposalReviewOpen, setProposalReviewOpen] = useState(false);
+  const [bidSubmitting, setBidSubmitting] = useState(false);
+  const [bidSubmitted, setBidSubmitted] = useState(false);
   const [uploadingResponse, setUploadingResponse] = useState(false);
   const [redoConfirmStep, setRedoConfirmStep] = useState<string | null>(null);
   const [redoing, setRedoing] = useState(false);
@@ -218,7 +221,7 @@ export default function VerticalWorkflowTimeline({
       feasibility: 'hcp_matching',
       scope_planning: 'scope_planner',
       wbs_estimate: 'wbs_estimation',
-      document_gen: 'document_gen',
+      document_gen: 'document_generation',
       approvals: 'approvals',
     };
     const jobType = jobTypeMap[stepId];
@@ -985,24 +988,119 @@ export default function VerticalWorkflowTimeline({
                   </div>
               )}
 
-              {/* Approval required banner for document_gen (shown when in-progress) */}
+              {/* Document gen — output summary with downloads */}
+              {step.id === 'document_gen' && status === 'completed' && opportunity?.documents?.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {opportunity.documents.filter((d: any) => ['proposal','pricing'].includes(d.documentType)).map((doc: any) => (
+                    <div key={doc.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                        <span className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                          {doc.documentType === 'proposal' ? 'Proposal (.docx)' : 'Pricing Annex (.xlsx)'}
+                        </span>
+                        <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-medium">
+                          {doc.status}
+                        </span>
+                      </div>
+                      <a
+                        href={`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity.id}/documents/${doc.documentType}/download`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1 px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors"
+                      >
+                        <Download className="w-3 h-3" />
+                        Download
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Approval required banner for document_gen */}
               {step.id === 'document_gen' && status === 'in-progress' && (
                 <div className="mt-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="text-amber-600 dark:text-amber-400 flex-shrink-0" size={16} />
                     <p className="text-sm text-amber-800 dark:text-amber-300">
-                      Review generated proposal documents before final approval
+                      Proposal generated — review before approving
                     </p>
                   </div>
                   <button
-                    onClick={onApprove || onProcessNext}
-                    disabled={processing}
-                    className="ml-4 px-4 py-1.5 bg-gradient-to-r from-primary to-secondary text-white text-xs font-bold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity shrink-0"
+                    onClick={() => setProposalReviewOpen(true)}
+                    className="ml-4 px-4 py-1.5 bg-gradient-to-r from-primary to-secondary text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity shrink-0"
                   >
-                    {processing ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Approve & Close'}
+                    Approve &amp; Close
                   </button>
                 </div>
               )}
+
+              {/* Submit Bid — step 10 active UI */}
+              {step.id === 'approvals' && status === 'in-progress' && (() => {
+                const rfpTitle = opportunity?.rfpTitle || 'Research Proposal';
+                const clientName = opportunity?.clientName || 'Client';
+                const rec = opportunity?.pricingPack?.cost_breakdown?.pricingOptions?.find((o: any) => o.tier === opportunity?.pricingPack?.cost_breakdown?.recommendedTier) || opportunity?.pricingPack?.cost_breakdown?.pricingOptions?.[1] || {};
+                const price = rec.totalPrice ? `$${Number(rec.totalPrice).toLocaleString()}` : '';
+                const defaultSubject = `Research Proposal: ${rfpTitle}`;
+                const defaultBody = `Dear ${clientName},\n\nThank you for the opportunity to respond to your RFP.\n\nPlease find attached PetaSight's research proposal for "${rfpTitle}".\n\nWe recommend our ${rec.tier || 'proposed'} option${price ? ` at ${price}` : ''}, which best addresses your research objectives while optimising for quality, feasibility, and value.\n\nKey highlights:\n• Study design tailored to your therapeutic area and target audience\n• Fully feasible recruitment plan with validated panel coverage\n• Delivery within the agreed timeline\n• ${price ? `Investment: ${price}` : 'Competitive pricing as detailed in the proposal'}\n\nWe welcome the opportunity to discuss our proposal at your convenience.\n\nKind regards,\nPetaSight Research Team\nnithya@petasight.com`;
+
+                return (
+                  <div className="mt-4 space-y-3">
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 space-y-3">
+                      <div className="flex items-center gap-2 mb-1">
+                        <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        <p className="text-sm font-bold text-blue-800 dark:text-blue-300">Bid Submission Email</p>
+                      </div>
+                      <div className="space-y-2 text-xs text-gray-600 dark:text-gray-400">
+                        <div className="flex gap-2">
+                          <span className="font-bold text-gray-500 w-12 shrink-0">To:</span>
+                          <span className="text-gray-700 dark:text-gray-300">nithya@petasight.com</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <span className="font-bold text-gray-500 w-12 shrink-0">Subject:</span>
+                          <span className="text-gray-700 dark:text-gray-300">{defaultSubject}</span>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-3 max-h-40 overflow-y-auto">
+                          <pre className="text-xs whitespace-pre-wrap font-sans text-gray-700 dark:text-gray-300">{defaultBody}</pre>
+                        </div>
+                        {(opportunity?.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).length > 0 && (
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            {(opportunity.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).map((doc: any) => (
+                              <span key={doc.id} className="flex items-center gap-1 px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs text-gray-600 dark:text-gray-400">
+                                <FileText className="w-3 h-3" />
+                                {doc.filename}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    {bidSubmitted ? (
+                      <div className="flex items-center gap-2 px-4 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+                        <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400">Bid submitted successfully!</span>
+                      </div>
+                    ) : (
+                      <button
+                        disabled={bidSubmitting}
+                        onClick={async () => {
+                          setBidSubmitting(true);
+                          try {
+                            const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/opportunities/${opportunity.id}/submit-bid`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ subject: defaultSubject, body: defaultBody, recipientEmail: 'nithya@petasight.com' }),
+                            });
+                            if (res.ok) { setBidSubmitted(true); setTimeout(() => onRefresh?.(), 1500); }
+                          } finally { setBidSubmitting(false); }
+                        }}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-primary to-secondary text-white text-sm font-bold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                      >
+                        {bidSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4" /> Submit Bid</>}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Waiting State */}
               {status === 'waiting' && (
@@ -1182,6 +1280,87 @@ export default function VerticalWorkflowTimeline({
         pricingPack={opportunity?.pricingPack ?? null}
         rfpTitle={opportunity?.rfpTitle || 'Untitled RFP'}
       />
+
+      {/* Proposal Review Modal */}
+      {proposalReviewOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm">
+          <div className="flex min-h-full items-start justify-center p-4 pt-6 pb-8">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full">
+              {/* Header */}
+              <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 rounded-t-2xl bg-gradient-to-r from-emerald-500/5 to-blue-500/10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-blue-600 flex items-center justify-center shadow">
+                    <FileText className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Review Proposal</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{opportunity?.rfpTitle || 'Untitled RFP'}</p>
+                  </div>
+                </div>
+                <button onClick={() => setProposalReviewOpen(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+              {/* Documents */}
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Download and review the generated documents. Once satisfied, approve to finalize the bid.
+                </p>
+                {(opportunity?.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).length > 0 ? (
+                  <div className="space-y-3">
+                    {(opportunity.documents || []).filter((d: any) => ['proposal','pricing'].includes(d.documentType)).map((doc: any) => (
+                      <div key={doc.id} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${doc.documentType === 'proposal' ? 'bg-blue-100 dark:bg-blue-900/30' : 'bg-emerald-100 dark:bg-emerald-900/30'}`}>
+                            <FileText className={`w-5 h-5 ${doc.documentType === 'proposal' ? 'text-blue-600' : 'text-emerald-600'}`} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-gray-900 dark:text-white">
+                              {doc.documentType === 'proposal' ? 'Research Proposal' : 'Pricing Annex'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {doc.filename} · {doc.format?.toUpperCase()}
+                            </p>
+                          </div>
+                        </div>
+                        <a
+                          href={`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3038'}/api/opportunities/${opportunity.id}/documents/${doc.documentType}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-xs font-bold rounded-lg transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          Download
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-400 dark:text-gray-600">
+                    <FileText className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                    <p className="text-sm">Documents not yet ready. Wait for generation to complete.</p>
+                  </div>
+                )}
+                <div className="flex gap-3 pt-2 border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    onClick={() => setProposalReviewOpen(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => { setProposalReviewOpen(false); (onApprove || onProcessNext)?.(); }}
+                    disabled={processing}
+                    className="flex-1 px-4 py-2 bg-gradient-to-r from-primary to-secondary text-white text-sm font-bold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                  >
+                    {processing ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Approve & Close'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Redo Confirmation Dialog */}
       {redoConfirmStep && (

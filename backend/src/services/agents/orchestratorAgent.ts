@@ -27,6 +27,7 @@ export type WorkflowStatus =
   | 'wbs_estimate'    // Phase 3: Work breakdown structure
   | 'pricing'         // Phase 3: Pricing calculation
   | 'document_gen'    // Phase 3: Document generation
+  | 'approvals'       // Phase 3: Submit bid to client
   | 'approved'
   | 'rejected'
   | 'handoff';
@@ -305,8 +306,8 @@ Your role is to coordinate agent execution based on the current workflow state.`
     const result = await agent.execute(context);
 
     if (result.success) {
-      await sql`UPDATE opportunities SET status = 'approved', updated_at = now() WHERE id = ${context.opportunityId}`;
-      console.log('✅ Document generation complete — advancing to approved');
+      await sql`UPDATE opportunities SET status = 'approvals', updated_at = now() WHERE id = ${context.opportunityId}`;
+      console.log('✅ Document generation complete — advancing to approvals (Submit Bid)');
     }
 
     return result;

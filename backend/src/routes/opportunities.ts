@@ -563,6 +563,7 @@ router.get('/:id', async (req, res) => {
     const scopes = await sql`SELECT * FROM scopes WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const feasibilityRows = await sql`SELECT * FROM feasibility_assessments WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
     const pricingRows = await sql`SELECT id, labor_cost, hcp_incentives, travel_cost, overhead_cost, margin_percentage, margin_amount, total_price, currency, cost_breakdown FROM pricing_packs WHERE opportunity_id = ${id} ORDER BY created_at DESC LIMIT 1`;
+    const documentRows = await sql`SELECT id, document_type, filename, file_path, format, status, created_at FROM documents WHERE opportunity_id = ${id} ORDER BY created_at DESC`;
 
     // Fetch current job progress (include recently completed jobs for 60 seconds)
     const currentJobs = await sql`
@@ -764,6 +765,15 @@ router.get('/:id', async (req, res) => {
         const p = pricingRows[0];
         return { ...p, cost_breakdown: parseJsonField(p.cost_breakdown) };
       })() : null,
+      documents: documentRows.map((d: any) => ({
+        id: d.id,
+        documentType: d.document_type,
+        filename: d.filename,
+        format: d.format,
+        status: d.status,
+        createdAt: d.created_at,
+        downloadUrl: `/api/opportunities/${id}/documents/${d.document_type}/download`,
+      })),
       currentJob: currentJobs.length > 0 ? currentJobs[0] : null,
       allJobs: allJobsResult,
     };
@@ -1157,6 +1167,89 @@ router.delete('/:id', async (req, res) => {
   } catch (error: any) {
     console.error('Error deleting opportunity:', error);
     res.status(500).json({ error: 'Failed to delete opportunity', message: error.message });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/submit-bid
+ * Submit the final bid by sending an email and marking the opportunity as approved.
+ */
+router.post('/:id/submit-bid', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { subject, body, recipientEmail } = req.body;
+    const sql = getSql();
+
+    const opps = await sql`SELECT rfp_title, client_name, client_email FROM opportunities WHERE id = ${id}`;
+    if (opps.length === 0) return res.status(404).json({ error: 'Opportunity not found' });
+    const opp = opps[0];
+
+    const to = recipientEmail || 'nithya@petasight.com';
+    const emailSubject = subject || `Research Proposal: ${opp.rfp_title || 'Proposal'}`;
+    const emailBody = body || `Dear ${opp.client_name || 'Client'},\n\nPlease find attached our research proposal.\n\nKind regards,\nPetaSight`;
+
+    // Write to file (same pattern as clarification email)
+    const emailDir = path.join(process.cwd(), 'uploads', 'emails');
+    if (!fs.existsSync(emailDir)) fs.mkdirSync(emailDir, { recursive: true });
+    const emailPath = path.join(emailDir, `bid_submission_${id}_${Date.now()}.txt`);
+    fs.writeFileSync(emailPath, `TO: ${to}\nSUBJECT: ${emailSubject}\n\n${emailBody}`, 'utf8');
+
+    // Mark opportunity as approved
+    await sql`UPDATE opportunities SET status = 'approved', updated_at = now() WHERE id = ${id}`;
+
+    // Log in documents table
+    const docRows = await sql`SELECT tenant_id FROM documents WHERE opportunity_id = ${id} LIMIT 1`;
+    const tenantId = docRows[0]?.tenant_id;
+    if (tenantId) {
+      await sql`
+        INSERT INTO documents (opportunity_id, tenant_id, document_type, filename, file_path, format, status, created_at, updated_at)
+        VALUES (${id}, ${tenantId}, 'clarification', ${'bid_submission.txt'}, ${emailPath}, 'txt', 'draft', now(), now())
+      `;
+    }
+
+    console.log(`✅ Bid submitted for opportunity ${id} → ${to}`);
+    res.json({ message: 'Bid submitted successfully', sentTo: to, opportunityId: id });
+  } catch (error: any) {
+    console.error('Error submitting bid:', error);
+    res.status(500).json({ error: 'Failed to submit bid', message: error.message });
+  }
+});
+
+/**
+ * GET /api/opportunities/:id/documents/:type/download
+ * Download generated proposal (.docx) or pricing annex (.xlsx)
+ * type = 'proposal' | 'pricing'
+ */
+router.get('/:id/documents/:type/download', async (req, res) => {
+  try {
+    const { id, type } = req.params;
+    if (!['proposal', 'pricing'].includes(type)) {
+      return res.status(400).json({ error: 'type must be proposal or pricing' });
+    }
+    const sql = getSql();
+    const rows = await sql`
+      SELECT filename, file_path, format
+      FROM documents
+      WHERE opportunity_id = ${id} AND document_type = ${type}
+      ORDER BY created_at DESC LIMIT 1
+    `;
+    if (rows.length === 0 || !rows[0].file_path) {
+      return res.status(404).json({ error: 'Document not found. Run document generation first.' });
+    }
+    const { filename, file_path, format } = rows[0];
+    if (!fs.existsSync(file_path)) {
+      return res.status(404).json({ error: 'File not found on disk. Re-run document generation.' });
+    }
+    const mimeTypes: Record<string, string> = {
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    };
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', mimeTypes[format] || 'application/octet-stream');
+    res.sendFile(path.resolve(file_path));
+  } catch (error: any) {
+    console.error('Error downloading document:', error);
+    res.status(500).json({ error: 'Failed to download document', message: error.message });
   }
 });
 

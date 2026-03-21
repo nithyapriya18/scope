@@ -88,6 +88,7 @@ export default function OpportunityDetailPage() {
       'scope_planning',          // After scope design completes — advances to wbs_estimate
       'wbs_estimate',            // After WBS+pricing completes — advances to document_gen
       'pricing',                 // Pricing combined with WBS — skip straight to document_gen
+      'document_gen',            // After document gen completes — advances to approved
     ];
 
     // Other steps respect workflow mode setting
@@ -100,6 +101,7 @@ export default function OpportunityDetailPage() {
       assumption_analysis: 'assumption_analysis', clarification: 'clarification',
       clarification_response: 'clarification_response', feasibility: 'hcp_matching',
       scope_planning: 'scope_planner', wbs_estimate: 'wbs_estimation', pricing: 'pricing',
+      document_gen: 'document_generation',
     };
     const jobType = jobTypeMap[status];
     // Check only the MOST RECENT job of this type — older failed jobs (e.g. from before a redo) should not block
