@@ -166,13 +166,16 @@ export default function VerticalWorkflowTimeline({
   const clarificationHasQuestions = Array.isArray(opportunity?.clarification?.questions) && opportunity.clarification.questions.length > 0;
 
   // Find the current step index
-  const currentStepIndex = workflowSteps.findIndex(step => {
-    if (step.uiOnly) return false;
-    if (step.statusMapping && Array.isArray(step.statusMapping)) {
-      return step.statusMapping.includes(backendStatus);
-    }
-    return step.id === backendStatus;
-  });
+  // 'approved' means fully done — treat as past the last step so all steps show completed
+  const currentStepIndex = backendStatus === 'approved'
+    ? workflowSteps.length
+    : workflowSteps.findIndex(step => {
+        if (step.uiOnly) return false;
+        if (step.statusMapping && Array.isArray(step.statusMapping)) {
+          return step.statusMapping.includes(backendStatus);
+        }
+        return step.id === backendStatus;
+      });
 
   // Live timer for in-progress step
   useEffect(() => {
@@ -905,16 +908,39 @@ export default function VerticalWorkflowTimeline({
                           </p>
                         </div>
                       )}
+                      {step.id === 'document_gen' && (
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">
+                            {(() => {
+                              const docs = opportunity?.documents || [];
+                              const hasProposal = docs.some((d: any) => d.documentType === 'proposal');
+                              const hasBrief = docs.some((d: any) => d.documentType === 'internal_brief');
+                              if (hasProposal && hasBrief) return '2 documents generated — client proposal and internal brief';
+                              if (hasProposal) return 'Client proposal generated';
+                              return 'Documents generated';
+                            })()}
+                          </p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400">
+                            {(() => {
+                              const cb = opportunity?.pricingPack?.cost_breakdown || {};
+                              const rec = (cb.pricingOptions || []).find((o: any) => o.tier === cb.recommendedTier);
+                              return rec
+                                ? `Recommended bid: ${cb.recommendedTier} @ $${(rec.totalPrice || 0).toLocaleString()} — ready to submit`
+                                : 'Ready for review and submission';
+                            })()}
+                          </p>
+                        </div>
+                      )}
                       {!opportunity?.brief && !opportunity?.gapAnalysis && !opportunity?.clarification
                         && step.id !== 'clarification_response' && step.id !== 'human_review'
                         && step.id !== 'feasibility' && step.id !== 'scope_planning'
-                        && step.id !== 'wbs_estimate' && (
+                        && step.id !== 'wbs_estimate' && step.id !== 'document_gen' && (
                         <p className="text-sm text-gray-600 dark:text-gray-400 italic">
-                          Step completed. Click View Analysis for details.
+                          Step completed.
                         </p>
                       )}
                     </div>
-                    {step.id !== 'human_review' && (
+                    {step.id !== 'human_review' && step.id !== 'document_gen' && step.id !== 'approvals' && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => {

@@ -17,19 +17,6 @@ interface Opportunity {
   studyType: string | null;
 }
 
-const statusMap: Record<string, string> = {
-  intake: 'Intake Agent',
-  brief_extract: 'Brief Parser Agent',
-  gap_analysis: 'Gap Analyzer Agent',
-  clarification: 'Clarifications Agent',
-  scope_planning: 'Research Design Agent',
-  feasibility: 'Feasibility Agent',
-  workplan: 'Workplan Agent',
-  wbs_estimate: 'Estimation Agent',
-  pricing: 'Pricing Agent',
-  proposal: 'Proposal Agent',
-  approvals: 'Approvals Agent',
-};
 
 const getStudyTypeDisplay = (studyType: string | null) => {
   if (!studyType) return { label: 'Not Set', color: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' };
@@ -462,8 +449,8 @@ export default function DashboardPage() {
                           onClick={() => router.push(`/opportunities/${opp.id}`)}
                         >
                           <div className="flex gap-1">
-                            {Array.from({ length: 11 }).map((_, i) => {
-                              const filled = Math.floor(progress / 10);
+                            {Array.from({ length: 10 }).map((_, i) => {
+                              const filled = Math.round(progress / 10);
                               const isFilled = i < filled;
                               const t = filled > 1 ? i / (filled - 1) : 0;
                               const r = Math.round(0xDA + t * (0x4F - 0xDA));
