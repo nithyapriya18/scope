@@ -433,15 +433,15 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
 
     const secHdr = (title: string) => new Paragraph({
       children: [new TextRun({ text: title, bold: true, color: WHITE, font: 'Calibri', size: 24, allCaps: true })],
-      shading: { fill: NAVY },
+      shading: { fill: NAVY, color: 'auto' },
       spacing: { before: 300, after: 100 },
       indent: { left: 100 },
     });
 
     const row2 = (label: string, value: string, shade = false) => new TableRow({
       children: [
-        new TableCell({ children: [new Paragraph({ children: [b(label)] })], width: { size: 2800, type: WidthType.DXA }, shading: { fill: shade ? LGRAY : WHITE }, borders: borders() }),
-        new TableCell({ children: [new Paragraph({ children: [t(value || '—')] })], width: { size: 6400, type: WidthType.DXA }, shading: { fill: WHITE }, borders: borders() }),
+        new TableCell({ children: [new Paragraph({ children: [b(label)] })], width: { size: 2800, type: WidthType.DXA }, shading: { fill: shade ? LGRAY : WHITE, color: 'auto' }, borders: borders() }),
+        new TableCell({ children: [new Paragraph({ children: [t(value || '—')] })], width: { size: 6400, type: WidthType.DXA }, shading: { fill: WHITE, color: 'auto' }, borders: borders() }),
       ],
     });
 
@@ -453,9 +453,8 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
     const hdrRow = (cols: string[]) => new TableRow({
       children: cols.map(c => new TableCell({
         children: [new Paragraph({ children: [new TextRun({ text: c, bold: true, color: WHITE, font: 'Calibri', size: 20 })] })],
-        shading: { fill: BLUE }, borders: borders(),
+        shading: { fill: BLUE, color: 'auto' }, borders: borders(),
       })),
-      tableHeader: true,
     });
 
     const money = (v: number) => v == null ? '—' : '$' + Math.round(v).toLocaleString();
@@ -471,7 +470,7 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
 
     const children: any[] = [
       // ── Cover ─────────────────────────────────────────────────────────────
-      new Paragraph({ children: [new TextRun({ text: 'INTERNAL PROJECT BRIEF', bold: true, color: WHITE, font: 'Calibri', size: 48, allCaps: true })], shading: { fill: NAVY }, alignment: AlignmentType.CENTER, spacing: { before: 200, after: 100 } }),
+      new Paragraph({ children: [new TextRun({ text: 'INTERNAL PROJECT BRIEF', bold: true, color: WHITE, font: 'Calibri', size: 48, allCaps: true })], shading: { fill: NAVY, color: 'auto' }, alignment: AlignmentType.CENTER, spacing: { before: 200, after: 100 } }),
       new Paragraph({ children: [new TextRun({ text: opp?.rfp_title || 'Research Project', bold: true, color: BLUE, font: 'Calibri', size: 28 })], alignment: AlignmentType.CENTER, spacing: { after: 80 } }),
       new Paragraph({ children: [new TextRun({ text: `Client: ${opp?.client_name || '—'} | Generated: ${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })} | CONFIDENTIAL`, color: '666666', font: 'Calibri', size: 18 })], alignment: AlignmentType.CENTER, spacing: { after: 300 } }),
 
@@ -949,6 +948,8 @@ Return ONLY this JSON (no markdown):
       try {
         const [p1, p2, p3, p4, p5, p6] = [parseJson(raw1), parseJson(raw2), parseJson(raw3), parseJson(raw4), parseJson(raw5), parseJson(raw6)];
         content = { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6 };
+        const sections = Object.keys(content).filter(k => k.startsWith('section'));
+        console.log(`DocumentGeneratorAgent: parsed ${sections.length} sections — ${sections.join(', ')}`);
       } catch (e) {
         console.error('DocumentGeneratorAgent: JSON parse failed', e);
         return { success: false, error: 'Failed to parse AI proposal content' };
