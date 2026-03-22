@@ -318,22 +318,16 @@ export default function OpportunityDetailPage() {
       {/* Footer */}
       <footer className="h-10 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 text-[10px] text-slate-400 font-bold uppercase tracking-wider shrink-0">
         <div className="flex gap-4">
-          <span>Status: Research Phase Active</span>
-          <span>Completion %: {(() => {
-            // Calculate overall progress
-            const workflowSteps = ['intake', 'brief_extract', 'gap_analysis', 'clarification', 'scope_planning', 'workplan', 'wbs_estimate', 'proposal', 'approvals'];
-            const currentStepIndex = workflowSteps.indexOf(opportunity?.status || 'intake');
-            const totalSteps = workflowSteps.length;
-            const completedSteps = currentStepIndex;
-            const currentJob = opportunity?.currentJob;
-            const currentStepProgress = (currentJob && currentJob.status === 'processing' ? currentJob.progress || 0 : 0) / 100;
-            return Math.round(((completedSteps + currentStepProgress) / totalSteps) * 100);
+          <span>Status: {opportunity?.status?.replace(/_/g, ' ') || '—'}</span>
+          <span>Completion: {(() => {
+            const steps = ['intake','brief_extract','gap_analysis','assumption_analysis','clarification','clarification_response','feasibility','scope_planning','wbs_estimate','pricing','document_gen','approvals','approved'];
+            const idx = opportunity?.status === 'approved' ? steps.length : steps.indexOf(opportunity?.status || 'intake');
+            return idx < 0 ? 0 : Math.round((idx / steps.length) * 100);
           })()}%</span>
         </div>
         <div className="flex gap-4">
           <span>Bid ID: {getBidId()}</span>
-          <span>Region: Global (Focus EU/US)</span>
-          <span>Next Step: Feasibility Check</span>
+          <span>Client: {opportunity?.clientName || '—'}</span>
         </div>
       </footer>
 
