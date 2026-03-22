@@ -142,6 +142,16 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(500).json({ error: 'Internal Server Error', message: err.message });
 });
 
+// On startup: cancel any jobs left in 'processing' state from prior crash/restart
+import { getSql } from './lib/sql';
+(async () => {
+  try {
+    const sql = getSql();
+    const { count } = (await sql`UPDATE jobs SET status='failed', error='Orphaned — server restarted' WHERE status='processing' RETURNING COUNT(*) AS count`)[0] || { count: 0 };
+    if (Number(count) > 0) console.log(`🧹 Cancelled ${count} orphaned processing job(s) from prior restart`);
+  } catch { /* ignore — DB may not be ready yet */ }
+})();
+
 // Start server
 app.listen(PORT, () => {
   console.log(`✅ Lumina Scope Backend running on port ${PORT}`);
