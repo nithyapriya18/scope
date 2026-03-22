@@ -320,9 +320,17 @@ export default function OpportunityDetailPage() {
         <div className="flex gap-4">
           <span>Status: {opportunity?.status?.replace(/_/g, ' ') || '—'}</span>
           <span>Completion: {(() => {
-            const steps = ['intake','brief_extract','gap_analysis','assumption_analysis','clarification','clarification_response','feasibility','scope_planning','wbs_estimate','pricing','document_gen','approvals','approved'];
-            const idx = opportunity?.status === 'approved' ? steps.length : steps.indexOf(opportunity?.status || 'intake');
-            return idx < 0 ? 0 : Math.round((idx / steps.length) * 100);
+            // Map DB statuses to 10 UI steps (0–10)
+            const statusToStep: Record<string, number> = {
+              intake: 1, brief_extract: 2,
+              gap_analysis: 3, assumption_analysis: 3,
+              clarification: 4, clarification_response: 5,
+              feasibility: 6, scope_planning: 7,
+              wbs_estimate: 8, pricing: 8,
+              document_gen: 9, approvals: 10, approved: 10,
+            };
+            const step = statusToStep[opportunity?.status || ''] ?? 0;
+            return Math.round((step / 10) * 100);
           })()}%</span>
         </div>
         <div className="flex gap-4">
