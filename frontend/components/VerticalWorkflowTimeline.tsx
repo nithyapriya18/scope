@@ -441,11 +441,10 @@ export default function VerticalWorkflowTimeline({
       // Close confirmation dialog
       setRedoConfirmStep(null);
 
-      // Refresh opportunity data and trigger re-processing
+      // Refresh data only — redo endpoint already fires the orchestrator directly
       if (onRefresh) {
         setTimeout(() => {
           onRefresh();
-          setTimeout(() => onProcessNext?.(), 1000);
         }, 500);
       }
     } catch (error) {

@@ -973,22 +973,24 @@ Return ONLY this JSON (no markdown):
       if (docxErr)  console.error('proposal docx error:', docxErr);
       if (briefErr) console.error('internal brief error:', briefErr);
 
-      // ── Delete existing docs for this opportunity, then insert fresh ───────
-      await sql`DELETE FROM documents WHERE opportunity_id = ${context.opportunityId}`;
-
       const genConfig = { proposalContent: content, qcResult, generatedAt: new Date().toISOString() };
 
       const [proposalDoc] = await sql`
         INSERT INTO documents (opportunity_id, tenant_id, document_type, filename, file_path, format, template_used, generation_config, status, created_at, updated_at)
         VALUES (${context.opportunityId}, ${brief.tenant_id}, 'proposal', ${'proposal.docx'}, ${docxGenerated ? docxPath : null},
                 'docx', 'PMR_Proposal_Template_Word_v4_SCOPE_FINAL.docx', ${JSON.stringify(genConfig)}::jsonb, 'draft', now(), now())
+        ON CONFLICT (opportunity_id, document_type) DO UPDATE
+          SET filename = EXCLUDED.filename, file_path = EXCLUDED.file_path,
+              generation_config = EXCLUDED.generation_config, updated_at = now()
         RETURNING id`;
 
       if (briefGenerated) {
         await sql`
           INSERT INTO documents (opportunity_id, tenant_id, document_type, filename, file_path, format, template_used, generation_config, status, created_at, updated_at)
           VALUES (${context.opportunityId}, ${brief.tenant_id}, 'internal_brief', ${'internal_brief.docx'}, ${briefPath},
-                  'docx', 'internal_brief', ${JSON.stringify({ pricingOptions })}::jsonb, 'draft', now(), now())`;
+                  'docx', 'internal_brief', ${JSON.stringify({ pricingOptions })}::jsonb, 'draft', now(), now())
+          ON CONFLICT (opportunity_id, document_type) DO UPDATE
+            SET file_path = EXCLUDED.file_path, generation_config = EXCLUDED.generation_config, updated_at = now()`;
       }
 
       await sql`UPDATE opportunities SET status = 'document_gen', updated_at = now() WHERE id = ${context.opportunityId}`;
