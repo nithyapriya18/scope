@@ -718,7 +718,8 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
     try {
       const sql = getSql();
 
-      const [[opp], [brief], [scope], [feasibility], [pricing], [clarification]] =
+      // ── Pull all data from previous steps ────────────────────────────────
+      const [[opp], [brief], [scope], [feasibility], [pricing], [clarification], [wbs]] =
         await Promise.all([
           sql`SELECT email_body, rfp_title, client_name, client_email, therapeutic_area FROM opportunities WHERE id = ${context.opportunityId}`,
           sql`SELECT tenant_id, study_type, target_audience, therapeutic_area, research_objectives, sample_requirements, timeline_requirements, deliverables, budget_indication, raw_extraction FROM briefs WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
@@ -726,239 +727,190 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
           sql`SELECT llm_result FROM feasibility_assessments WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
           sql`SELECT total_price, labor_cost, hcp_incentives, overhead_cost, margin_amount, margin_percentage, cost_breakdown FROM pricing_packs WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
           sql`SELECT questions, client_responses FROM clarifications WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
+          sql`SELECT task_breakdown, total_hours, cost_breakdown FROM wbs_estimates WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
         ]);
 
       if (!brief) return { success: false, error: 'No brief found for this opportunity' };
 
-      const cb = pricing?.cost_breakdown || {};
+      const cb         = pricing?.cost_breakdown || {};
       const pricingOptions: any[] = cb.pricingOptions || [
-        { tier: 'RECOMMENDED', n: 0, laborCost: pricing?.labor_cost, hcpCpiCost: pricing?.hcp_incentives, oopCosts: 0, overhead: pricing?.overhead_cost, margin: pricing?.margin_amount, totalPrice: pricing?.total_price, fieldWeeks: 0, costBreakdown: {} },
+        { tier: 'RECOMMENDED', totalPrice: pricing?.total_price, laborCost: pricing?.labor_cost, hcpCpiCost: pricing?.hcp_incentives, marginPct: pricing?.margin_percentage },
       ];
-      const recommendedTier = pricingOptions.find((o: any) => o.tier === cb.recommendedTier) || pricingOptions[1] || pricingOptions[0] || {};
+      const rec        = pricingOptions.find((o: any) => o.tier === cb.recommendedTier) || pricingOptions[1] || pricingOptions[0] || {};
+      const feas       = feasibility?.llm_result || {};
+      const meth       = scope?.methodology_detail || {};
+      const milestones = scope?.key_milestones || {};
+      const sample     = scope?.sample_size_options?.[1] || scope?.sample_size_options?.[0] || {};
+      const recr       = scope?.recruitment_strategy || {};
+      const assump     = scope?.scope_assumptions || [];
+      const delivs     = brief.deliverables || scope?.deliverables || [];
+      const timeline   = brief.timeline_requirements || {};
+      const objArr: any[]  = brief.research_objectives || [];
+      const clarQA     = clarification
+        ? `Q: ${JSON.stringify(clarification.questions || []).substring(0, 600)}\nA: ${JSON.stringify(clarification.client_responses || {}).substring(0, 600)}`
+        : 'No clarification exchange.';
 
-      // ── Shared context block (passed to all 3 parallel calls) ─────────────
-      const sharedCtx = `
-=== RFP ===
-Client: ${opp?.client_name} | Study: ${brief.study_type} | TA: ${brief.therapeutic_area || opp?.therapeutic_area}
-RFP title: ${opp?.rfp_title}
-RFP text (truncated): ${(opp?.email_body || '').substring(0, 2000)}
+      const date       = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+      const clientUC   = (opp?.client_name || 'CLIENT').toUpperCase();
+      const studyLabel = brief.study_type || scope?.detected_study_type || 'Quantitative';
+      const totalPriceRec = rec.totalPrice || pricing?.total_price || 0;
 
-=== BRIEF ===
-Audience: ${brief.target_audience}
-Objectives: ${JSON.stringify(brief.research_objectives || []).substring(0, 600)}
-Deliverables: ${JSON.stringify(brief.deliverables || []).substring(0, 400)}
-Budget: ${brief.budget_indication || 'Not disclosed'}
-Timeline: ${JSON.stringify(brief.timeline_requirements || {}).substring(0, 300)}
+      // ── 1 AI call: executive summary narrative only ───────────────────────
+      const aiPrompt = `You are writing the executive summary section of a pharma market research proposal for ${opp?.client_name}.
 
-=== SCOPE ===
-Methodology: ${JSON.stringify(scope?.methodology_detail || {}).substring(0, 1200)}
-Sample: ${JSON.stringify(scope?.sample_size_options || []).substring(0, 600)}
-Milestones: ${JSON.stringify(scope?.key_milestones || {}).substring(0, 600)}
-Assumptions: ${JSON.stringify(scope?.scope_assumptions || []).substring(0, 600)}
-Recruitment: ${JSON.stringify(scope?.recruitment_strategy || {}).substring(0, 500)}
+Study: ${opp?.rfp_title}
+Study type: ${studyLabel}
+Objectives: ${JSON.stringify(objArr).substring(0, 800)}
+Methodology: ${JSON.stringify(meth).substring(0, 600)}
+Sample: n=${sample.n || 'TBD'}, audience: ${brief.target_audience}
+Timeline: ${JSON.stringify(timeline).substring(0, 400)}
+Total price: $${Number(totalPriceRec).toLocaleString()} (recommended tier)
+Deliverables: ${JSON.stringify(delivs).substring(0, 400)}
+Clarifications: ${clarQA}
 
-=== FEASIBILITY ===
-${JSON.stringify(feasibility?.llm_result || {}).substring(0, 1200)}
-
-=== PRICING ===
-Recommended: ${cb.recommendedTier || 'BETTER'} @ $${recommendedTier.totalPrice || pricing?.total_price || 'TBD'}
-Labor: $${recommendedTier.laborCost || 0} | HCP/CPI: $${recommendedTier.hcpCpiCost || 0} | Margin: ${recommendedTier.marginPct || 25}%
-All tiers: ${JSON.stringify(pricingOptions.map((o: any) => ({ tier: o.tier, n: o.n, totalPrice: o.totalPrice, rationale: o.rationale }))).substring(0, 600)}
-Payment: ${cb.paymentTerms || '50% on signature, 50% on final delivery'}
-
-=== CLARIFICATION Q&A ===
-${clarification ? JSON.stringify({ q: clarification.questions, a: clarification.client_responses }).substring(0, 600) : 'None'}`;
+Return ONLY this JSON (no markdown):
+{
+  "projectTitle": "concise 10-15 word study title",
+  "clientChallenge": "2-3 sentences on the specific business challenge this client faces",
+  "decisionToSupport": "1-2 sentences on the exact decision this research will inform",
+  "recommendedPmrResponse": "1-2 sentences describing the recommended study approach",
+  "businessValue": "2-3 sentences on what the client can do with this evidence",
+  "draftingLine": "One sentence: [Client] needs [evidence] to [decision]. We recommend [approach] to deliver [outputs] within [timeline]."
+}`;
 
       const sys = this.getSystemPrompt(context);
-      const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
-      const clientUC = (opp?.client_name || 'CLIENT').toUpperCase();
-
-      // ── 6 parallel AI calls (2 sections each max) to stay under 2 min ───────
-      const withTimeout = (p: Promise<string>, ms = 150000) =>
-        Promise.race([p, new Promise<string>((_, rej) => setTimeout(() => rej(new Error(`AI call timed out after ${ms/1000}s`)), ms))]);
-
-      const [raw1, raw2, raw3, raw4, raw5, raw6] = await Promise.all([
-
-        // ── CALL 1: Cover + Section 1 ────────────────────────────────────────
-        withTimeout(this.invokeAI(sys, `${sharedCtx}
-
-=== YOUR TASK ===
-Format the data above into the cover page and executive summary (section 1) of the proposal.
-Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
-Return ONLY this JSON (no markdown):
-{
-  "coverPage": {"clientName":"${opp?.client_name}","projectTitle":"WRITE: specific study title derived from the RFP","date":"${date}","version":"v1.0","scopeMode":"Proposal","confidentiality":"STRICTLY CONFIDENTIAL — FOR ${clientUC} REVIEW ONLY"},
-  "section1_executiveSummary": {
-    "clientChallenge":"WRITE: 3-4 sentences describing the specific business/commercial challenge this client faces based on the RFP and brief",
-    "decisionToSupport":"WRITE: 2-3 sentences on the exact business decision this research will inform",
-    "recommendedPmrResponse":"WRITE: 2-3 sentences describing the recommended study type, method, audience, markets and timing from scope",
-    "businessValue":"WRITE: 3-4 sentences explaining what the client can decide or do differently with this evidence",
-    "coreOutputs":"WRITE: list the deliverables from the brief in 2-3 sentences",
-    "timing":"WRITE: 2-3 sentences on headline timeline and key dependency from milestones",
-    "commercialRecommendation":"WRITE: recommended pricing tier, total price, and payment terms",
-    "decisionAsk":"WRITE: one clear sentence on what the client is approving",
-    "draftingLine":"WRITE: one complete sentence: [Client] needs [specific evidence] to [specific decision]. We recommend [specific approach] to deliver [specific outputs] within [specific timeline]."
-  }
-}`, context)),
-
-        // ── CALL 2: Sections 2-3 ─────────────────────────────────────────────
-        withTimeout(this.invokeAI(sys, `${sharedCtx}
-
-=== YOUR TASK ===
-Format the data above into sections 2-3 of the proposal.
-Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
-Return ONLY this JSON (no markdown):
-{
-  "section2_decisionContext": {
-    "currentSituation":"WRITE: 3-4 sentences on the current market/brand situation drawn from the RFP and brief context",
-    "whyNow":"WRITE: 2-3 sentences explaining the urgency driver — why this research is needed now",
-    "businessChallenge":"WRITE: 3-4 sentences on the specific gap or uncertainty this research addresses",
-    "riskOfInaction":"WRITE: 2-3 sentences on what commercial decision gets impaired without this evidence",
-    "actionPath":"WRITE: 2-3 sentences on what the client will do differently once they have this evidence",
-    "priorityDecisions":[{"decision":"WRITE: first priority decision from research objectives","evidence":"WRITE: evidence type this study provides"},{"decision":"WRITE: second priority decision","evidence":"WRITE: evidence type"},{"decision":"WRITE: third priority decision","evidence":"WRITE: evidence type"}]
-  },
-  "section3_recommendedApproach": {
-    "clientNeedsTable":[{"clientNeed":"WRITE: first specific client need from brief","recommendedResponse":"WRITE: recommended method or approach from scope","valueCreated":"WRITE: specific value or insight outcome"},{"clientNeed":"WRITE: second client need","recommendedResponse":"WRITE: approach","valueCreated":"WRITE: value"},{"clientNeed":"WRITE: third client need","recommendedResponse":"WRITE: approach","valueCreated":"WRITE: value"}],
-    "whyThisDesignFits":"WRITE: 3-4 sentences on why the recommended methodology fits this client's needs",
-    "whatClientWillKnow":"WRITE: 3-4 sentences on the decision-ready insights the client will have after this study",
-    "whyNarrowerOptionIsWeaker":"WRITE: 2-3 sentences on what would be lost with a simpler/cheaper design",
-    "successCriteria":"WRITE: 2-3 sentences on how the usefulness of this research will be judged"
-  }
-}`, context)),
-
-        // ── CALL 3: Section 4 ────────────────────────────────────────────────
-        withTimeout(this.invokeAI(sys, `${sharedCtx}
-
-=== YOUR TASK ===
-Format the data above into section 4 (scope baseline) of the proposal.
-Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
-Return ONLY this JSON (no markdown):
-{
-  "section4_scopeBaseline": {
-    "primaryStudyType":"WRITE: specific study type (e.g. U&A survey, HCP concept test, longitudinal tracker) from scope/brief",
-    "methodFamily":"WRITE: Quantitative/Qualitative/Mixed — explain in 1-2 sentences why",
-    "audience":"WRITE: 2-3 sentences describing the target audience with specifics from the brief",
-    "geographicScope":"WRITE: list the countries/markets and language considerations from brief",
-    "timingModel":"WRITE: one-time/wave/ongoing and overall timeline from milestones",
-    "deliverables":"WRITE: 2-3 sentences listing the specific deliverables from the brief",
-    "reviewRounds":"WRITE: number of review cycles and how they are structured",
-    "commercialBoundary":"WRITE: 2-3 sentences on what is included vs excluded in the base fee",
-    "inScope":"WRITE: 3-4 sentences listing the included workstreams, markets, audiences, and deliverables from scope methodology",
-    "outOfScope":"WRITE: 2-3 sentences on explicitly excluded items from scope assumptions",
-    "futureOption":"WRITE: any optional future extensions or add-ons mentioned, or state None if not applicable",
-    "scopeClause":"Changes to approved scope require a formal written re-scoping agreement before additional work commences."
-  }
-}`, context)),
-
-        // ── CALL 4: Sections 5-6 ─────────────────────────────────────────────
-        withTimeout(this.invokeAI(sys, `${sharedCtx}
-
-=== YOUR TASK ===
-Format the data above into sections 5-6 of the proposal.
-Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
-Return ONLY this JSON (no markdown):
-{
-  "section5_approachDelivery": {
-    "phase1Design":"WRITE: 3-4 sentences on project initiation, questionnaire/guide design, stimulus development and localization using scope milestone data",
-    "phase2Execute":"WRITE: 3-4 sentences on recruitment approach, field launch, live monitoring activities from scope and recruitment strategy",
-    "phase3Analyze":"WRITE: 2-3 sentences on data quality checks, analysis approach, coding and insight generation",
-    "phase4Deliver":"WRITE: 2-3 sentences on report drafting, client review cycles, final release and any workshop deliverable",
-    "sourceOfSupply":"WRITE: 3-4 sentences on panel source, recruiter, vendor approach from recruitment strategy",
-    "sampleLogic":"WRITE: 3-4 sentences explaining the sample size rationale, any uplifts, and statistical precision from sample options",
-    "incidenceFeasibilityAssumptions":"WRITE: 3-4 sentences on incidence rate assumptions, audience access challenges and speed assumptions from feasibility assessment",
-    "releaseWaveLogic":"WRITE: staged release logic if applicable, or state that a single-wave design is planned",
-    "backupPlan":"WRITE: 2-3 sentences on contingency if incidence is lower than expected from feasibility mitigation",
-    "marketComplianceConsiderations":"WRITE: regulatory, IRB, GDPR or HCP engagement compliance considerations if applicable, or state standard market research ethics apply"
-  },
-  "section6_deliverablesGovernance": {
-    "coreDeliverables":"WRITE: 3-4 sentences listing the specific outputs with format (e.g. PowerPoint topline, full report, dashboard) from brief deliverables",
-    "fieldLaunchControl":"WRITE: 2-3 sentences on what the client must approve before field launch (questionnaire, quotas, stimulus)",
-    "liveMonitoring":"WRITE: 2-3 sentences on tracked metrics during fieldwork: response rates, incidence, quality flags, intervention triggers",
-    "finalReleaseControl":"WRITE: 2-3 sentences on review rounds, ownership, and conditions for final release",
-    "governanceCadence":"WRITE: 2-3 sentences on meeting rhythm, status update format, owners, and escalation path",
-    "milestones":[{"milestone":"By proposal approval","clientInputRequired":"WRITE: what the client must confirm or provide at this stage"},{"milestone":"Before field launch","clientInputRequired":"WRITE: what the client must approve before launch"},{"milestone":"Before final release","clientInputRequired":"WRITE: sign-off or approval required for release"}]
-  }
-}`, context)),
-
-        // ── CALL 5: Sections 7-8 ─────────────────────────────────────────────
-        withTimeout(this.invokeAI(sys, `${sharedCtx}
-
-=== YOUR TASK ===
-Format the data above into sections 7-8 of the proposal.
-Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
-Return ONLY this JSON (no markdown):
-{
-  "section7_commercials": {
-    "baseFee":"WRITE: 3-4 sentences describing what is covered in the base fee — labor, project management, analysis, reporting",
-    "thirdPartyPassThrough":"WRITE: 2-3 sentences on HCP incentives, panel costs, translation costs from pricing data",
-    "optionalModules":"WRITE: any optional add-on modules or future work extensions, or state none are included in base scope",
-    "commercialNotes":"WRITE: payment terms, proposal validity period, and billing milestones from pricing data",
-    "optionA":{"title":"Option A — Lean","description":"WRITE: 2-3 sentences on what is included and excluded in the lean option, and who it suits","price":${pricingOptions[0]?.totalPrice || 0}},
-    "optionB":{"title":"Option B — Recommended","description":"WRITE: 2-3 sentences on why this is the recommended option and what it delivers over Option A","price":${(pricingOptions[1] || pricingOptions[0])?.totalPrice || 0}},
-    "optionC":{"title":"Option C — Enhanced","description":"WRITE: 2-3 sentences on the extra insight, precision or coverage this option provides over Option B","price":${(pricingOptions[2] || pricingOptions[1] || pricingOptions[0])?.totalPrice || 0}}
-  },
-  "section8_risksDependencies": {
-    "risks":[
-      {"area":"Recruitment / feasibility risk","issue":"WRITE: specific recruitment challenge from feasibility assessment","mitigation":"WRITE: specific mitigation plan from feasibility"},
-      {"area":"Timing risk","issue":"WRITE: specific timing risk from scope milestones or assumptions","mitigation":"WRITE: buffer weeks, parallel workstreams or contingency plan"},
-      {"area":"Compliance / approval risk","issue":"WRITE: IRB, ethics or regulatory risk if applicable to this study","mitigation":"WRITE: compliance pathway and approval timeline planned"},
-      {"area":"Scope drift risk","issue":"WRITE: risk of additions to audience, markets or deliverables during study","mitigation":"WRITE: formal change control process with written approval required"}
-    ],
-    "changeTriggers":[
-      {"trigger":"Scope trigger","example":"WRITE: specific example of scope change relevant to this study","treatment":"WRITE: timeline and commercial impact of this change"},
-      {"trigger":"Operational trigger","example":"WRITE: specific operational change example for this study","treatment":"WRITE: how this affects timeline and fee"},
-      {"trigger":"Client review trigger","example":"WRITE: example of delayed client review or approval","treatment":"WRITE: timeline adjustment approach, note if no fee change"}
-    ],
-    "suggestedClause":"Any material change to approved scope requires a controlled re-scope discussion, potential timeline update, and fee revision agreed in writing before work commences."
-  }
-}`, context)),
-
-        // ── CALL 6: Section 9 ────────────────────────────────────────────────
-        withTimeout(this.invokeAI(sys, `${sharedCtx}
-
-=== YOUR TASK ===
-Format the data above into section 9 (credentials & close) of the proposal.
-Use the provided data to write complete, substantive content for each field. Write 2-5 thorough sentences per field using real details from the context above. Do not leave fields with just a word or two.
-Return ONLY this JSON (no markdown):
-{
-  "section9_credentials": {
-    "proofAreas":[
-      {"area":"Relevant experience","content":"WRITE: 2-3 sentences on PetaSight's experience with this type of study and therapeutic area","relevance":"WRITE: why this experience directly reduces risk on this project"},
-      {"area":"Method expertise","content":"WRITE: 2-3 sentences on PetaSight's specific strength in the methodology being used in this study","relevance":"WRITE: how this expertise reduces execution risk for the client"},
-      {"area":"Geography / audience strength","content":"WRITE: 2-3 sentences on PetaSight's panel and recruiter access in the markets in scope","relevance":"WRITE: why local knowledge and panel access matters for this study"},
-      {"area":"Operational strength","content":"WRITE: 2-3 sentences on PetaSight's quality, governance, and project management capabilities","relevance":"WRITE: why operational rigour matters for on-time, on-budget delivery"}
-    ],
-    "miniCaseStudy":{"situation":"WRITE: prior study situation analogous to this one (similar study type or therapeutic area)","approach":"WRITE: methodology used in that prior study","outcome":"WRITE: business decision or commercial outcome that study enabled"},
-    "decisionAsk":"WRITE: one clear sentence on what the client is asked to approve to initiate this study",
-    "immediateNextStep":"WRITE: one sentence on what the client provides next to get started",
-    "contractingPath":"Proposal acceptance → Statement of Work → MSA if not already in place",
-    "proposalValidity":"WRITE: fee validity period, commercial contact, and next step to proceed"
-  }
-}`, context)),
-      ]);
-
-      // ── Parse + merge the 6 responses ─────────────────────────────────────
-      const parseJson = (raw: string) => {
-        let j = raw.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
-        const m = j.match(/\{[\s\S]*\}/);
-        return JSON.parse(m ? m[0] : j);
-      };
-
-      let content: any;
+      const aiRaw = await this.invokeAI(sys, aiPrompt, context);
+      let aiJson: any = {};
       try {
-        const [p1, p2, p3, p4, p5, p6] = [parseJson(raw1), parseJson(raw2), parseJson(raw3), parseJson(raw4), parseJson(raw5), parseJson(raw6)];
-        content = { ...p1, ...p2, ...p3, ...p4, ...p5, ...p6 };
-        const sections = Object.keys(content).filter(k => k.startsWith('section'));
-        console.log(`DocumentGeneratorAgent: parsed ${sections.length} sections — ${sections.join(', ')}`);
+        const cleaned = aiRaw.trim().replace(/^```json?\n?/, '').replace(/\n?```$/, '');
+        const m = cleaned.match(/\{[\s\S]*\}/);
+        aiJson = JSON.parse(m ? m[0] : cleaned);
       } catch (e) {
-        console.error('DocumentGeneratorAgent: JSON parse failed', e);
-        return { success: false, error: 'Failed to parse AI proposal content' };
+        console.warn('DocumentGeneratorAgent: AI JSON parse failed, using fallback');
       }
 
-      // dummy to satisfy old references below
-      const qcResult: any = { overallPass: true, checks: [] };
+      // ── Assemble content from structured data + AI narrative ─────────────
+      const content: any = {
+        coverPage: {
+          clientName:      opp?.client_name || 'Client',
+          projectTitle:    aiJson.projectTitle || opp?.rfp_title || 'Research Proposal',
+          date,
+          version:         'v1.0',
+          scopeMode:       'Proposal',
+          confidentiality: `STRICTLY CONFIDENTIAL — FOR ${clientUC} REVIEW ONLY`,
+        },
+        section1_executiveSummary: {
+          clientChallenge:          aiJson.clientChallenge || '',
+          decisionToSupport:        aiJson.decisionToSupport || '',
+          recommendedPmrResponse:   aiJson.recommendedPmrResponse || '',
+          businessValue:            aiJson.businessValue || '',
+          coreOutputs:              Array.isArray(delivs) ? delivs.join('; ') : String(delivs),
+          timing:                   timeline.fieldwork ? `Fieldwork: ${timeline.fieldwork}. Reporting: ${timeline.reporting || 'TBD'}.` : JSON.stringify(timeline).substring(0, 200),
+          commercialRecommendation: `${cb.recommendedTier || 'Recommended'} option: $${Number(totalPriceRec).toLocaleString()}. Payment: ${cb.paymentTerms || '50% on signature, 50% on final delivery'}.`,
+          decisionAsk:              `Please approve this proposal to initiate the ${studyLabel} study.`,
+          draftingLine:             aiJson.draftingLine || '',
+        },
+        section2_decisionContext: {
+          currentSituation:  `${opp?.client_name} is seeking to understand ${brief.therapeutic_area || opp?.therapeutic_area} market dynamics through primary research.`,
+          whyNow:            (timeline.targetStart || timeline.fieldwork) ? `Research is required by ${timeline.targetStart || timeline.fieldwork} to support upcoming commercial decisions.` : 'Research is required to support upcoming commercial decisions.',
+          businessChallenge: objArr.length ? `Key objectives: ${objArr.slice(0, 3).map((o: any) => (typeof o === 'string' ? o : o.objective || JSON.stringify(o))).join('; ')}.` : '',
+          riskOfInaction:    'Without this evidence, commercial decisions will be made without direct stakeholder input, increasing launch risk.',
+          actionPath:        'Commission this research, apply findings to commercial strategy and stakeholder engagement.',
+          priorityDecisions: objArr.slice(0, 3).map((o: any, i: number) => ({
+            decision: typeof o === 'string' ? o : o.objective || `Objective ${i + 1}`,
+            evidence: typeof o === 'string' ? 'Direct stakeholder insight' : o.kpi || 'Quantified stakeholder data',
+          })),
+        },
+        section3_recommendedApproach: {
+          clientNeedsTable: objArr.slice(0, 4).map((o: any) => ({
+            clientNeed:          typeof o === 'string' ? o : o.objective || '',
+            recommendedResponse: `${studyLabel} — ${meth.approach || meth.studyDesign || 'structured primary research'}`,
+            valueCreated:        typeof o === 'string' ? 'Direct stakeholder evidence' : o.kpi || 'Actionable insight',
+          })),
+          whyThisDesignFits:        `${studyLabel} is the appropriate methodology to address ${opp?.client_name}'s research questions given the decision context and timeline.`,
+          whatClientWillKnow:       `${opp?.client_name} will have quantified, statistically robust data to make informed commercial decisions.`,
+          whyNarrowerOptionIsWeaker: 'A more limited design would not provide the sample size or market coverage needed for reliable subgroup analysis.',
+          successCriteria:          `Data delivered on time with ≥${sample.incidenceRate || 15}% incidence, full quota achievement, and actionable outputs.`,
+        },
+        section4_scopeBaseline: {
+          primaryStudyType:   studyLabel,
+          methodFamily:       meth.approach || meth.studyDesign || '',
+          audience:           brief.target_audience || '',
+          geographicScope:    brief.sample_requirements?.markets
+                                ? (Array.isArray(brief.sample_requirements.markets) ? brief.sample_requirements.markets.join(', ') : brief.sample_requirements.markets)
+                                : (feas.markets ? feas.markets.join(', ') : 'As specified'),
+          timingModel:        timeline.fieldwork ? `Field: ${timeline.fieldwork} | Reporting: ${timeline.reporting || 'TBD'}` : JSON.stringify(timeline).substring(0, 150),
+          deliverables:       Array.isArray(delivs) ? delivs.join(', ') : String(delivs),
+          reviewRounds:       '2 rounds of client review prior to final delivery',
+          commercialBoundary: `Total fee: $${Number(totalPriceRec).toLocaleString()} (${cb.recommendedTier || 'Recommended'} tier). Formal change control for scope additions.`,
+          inScope:            Array.isArray(delivs) ? delivs.slice(0, 4).join('; ') : '',
+          outOfScope:         'Custom questionnaire programming, additional markets, qualitative depth interviews (unless specified)',
+          futureOption:       'Phase 2 longitudinal tracker or qual follow-up available as optional extension.',
+          scopeClause:        'Any material change to approved scope requires a written change order prior to work commencing.',
+        },
+        section5_approachDelivery: {
+          phase1Design:  meth.designPhase || meth.approach || `Questionnaire design, screener development, quota setting, client approval`,
+          phase2Execute: recr.description || `Fieldwork execution via ${recr.primarySource || 'panel and recruiter network'}. Target n=${sample.n || 'TBD'}.`,
+          phase3Analyze: `Data cleaning, weighting, statistical analysis, subgroup reporting`,
+          phase4Deliver: `Topline readout + full PowerPoint report with recommendations`,
+          sourceOfSupply:       recr.primarySource || 'Panel + specialist HCP recruiter network',
+          sampleLogic:          `n=${sample.n || 'TBD'} per ${Array.isArray(brief.sample_requirements?.markets) ? 'market' : 'study'}. ${sample.justification || ''}`,
+          incidenceFeasibilityAssumptions: `IR: ${sample.incidenceRate || feas.overallIR || 'TBD'}%. ${feas.summary || ''}`.substring(0, 300),
+          releaseWaveLogic:     'Single-wave fieldwork with interim data checks at 50% quota achievement',
+          backupPlan:           assump.length ? `Contingency: ${assump[0]?.assumption || assump[0] || 'Alternative panel sources activated if IR falls below threshold.'}` : 'Alternative panel sources activated if incidence falls below threshold.',
+          marketComplianceConsiderations: 'Standard market research ethics apply. IRB/ethics review as required per market.',
+        },
+        section6_deliverablesGovernance: {
+          coreDeliverables:    Array.isArray(delivs) ? delivs.join('; ') : String(delivs),
+          fieldLaunchControl:  'Client must approve: questionnaire draft, final screener, quota grid, and stimulus (if applicable)',
+          liveMonitoring:      'Daily tracking of response rates, incidence, and quality flags. Intervention triggers at <10% below target IR.',
+          finalReleaseControl: '2 review rounds. Final release requires written client sign-off.',
+          governanceCadence:   'Weekly status calls during fieldwork. Dedicated Slack/Teams channel. Escalation path via project lead.',
+          milestones: [
+            { milestone: 'Proposal approval',  clientInputRequired: 'Signed proposal, confirmed contacts, PO raised' },
+            { milestone: 'Before field launch', clientInputRequired: 'Approved questionnaire, screener, quotas, and stimulus' },
+            { milestone: 'Before final release', clientInputRequired: 'Sign-off on topline readout and final report' },
+          ],
+        },
+        section7_commercials: {
+          baseFee:              `$${Number(rec.laborCost || pricing?.labor_cost || 0).toLocaleString()} covering project management, questionnaire design, data collection, analysis, and reporting.`,
+          thirdPartyPassThrough: `$${Number(rec.hcpCpiCost || pricing?.hcp_incentives || 0).toLocaleString()} HCP incentives and panel costs. Invoiced at cost.`,
+          optionalModules:      'No optional modules included in base scope. Extensions available upon request.',
+          commercialNotes:      `${cb.paymentTerms || '50% on signature, 50% on final delivery'}. Quote valid 30 days. Fee revision may apply if scope changes.`,
+          optionA: { title: pricingOptions[0]?.tier || 'Option A — Lean',        description: pricingOptions[0]?.rationale || 'Core deliverables, single market',              price: pricingOptions[0]?.totalPrice || 0 },
+          optionB: { title: pricingOptions[1]?.tier || 'Option B — Recommended', description: pricingOptions[1]?.rationale || 'Recommended scope and sample size',              price: pricingOptions[1]?.totalPrice || pricingOptions[0]?.totalPrice || 0 },
+          optionC: { title: pricingOptions[2]?.tier || 'Option C — Enhanced',    description: pricingOptions[2]?.rationale || 'Enhanced coverage, additional subgroups',        price: pricingOptions[2]?.totalPrice || pricingOptions[1]?.totalPrice || 0 },
+        },
+        section8_risksDependencies: {
+          risks: [
+            { area: 'Recruitment / feasibility', issue: feas.riskFactors?.[0] || 'Incidence below assumptions in key markets', mitigation: feas.contingencyStrategies?.[0] || 'Backup recruiter panels activated; quota flex applied' },
+            { area: 'Timing',                    issue: 'Client review delays compressing fieldwork window', mitigation: 'Rolling review process; parallel workstreams where possible' },
+            { area: 'Scope drift',               issue: 'Additions to audience, markets or deliverables post-approval', mitigation: 'Formal change control with written sign-off required before work commences' },
+            { area: 'Compliance',                issue: 'Ethics/IRB approval timelines in certain markets', mitigation: 'Early ethics screening; country-specific compliance review pre-launch' },
+          ],
+          changeTriggers: [
+            { trigger: 'Scope expansion',   example: 'Addition of new market or audience segment', treatment: 'Fee and timeline revision agreed in writing before proceeding' },
+            { trigger: 'Questionnaire growth', example: 'Survey length exceeds approved LOI by >3 min', treatment: 'CPI increase applied pro-rata; timeline adjusted' },
+            { trigger: 'Delayed approval',  example: 'Client review round >5 business days late',  treatment: 'Timeline adjusted proportionally; no fee change' },
+          ],
+          suggestedClause: 'Any material change to approved scope requires a controlled re-scope discussion, potential timeline update, and fee revision agreed in writing before work commences.',
+        },
+        section9_credentials: {
+          proofAreas: [
+            { area: 'Relevant experience',        content: `PetaSight has extensive experience in ${brief.therapeutic_area || 'pharma'} primary research across global markets.`,                          relevance: 'Proven delivery in this therapeutic area reduces execution risk.' },
+            { area: 'Method expertise',            content: `Deep expertise in ${studyLabel} design, online panel management, and HCP engagement across 30+ countries.`,                                  relevance: 'Method strength ensures data quality and reliable subgroup analysis.' },
+            { area: 'Geography / audience access', content: `Direct panel and recruiter access in all major pharma markets including US, EU5, Japan, and emerging markets.`,                               relevance: 'Local knowledge and panel depth supports quota achievement on time.' },
+            { area: 'Operational strength',        content: `ISO-certified data collection processes, dedicated project management team, and real-time fieldwork monitoring dashboard.`,                 relevance: 'Operational rigour ensures on-time, on-budget delivery every time.' },
+          ],
+          miniCaseStudy: { situation: `Prior study in analogous ${brief.therapeutic_area || 'specialty pharma'} programme with similar audience and objectives.`, approach: `${studyLabel} across multiple markets using structured questionnaire.`, outcome: 'Findings directly informed product positioning strategy and launch readiness decision.' },
+          decisionAsk:       `Please approve this proposal to confirm scope, initiate contracting, and begin the ${studyLabel} study.`,
+          immediateNextStep: `${opp?.client_name} confirms approval via email; PetaSight issues Statement of Work within 2 business days.`,
+          contractingPath:   'Proposal acceptance → Statement of Work → MSA if not already in place',
+          proposalValidity:  `Fee valid for 30 days from ${date}. Contact your PetaSight project lead to proceed.`,
+        },
+      };
 
-      // ── Generate files in parallel ────────────────────────────────────────
+      // ── Generate files ───────────────────────────────────────────────────
       const outputDir = path.join(__dirname, '../../../../uploads/documents', context.opportunityId);
       fs.mkdirSync(outputDir, { recursive: true });
       const docxPath  = path.join(outputDir, 'proposal.docx');
@@ -974,7 +926,7 @@ Return ONLY this JSON (no markdown):
       if (docxErr)  console.error('proposal docx error:', docxErr);
       if (briefErr) console.error('internal brief error:', briefErr);
 
-      const genConfig = { proposalContent: content, qcResult, generatedAt: new Date().toISOString() };
+      const genConfig = { proposalContent: content, generatedAt: new Date().toISOString() };
 
       const [proposalDoc] = await sql`
         INSERT INTO documents (opportunity_id, tenant_id, document_type, filename, file_path, format, template_used, generation_config, status, created_at, updated_at)
@@ -995,8 +947,7 @@ Return ONLY this JSON (no markdown):
       }
 
       await sql`UPDATE opportunities SET status = 'document_gen', updated_at = now() WHERE id = ${context.opportunityId}`;
-
-      console.log(`Document generation done — proposal:${docxGenerated} brief:${briefGenerated} QC:PASS`);
+      console.log(`Document generation done — proposal:${docxGenerated} brief:${briefGenerated}`);
 
       return {
         success: true,
