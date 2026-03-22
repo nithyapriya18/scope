@@ -719,7 +719,7 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
       const sql = getSql();
 
       // ── Pull all data from previous steps ────────────────────────────────
-      const [[opp], [brief], [scope], [feasibility], [pricing], [clarification], [wbs]] =
+      const [[opp], [brief], [scope], [feasibility], [pricing], [clarification]] =
         await Promise.all([
           sql`SELECT email_body, rfp_title, client_name, client_email, therapeutic_area FROM opportunities WHERE id = ${context.opportunityId}`,
           sql`SELECT tenant_id, study_type, target_audience, therapeutic_area, research_objectives, sample_requirements, timeline_requirements, deliverables, budget_indication, raw_extraction FROM briefs WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
@@ -727,7 +727,6 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
           sql`SELECT llm_result FROM feasibility_assessments WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
           sql`SELECT total_price, labor_cost, hcp_incentives, overhead_cost, margin_amount, margin_percentage, cost_breakdown FROM pricing_packs WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
           sql`SELECT questions, client_responses FROM clarifications WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
-          sql`SELECT task_breakdown, total_hours, cost_breakdown FROM wbs_estimates WHERE opportunity_id = ${context.opportunityId} ORDER BY created_at DESC LIMIT 1`,
         ]);
 
       if (!brief) return { success: false, error: 'No brief found for this opportunity' };
