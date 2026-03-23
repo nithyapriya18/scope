@@ -786,12 +786,12 @@ export default function VerticalWorkflowTimeline({
                                   Identified {critical} critical gaps, {ambiguous} ambiguous items
                                 </p>
                                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                                  Completeness: {score}% • shouldSendClarification: {llm.shouldSendClarification === false ? 'No' : 'Yes'}
+                                  Completeness: {score}%
                                 </p>
                               </>
                             );
                           })() : (
-                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">Analysis complete — click View Analysis for details</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 italic">Analysis complete — re-run to view details</p>
                           )}
                         </div>
                       )}
@@ -939,7 +939,8 @@ export default function VerticalWorkflowTimeline({
                         </p>
                       )}
                     </div>
-                    {step.id !== 'human_review' && step.id !== 'document_gen' && step.id !== 'approvals' && (
+                    {step.id !== 'human_review' && step.id !== 'document_gen' && step.id !== 'approvals' &&
+                      !(step.id === 'gap_analysis' && !opportunity?.gapAnalysis) && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => {
