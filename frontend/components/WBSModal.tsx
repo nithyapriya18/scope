@@ -34,13 +34,27 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
 
   if (!isOpen || !pricingPack) return null;
 
-  const cb = pricingPack.cost_breakdown || {};
+  // cost_breakdown may be double-encoded (stored as JSON string in JSONB)
+  let rawCb = pricingPack.cost_breakdown || {};
+  if (typeof rawCb === 'string') { try { rawCb = JSON.parse(rawCb); } catch { rawCb = {}; } }
+  const cb = rawCb;
+
   const pricingOptions: any[] = cb.pricingOptions || [];
   const workPackages: any[] = cb.workPackages || [];
   const multipliersApplied: any[] = cb.multipliersApplied || [];
   const recommendedTier: string = cb.recommendedTier || 'BETTER';
 
-  const activeTierData = pricingOptions.find((o: any) => o.tier === selectedTier) || pricingOptions[1] || {};
+  const hasData = pricingOptions.length > 0;
+
+  // Fallback pricing tiers when WBS hasn't been generated yet
+  const totalFallback = pricingPack.total_price || 0;
+  const fallbackOptions = hasData ? pricingOptions : [
+    { tier: 'GOOD',   n: '—', totalPrice: Math.round(totalFallback * 0.8),  laborCost: Math.round(totalFallback * 0.4),  hcpCpiCost: Math.round(totalFallback * 0.3),  oopCosts: Math.round(totalFallback * 0.05), overhead: Math.round(totalFallback * 0.03), margin: Math.round(totalFallback * 0.02), marginPct: 20, fieldWeeks: 8,  rationale: 'Lean scope — re-run WBS step for full detail' },
+    { tier: 'BETTER', n: '—', totalPrice: totalFallback,                    laborCost: Math.round(totalFallback * 0.45), hcpCpiCost: Math.round(totalFallback * 0.32), oopCosts: Math.round(totalFallback * 0.06), overhead: Math.round(totalFallback * 0.04), margin: Math.round(totalFallback * 0.03), marginPct: 25, fieldWeeks: 10, rationale: 'Recommended scope — re-run WBS step for full detail' },
+    { tier: 'BEST',   n: '—', totalPrice: Math.round(totalFallback * 1.25), laborCost: Math.round(totalFallback * 0.5),  hcpCpiCost: Math.round(totalFallback * 0.4),  oopCosts: Math.round(totalFallback * 0.08), overhead: Math.round(totalFallback * 0.05), margin: Math.round(totalFallback * 0.04), marginPct: 30, fieldWeeks: 12, rationale: 'Enhanced scope — re-run WBS step for full detail' },
+  ];
+
+  const activeTierData = fallbackOptions.find((o: any) => o.tier === selectedTier) || fallbackOptions[1] || {};
   const activeCb = activeTierData.costBreakdown || {};
   const laborDetail = activeCb.laborCostDetail || {};
   const hcpDetail = activeCb.hcpCpiCostDetail || {};
@@ -106,6 +120,13 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
         {/* Content */}
         <div className="p-6">
 
+          {/* Fallback notice */}
+          {!hasData && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 text-sm text-amber-700 dark:text-amber-300">
+              <strong>Estimated figures</strong> — WBS detail data not available. Re-run the WBS step to get AI-generated work packages and full cost breakdown. Prices shown are derived from the total recorded in the database.
+            </div>
+          )}
+
           {/* ── PRICING TIERS ─────────────────────────────────────── */}
           {activeTab === 'pricing' && (
             <div className="space-y-6">
@@ -129,7 +150,7 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
 
               {/* 3 tier cards */}
               <div className="grid grid-cols-3 gap-4">
-                {pricingOptions.map((tier: any) => {
+                {fallbackOptions.map((tier: any) => {
                   const c = TIER_COLOURS[tier.tier] || TIER_COLOURS.GOOD;
                   const isRec = tier.tier === recommendedTier;
                   return (
@@ -299,7 +320,7 @@ export default function WBSModal({ isOpen, onClose, pricingPack, rfpTitle }: WBS
             <div className="space-y-5">
               {/* Tier selector */}
               <div className="flex gap-2">
-                {pricingOptions.map((tier: any) => {
+                {fallbackOptions.map((tier: any) => {
                   const c = TIER_COLOURS[tier.tier] || TIER_COLOURS.GOOD;
                   const isRec = tier.tier === recommendedTier;
                   return (

@@ -141,7 +141,7 @@ export default function ScopeModal({ isOpen, onClose, scope, rfpTitle, opportuni
         </div>
 
         {/* Tab bar */}
-        <div className="flex gap-1 px-6 pt-3 pb-0 border-b border-gray-200 dark:border-gray-700 overflow-x-auto">
+        <div className="flex-shrink-0 flex gap-1 px-6 pt-3 pb-0 border-b border-gray-200 dark:border-gray-700 overflow-x-auto scrollbar-hide">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             return (

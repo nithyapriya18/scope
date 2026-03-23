@@ -39,7 +39,7 @@ Output ONLY valid JSON. No markdown fences, no commentary.`;
     const WHITE  = 'FFFFFF';
     const DTEXT  = '222222';
 
-    const TABLE_W = 9200; // DXA — full usable body width
+    const TABLE_W = 9000; // DXA — fits A4 page with 1-inch margins (9026 TWIPs usable)
 
     const borders = (color = 'C8D4E8') => ({
       top:     { style: BorderStyle.SINGLE, size: 4, color },
