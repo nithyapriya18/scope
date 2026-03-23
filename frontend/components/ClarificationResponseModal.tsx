@@ -12,6 +12,7 @@ interface ClarificationResponseModalProps {
   brief?: any;
   rfpTitle: string;
   opportunityId?: string;
+  clarificationStatus?: string;
 }
 
 export default function ClarificationResponseModal({
@@ -22,6 +23,7 @@ export default function ClarificationResponseModal({
   brief,
   rfpTitle,
   opportunityId,
+  clarificationStatus,
 }: ClarificationResponseModalProps) {
   const [saving, setSaving] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -328,7 +330,7 @@ export default function ClarificationResponseModal({
           {(() => {
             const clarInfo = brief?.raw_extraction?.clarifiedInformation;
             // Treat as assumption-only if: explicitly skipped, no responses, or AI used fallback (source=assumed)
-            const assumptionOnly = clarInfo?.skipped || showingAssumptionsOnly ||
+            const assumptionOnly = clarificationStatus === 'skipped' || clarInfo?.skipped || showingAssumptionsOnly ||
               responses?.source === 'assumed' || responses?.source === 'client_response_unparsed' ||
               (responses && questionsAnsweredCount === 0 && assumptionsCorrectedCount === 0);
             const hasRealResponses = !assumptionOnly && (questionsAnsweredCount > 0 || assumptionsCorrectedCount > 0);

@@ -1289,6 +1289,7 @@ export default function VerticalWorkflowTimeline({
           brief={opportunity.brief}
           rfpTitle={opportunity.rfpTitle || 'Untitled RFP'}
           opportunityId={opportunity.id}
+          clarificationStatus={opportunity.clarification?.status}
         />
       )}
 
