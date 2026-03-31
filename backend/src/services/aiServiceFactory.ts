@@ -5,13 +5,14 @@
 
 import { AIService } from './aiServiceTypes';
 import { BedrockService } from './bedrock';
+import { AnthropicService } from './anthropicService';
 
 // Lazy-load AI service to avoid crashing on startup if credentials are missing
 let aiServiceInstance: AIService | null = null;
 
 /**
  * Get the configured AI service
- * Supports: Bedrock (AWS)
+ * Supports: bedrock (AWS), anthropic (direct API — Claude Max)
  */
 export function getAIService(): AIService {
   if (aiServiceInstance) {
@@ -22,7 +23,10 @@ export function getAIService(): AIService {
 
   console.log(`🤖 Initializing AI service: ${serviceType}`);
 
-  switch (serviceType.toLowerCase()) {
+  switch (serviceType) {
+    case 'anthropic':
+      aiServiceInstance = new AnthropicService();
+      break;
     case 'bedrock':
     default:
       aiServiceInstance = new BedrockService();

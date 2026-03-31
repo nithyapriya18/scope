@@ -26,13 +26,21 @@ const upload = multer({
  */
 router.post('/', async (req, res) => {
   try {
-    const { userId, emailBody, emailSubject, clientName, rfpTitle } = req.body;
+    let { userId, emailBody, emailSubject, clientName, rfpTitle } = req.body;
 
     if (!userId || !emailBody) {
       return res.status(400).json({ error: 'userId and emailBody are required' });
     }
 
     const sql = getSql();
+
+    // Resolve non-UUID userId (e.g. 'demo-user') to actual DB user
+    const UUID_RE_TEXT = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE_TEXT.test(userId)) {
+      const [demoUser] = await sql`SELECT id FROM users ORDER BY created_at ASC LIMIT 1`;
+      if (!demoUser) return res.status(400).json({ error: 'No users found — please log in' });
+      userId = demoUser.id;
+    }
 
     // Create opportunity
     const result = await sql`
@@ -119,9 +127,32 @@ router.post('/extract-metadata', upload.single('file'), async (req, res) => {
           console.error('Pandoc extraction error:', pandocErr.message);
           throw new Error(`Failed to extract text from Word document: ${pandocErr.message}`);
         }
+      } else if (ext === '.eml') {
+        try {
+          const { simpleParser } = await import('mailparser');
+          const raw = fs.readFileSync(file.path);
+          const parsed = await simpleParser(raw);
+          extractedText = parsed.text || parsed.html?.replace(/<[^>]+>/g, ' ') || '';
+          const emailMeta = [
+            parsed.from?.text ? `From: ${parsed.from.text}` : '',
+            parsed.subject ? `Subject: ${parsed.subject}` : '',
+            parsed.date ? `Date: ${parsed.date.toISOString()}` : '',
+          ].filter(Boolean).join('\n');
+          if (emailMeta) extractedText = emailMeta + '\n\n' + extractedText;
+        } catch (emlErr: any) {
+          console.error('EML extraction error:', emlErr.message);
+          throw new Error(`Failed to extract text from email: ${emlErr.message}`);
+        }
+      } else if (ext === '.msg') {
+        try {
+          extractedText = fs.readFileSync(file.path, 'utf-8');
+        } catch (msgErr: any) {
+          console.error('MSG extraction error:', msgErr.message);
+          throw new Error(`Failed to extract text from MSG file: ${msgErr.message}`);
+        }
       } else {
         fs.unlinkSync(file.path);
-        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
+        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOCX, EML, or MSG files.' });
       }
 
       // Clean up temp file
@@ -207,11 +238,20 @@ Respond with a JSON object containing:
  */
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
-    const { userId, rfpTitle, clientName, emailSubject, therapeuticArea, rfpDeadline } = req.body;
+    let { userId, rfpTitle, clientName, emailSubject, therapeuticArea, rfpDeadline } = req.body;
     const file = req.file;
 
     if (!userId || !file) {
       return res.status(400).json({ error: 'userId and file are required' });
+    }
+
+    // Resolve non-UUID userId (e.g. 'demo-user') to actual DB user
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(userId)) {
+      const sql0 = getSql();
+      const [demoUser] = await sql0`SELECT id FROM users ORDER BY created_at ASC LIMIT 1`;
+      if (!demoUser) return res.status(400).json({ error: 'No users found — please log in' });
+      userId = demoUser.id;
     }
 
     // Extract text from file based on type
@@ -242,9 +282,32 @@ router.post('/upload', upload.single('file'), async (req, res) => {
           console.error('Pandoc extraction error:', pandocErr.message);
           throw new Error(`Failed to extract text from Word document: ${pandocErr.message}`);
         }
+      } else if (ext === '.eml') {
+        try {
+          const { simpleParser } = await import('mailparser');
+          const raw = fs.readFileSync(file.path);
+          const parsed = await simpleParser(raw);
+          extractedText = parsed.text || parsed.html?.replace(/<[^>]+>/g, ' ') || '';
+          const emailMeta = [
+            parsed.from?.text ? `From: ${parsed.from.text}` : '',
+            parsed.subject ? `Subject: ${parsed.subject}` : '',
+            parsed.date ? `Date: ${parsed.date.toISOString()}` : '',
+          ].filter(Boolean).join('\n');
+          if (emailMeta) extractedText = emailMeta + '\n\n' + extractedText;
+        } catch (emlErr: any) {
+          console.error('EML extraction error:', emlErr.message);
+          throw new Error(`Failed to extract text from email: ${emlErr.message}`);
+        }
+      } else if (ext === '.msg') {
+        try {
+          extractedText = fs.readFileSync(file.path, 'utf-8');
+        } catch (msgErr: any) {
+          console.error('MSG extraction error:', msgErr.message);
+          throw new Error(`Failed to extract text from MSG file: ${msgErr.message}`);
+        }
       } else {
         fs.unlinkSync(file.path);
-        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
+        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOCX, EML, or MSG files.' });
       }
 
       // Clean up temp file
@@ -351,9 +414,32 @@ router.post('/:id/re-upload', upload.single('file'), async (req, res) => {
       } else if (ext === '.docx' || ext === '.doc') {
         // Use pandoc to convert Word to text
         extractedText = execSync(`pandoc "${file.path}" -f docx -t plain`, { encoding: 'utf8', timeout: 60000 });
+      } else if (ext === '.eml') {
+        try {
+          const { simpleParser } = await import('mailparser');
+          const raw = fs.readFileSync(file.path);
+          const parsed = await simpleParser(raw);
+          extractedText = parsed.text || parsed.html?.replace(/<[^>]+>/g, ' ') || '';
+          const emailMeta = [
+            parsed.from?.text ? `From: ${parsed.from.text}` : '',
+            parsed.subject ? `Subject: ${parsed.subject}` : '',
+            parsed.date ? `Date: ${parsed.date.toISOString()}` : '',
+          ].filter(Boolean).join('\n');
+          if (emailMeta) extractedText = emailMeta + '\n\n' + extractedText;
+        } catch (emlErr: any) {
+          console.error('EML extraction error:', emlErr.message);
+          throw new Error(`Failed to extract text from email: ${emlErr.message}`);
+        }
+      } else if (ext === '.msg') {
+        try {
+          extractedText = fs.readFileSync(file.path, 'utf-8');
+        } catch (msgErr: any) {
+          console.error('MSG extraction error:', msgErr.message);
+          throw new Error(`Failed to extract text from MSG file: ${msgErr.message}`);
+        }
       } else {
         fs.unlinkSync(file.path);
-        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOC, or DOCX files.' });
+        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOCX, EML, or MSG files.' });
       }
 
       // Clean up temp file
@@ -404,6 +490,9 @@ router.post('/:id/re-upload', upload.single('file'), async (req, res) => {
         rfp_deadline as "rfpDeadline",
         therapeutic_area as "therapeuticArea",
         geography,
+        domain,
+        study_family as "studyFamily",
+        research_phase as "researchPhase",
         status,
         created_at as "createdAt",
         updated_at as "updatedAt"
@@ -444,6 +533,8 @@ router.get('/', async (req, res) => {
               o.domain,
               o.geography,
               o.status,
+              o.study_family as "studyFamily",
+              o.research_phase as "researchPhase",
               o.created_at as "createdAt",
               o.updated_at as "updatedAt",
               b.study_type as "studyType"
@@ -468,6 +559,8 @@ router.get('/', async (req, res) => {
               o.domain,
               o.geography,
               o.status,
+              o.study_family as "studyFamily",
+              o.research_phase as "researchPhase",
               o.created_at as "createdAt",
               o.updated_at as "updatedAt",
               b.study_type as "studyType"
@@ -535,6 +628,9 @@ router.get('/:id', async (req, res) => {
         rfp_deadline as "rfpDeadline",
         therapeutic_area as "therapeuticArea",
         geography,
+        domain,
+        study_family as "studyFamily",
+        research_phase as "researchPhase",
         status,
         created_at as "createdAt",
         updated_at as "updatedAt"
@@ -893,6 +989,11 @@ router.post('/:id/process', async (req, res) => {
 
     const currentStatus = opps[0].status;
 
+    // Block processing for gate statuses — these require human decision
+    if (['gate_participation', 'gate_commercial'].includes(currentStatus)) {
+      return res.json({ success: true, status: currentStatus, message: 'Awaiting human decision' });
+    }
+
     // Respond immediately — agent runs in background, frontend polls for status
     res.json({ success: true, status: currentStatus, message: 'Processing started' });
 
@@ -928,7 +1029,7 @@ router.post('/:id/back', async (req, res) => {
     const currentStatus = opps[0].status;
 
     // Define workflow order
-    const workflowOrder = ['intake', 'brief_extract', 'gap_analysis', 'clarification', 'scope_plan', 'proposal'];
+    const workflowOrder = ['intake', 'gate_participation', 'brief_extract', 'gap_analysis', 'assumption_analysis', 'clarification', 'clarification_response', 'feasibility', 'scope_planning', 'wbs_estimate', 'pricing', 'gate_commercial', 'document_gen', 'approvals', 'approved'];
     const currentIndex = workflowOrder.indexOf(currentStatus);
 
     if (currentIndex <= 0) {
@@ -952,6 +1053,35 @@ router.post('/:id/back', async (req, res) => {
   } catch (error: any) {
     console.error('Error going back:', error);
     res.status(500).json({ error: 'Failed to go back', message: error.message });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/stop
+ * Stop the current in-progress step — cancels running jobs and holds status
+ */
+router.post('/:id/stop', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sql = getSql();
+
+    // Cancel any in-progress or pending jobs for this opportunity
+    const cancelled = await sql`
+      UPDATE jobs
+      SET status = 'failed', error = 'Stopped by user', updated_at = now()
+      WHERE opportunity_id = ${id} AND status IN ('pending', 'in_progress')
+      RETURNING id, job_type
+    `;
+
+    console.log(`🛑 Stopped ${cancelled.length} jobs for opportunity ${id}`);
+
+    res.json({
+      message: `Stopped ${cancelled.length} running jobs`,
+      cancelledJobs: cancelled.map((j: any) => ({ id: j.id, jobType: j.job_type })),
+    });
+  } catch (error: any) {
+    console.error('Error stopping jobs:', error);
+    res.status(500).json({ error: 'Failed to stop', message: error.message });
   }
 });
 
@@ -1790,6 +1920,122 @@ router.post('/:id/redo/:step', async (req, res) => {
       error: 'Failed to redo step',
       message: error.message,
     });
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+// Gate Decision Routes
+// ────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/opportunities/:id/gates
+ * Get all gate decisions for an opportunity
+ */
+router.get('/:id/gates', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sql = getSql();
+    const gates = await sql`
+      SELECT * FROM gate_decisions
+      WHERE opportunity_id = ${id}
+      ORDER BY created_at ASC
+    `;
+    res.json({ gates });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/gate/participation
+ * Record participation decision (Gate 1)
+ */
+router.post('/:id/gate/participation', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { decision, rationale, userId } = req.body;
+
+    if (!decision || !['yes', 'no'].includes(decision)) {
+      return res.status(400).json({ error: 'Decision must be "yes" or "no"' });
+    }
+
+    const sql = getSql();
+
+    // Update gate decision
+    await sql`
+      UPDATE gate_decisions
+      SET decision = ${decision},
+          decided_by = ${userId || null},
+          decided_at = now(),
+          rationale = ${rationale || null},
+          updated_at = now()
+      WHERE opportunity_id = ${id} AND gate_type = 'participation'
+    `;
+
+    if (decision === 'yes') {
+      // Advance to brief_extract — pipeline continues
+      await sql`UPDATE opportunities SET status = 'brief_extract', updated_at = now() WHERE id = ${id}`;
+      console.log(`✅ Gate 1 PASSED for ${id} — advancing to brief_extract`);
+      res.json({ success: true, message: 'Participation confirmed. Pipeline continuing.', nextStatus: 'brief_extract' });
+    } else {
+      // Decline — pipeline stops
+      await sql`UPDATE opportunities SET status = 'declined', updated_at = now() WHERE id = ${id}`;
+      console.log(`🚫 Gate 1 DECLINED for ${id} — pipeline stopped`);
+      res.json({ success: true, message: 'Opportunity declined.', nextStatus: 'declined' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
+  }
+});
+
+/**
+ * POST /api/opportunities/:id/gate/commercial
+ * Record commercial feasibility decision (Gate 2) — with optional discount
+ */
+router.post('/:id/gate/commercial', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { decision, rationale, userId, ltSignoffBy, discountPercent, discountRationale } = req.body;
+
+    if (!decision || !['yes', 'no'].includes(decision)) {
+      return res.status(400).json({ error: 'Decision must be "yes" or "no"' });
+    }
+
+    const sql = getSql();
+
+    // Update gate decision
+    await sql`
+      UPDATE gate_decisions
+      SET decision = ${decision},
+          decided_by = ${userId || null},
+          decided_at = now(),
+          rationale = ${rationale || null},
+          lt_signoff_by = ${ltSignoffBy || null},
+          lt_signoff_at = ${decision === 'yes' ? new Date().toISOString() : null},
+          ai_recommendation = ${JSON.stringify({ discountPercent: discountPercent || 0, discountRationale: discountRationale || null })},
+          updated_at = now()
+      WHERE opportunity_id = ${id} AND gate_type = 'commercial'
+    `;
+
+    if (decision === 'yes') {
+      // If discount applied, update pricing
+      if (discountPercent && discountPercent > 0) {
+        console.log(`💰 Applying ${discountPercent}% discount for ${id}`);
+        // Store discount info in the gate decision (already done above via ai_recommendation)
+      }
+
+      // Advance to document_gen — pipeline continues
+      await sql`UPDATE opportunities SET status = 'document_gen', updated_at = now() WHERE id = ${id}`;
+      console.log(`✅ Gate 2 PASSED for ${id} — advancing to document_gen`);
+      res.json({ success: true, message: 'Commercial feasibility confirmed. Generating documents.', nextStatus: 'document_gen' });
+    } else {
+      // Not viable — pipeline stops
+      await sql`UPDATE opportunities SET status = 'not_viable', updated_at = now() WHERE id = ${id}`;
+      console.log(`🚫 Gate 2 NOT VIABLE for ${id} — pipeline stopped`);
+      res.json({ success: true, message: 'Opportunity marked as not commercially viable.', nextStatus: 'not_viable' });
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: 'Internal Server Error', message: error.message });
   }
 });
 

@@ -9,6 +9,7 @@ export interface TokenUsage {
 }
 
 export interface ToolCall {
+  id: string;
   name: string;
   input: any;
 }
@@ -17,6 +18,10 @@ export interface AgentResponse {
   response: string;
   toolCalls?: ToolCall[];
   usage?: TokenUsage;
+  /** Raw content blocks from the model (for building multi-turn tool loops) */
+  rawContent?: any[];
+  /** Stop reason: 'end_turn' | 'tool_use' */
+  stopReason?: string;
 }
 
 export interface AIService {
@@ -30,11 +35,12 @@ export interface AIService {
   ): Promise<AgentResponse>;
 
   /**
-   * Invoke the AI model with tool use capability
+   * Invoke the AI model with tool use capability.
+   * userMessage can be a string or content block array (for tool_result turns).
    */
   invokeWithTools(
     systemPrompt: string,
-    userMessage: string,
+    userMessage: string | any[],
     tools: Tool[],
     conversationHistory?: ConversationMessage[]
   ): Promise<AgentResponse>;
@@ -47,7 +53,8 @@ export interface AIService {
 
 export interface ConversationMessage {
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  /** String for simple messages, or content block array for tool_use/tool_result turns */
+  content: string | any[];
 }
 
 export interface Tool {

@@ -17,6 +17,7 @@ import { DocumentGeneratorAgent } from './documentGeneratorAgent';
 
 export type WorkflowStatus =
   | 'intake'
+  | 'gate_participation'  // Gate 1: Participate or decline (after intake)
   | 'brief_extract'
   | 'gap_analysis'
   | 'assumption_analysis'
@@ -26,10 +27,13 @@ export type WorkflowStatus =
   | 'scope_planning'  // Phase 2: Research design (methodology, sample, delivery plan) — runs after feasibility
   | 'wbs_estimate'    // Phase 3: Work breakdown structure
   | 'pricing'         // Phase 3: Pricing calculation
+  | 'gate_commercial' // Gate 2: Commercial feasibility + discounts (after pricing)
   | 'document_gen'    // Phase 3: Document generation
   | 'approvals'       // Phase 3: Submit bid to client
   | 'approved'
   | 'rejected'
+  | 'declined'        // Terminal: declined at Gate 1
+  | 'not_viable'      // Terminal: not commercially viable at Gate 2
   | 'handoff';
 
 export class OrchestratorAgent extends BaseAgent {
@@ -55,26 +59,45 @@ Your role is to coordinate agent execution based on the current workflow state.`
 
     try {
       switch (currentStatus) {
-        case 'intake':
-          // If we're at intake status and user clicks Continue,
-          // move to brief extraction (intake already completed during upload)
-          return await this.executeBriefExtraction(context);
+        case 'intake': {
+          // After intake, advance to participation gate (human decision required)
+          const sql0 = getSql();
+          await sql0`UPDATE opportunities SET status = 'gate_participation', updated_at = now() WHERE id = ${context.opportunityId}`;
+          await sql0`INSERT INTO gate_decisions (opportunity_id, gate_type, decision) VALUES (${context.opportunityId}, 'participation', 'pending') ON CONFLICT DO NOTHING`;
+          return {
+            success: true,
+            data: { message: 'Intake complete. Awaiting participation decision.', nextStatus: 'gate_participation' },
+          };
+        }
+
+        case 'gate_participation':
+          // Human-decision step — do not auto-process
+          return { success: true, data: { message: 'Awaiting participation decision.' } };
+
+        case 'gate_commercial':
+          // Human/LT decision step — do not auto-process
+          return { success: true, data: { message: 'Awaiting commercial feasibility sign-off.' } };
 
         case 'brief_extract': {
-          // Completeness gate (from pipeline spec):
-          // ≥ 70% completeness → skip gap + assumption analysis → go straight to clarification
-          // < 70% completeness → run full gap analysis pipeline
+          // First check if brief already exists (re-run scenario)
           const sql = getSql();
-          const [briefRow] = await sql`
+          const [existingBrief] = await sql`
             SELECT confidence_score FROM briefs
             WHERE opportunity_id = ${context.opportunityId}
             ORDER BY created_at DESC LIMIT 1
           `;
-          const completeness = briefRow ? Math.round((briefRow.confidence_score || 0) * 100) : 0;
+
+          if (!existingBrief) {
+            // Brief doesn't exist yet — run the brief extractor agent first
+            console.log(`📝 Running brief extraction for ${context.opportunityId}`);
+            return await this.executeBriefExtraction(context);
+          }
+
+          // Brief exists — check completeness gate
+          const completeness = Math.round((existingBrief.confidence_score || 0) * 100);
 
           if (completeness >= 90) {
             console.log(`⚡ Brief completeness ${completeness}% ≥ 90 — skipping gap & assumption analysis`);
-            // Advance status past skipped steps so display is correct
             await sql`UPDATE opportunities SET status = 'assumption_analysis', updated_at = now() WHERE id = ${context.opportunityId}`;
             return await this.executeClarificationGeneration(context);
           } else {
@@ -283,8 +306,10 @@ Your role is to coordinate agent execution based on the current workflow state.`
     const result = await agent.execute(context);
 
     if (result.success) {
-      await sql`UPDATE opportunities SET status = 'document_gen', updated_at = now() WHERE id = ${context.opportunityId}`;
-      console.log('✅ WBS & Pricing complete — advancing to document_gen');
+      // After WBS/pricing, go to commercial feasibility gate (not document_gen)
+      await sql`UPDATE opportunities SET status = 'gate_commercial', updated_at = now() WHERE id = ${context.opportunityId}`;
+      await sql`INSERT INTO gate_decisions (opportunity_id, gate_type, decision) VALUES (${context.opportunityId}, 'commercial', 'pending') ON CONFLICT DO NOTHING`;
+      console.log('✅ WBS & Pricing complete — advancing to gate_commercial');
     }
 
     return result;
@@ -292,10 +317,11 @@ Your role is to coordinate agent execution based on the current workflow state.`
 
   private async executePricing(context: AgentContext): Promise<AgentResult> {
     // Pricing is combined with WBS in the wbs_estimate step.
-    // If status somehow lands on pricing, skip straight to document_gen.
+    // If status somehow lands on pricing, advance to commercial gate.
     const sql = getSql();
-    await sql`UPDATE opportunities SET status = 'document_gen', updated_at = now() WHERE id = ${context.opportunityId}`;
-    return { success: true, data: { message: 'Pricing combined with WBS step — advancing to document_gen' } };
+    await sql`UPDATE opportunities SET status = 'gate_commercial', updated_at = now() WHERE id = ${context.opportunityId}`;
+    await sql`INSERT INTO gate_decisions (opportunity_id, gate_type, decision) VALUES (${context.opportunityId}, 'commercial', 'pending') ON CONFLICT DO NOTHING`;
+    return { success: true, data: { message: 'Pricing complete — advancing to gate_commercial' } };
   }
 
   private async executeDocumentGeneration(context: AgentContext): Promise<AgentResult> {

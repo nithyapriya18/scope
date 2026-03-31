@@ -11,7 +11,7 @@ import chatRouter from './routes/chat';
 import { setupPassport } from './services/auth';
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ override: true });
 
 const app = express();
 const PORT = process.env.PORT || 3038;
@@ -73,7 +73,7 @@ app.get('/api', (req, res) => {
     message: 'Lumina Scope API v1.0',
     phase: 'Phase 2 In Progress',
     features: [
-      'AI Service Factory (Bedrock with Sonnet 4.6)',
+      'AI Service Factory (Anthropic Claude Max — Sonnet 4.6)',
       'Job Queue Service (PostgreSQL-based)',
       'Base Agent Class & LLM Usage Tracking',
       'Intake Agent → Brief Extractor → Gap Analyzer → Clarification Generator',
@@ -157,7 +157,8 @@ app.listen(PORT, () => {
   console.log(`✅ Lumina Scope Backend running on port ${PORT}`);
   console.log(`🌍 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🤖 AI Service: AWS Bedrock (Sonnet 4.6)`);
+  // const aiType = process.env.AI_SERVICE_TYPE || 'bedrock'; // Bedrock disabled
+  console.log(`🤖 AI Service: Anthropic Direct API (Claude Max) (Sonnet 4.6)`);
   console.log(`📊 Job Queue: PostgreSQL-based`);
 });
 

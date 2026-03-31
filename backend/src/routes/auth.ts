@@ -22,7 +22,7 @@ router.get(
 router.get(
   '/google/callback',
   passport.authenticate('google', {
-    failureRedirect: `${process.env.FRONTEND_URL}/login?error=auth_failed`,
+    failureRedirect: `${process.env.FRONTEND_URL}/scope/login?error=auth_failed`,
     session: false,
   }),
   (req, res) => {
@@ -36,7 +36,7 @@ router.get(
 
       console.log(`✅ OAuth callback successful for user ${(req.user as any).email}`);
 
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?token=${token}`;
+      const redirectUrl = `${process.env.FRONTEND_URL}/scope/auth/callback?token=${token}`;
       console.log(`🔄 Redirecting to: ${redirectUrl}`);
 
       // Use HTML with JavaScript redirect for Safari compatibility
@@ -92,7 +92,7 @@ router.get(
       `);
     } catch (error) {
       console.error('OAuth callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=token_generation_failed`);
+      res.redirect(`${process.env.FRONTEND_URL}/scope/login?error=token_generation_failed`);
     }
   }
 );

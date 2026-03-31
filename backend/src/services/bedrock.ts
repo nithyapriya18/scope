@@ -158,19 +158,29 @@ export class BedrockService implements AIService {
     if (conversationHistory && conversationHistory.length > 0) {
       for (const msg of conversationHistory) {
         if (msg.role !== 'system') {
+          // Content may be a JSON string representing an array (tool_use/tool_result blocks)
+          let content = msg.content;
+          if (typeof content === 'string') {
+            try {
+              const parsed = JSON.parse(content);
+              if (Array.isArray(parsed)) content = parsed;
+            } catch { /* keep as string */ }
+          }
           messages.push({
             role: msg.role,
-            content: msg.content,
+            content,
           });
         }
       }
     }
 
-    // Add current user message
-    messages.push({
-      role: 'user',
-      content: userMessage,
-    });
+    // Add current user message (skip if empty — tool-use loop passes messages via history)
+    if (userMessage) {
+      messages.push({
+        role: 'user',
+        content: userMessage,
+      });
+    }
 
     return messages;
   }

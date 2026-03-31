@@ -413,6 +413,23 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
             </div>
           )}
 
+          {/* Study Classification */}
+          {(briefData.studyFamily || briefData.studyType || briefData.studySubtype) && (
+            <Section title="Study Classification" icon={Target}>
+              <Grid>
+                <Field label="Study Family" value={briefData.studyFamily} />
+                <Field label="Study Type" value={briefData.studyType} />
+                <Field label="Study Subtype" value={briefData.studySubtype} />
+                <Field label="PMR Domain" value={briefData.pmrDomain} />
+              </Grid>
+              {briefData.studyFamilyRationale && (
+                <div className="mt-3">
+                  <Field label="Classification Rationale" value={briefData.studyFamilyRationale} fullWidth />
+                </div>
+              )}
+            </Section>
+          )}
+
           {/* Section 1: Contact & Issuer */}
           {briefData.section1_contact_issuer && (
             <Section title="Contact & Issuer" icon={FileText}>
@@ -487,6 +504,19 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
                   </ul>
                 </div>
               )}
+              {briefData.section5_business_research_objectives.keyQuestions?.length > 0 && (
+                <div className="mt-4">
+                  <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Key Research Questions</h5>
+                  <ul className="space-y-2">
+                    {briefData.section5_business_research_objectives.keyQuestions.map((q: string, idx: number) => (
+                      <li key={idx} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 rounded-lg">
+                        <span className="text-blue-500 shrink-0">Q{idx + 1}</span>
+                        {q}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Section>
           )}
 
@@ -539,6 +569,36 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
                   <Field label="Quotas" value={briefData.section8_target_audience_sample.quotas} fullWidth />
                   <Field label="Special Requirements" value={briefData.section8_target_audience_sample.specialRequirements} fullWidth />
                 </Grid>
+                {briefData.section8_target_audience_sample.audienceTiers?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Audience Tiers</h5>
+                    <div className="space-y-2">
+                      {briefData.section8_target_audience_sample.audienceTiers.map((tier: any, idx: number) => (
+                        <div key={idx} className="flex items-start gap-3 text-sm bg-gray-100 dark:bg-gray-700/50 px-3 py-2 rounded-lg">
+                          {typeof tier === 'object' ? (
+                            <span className="text-gray-700 dark:text-gray-300">
+                              {tier.audience || tier.name || ''}{tier.n ? ` — n=${tier.n}` : ''}{tier.market ? ` (${tier.market})` : ''}
+                            </span>
+                          ) : (
+                            <span className="text-gray-700 dark:text-gray-300">{String(tier)}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {briefData.section8_target_audience_sample.screeningCriteria?.length > 0 && (
+                  <div>
+                    <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Screening Criteria</h5>
+                    <ul className="space-y-1">
+                      {briefData.section8_target_audience_sample.screeningCriteria.map((c: string, idx: number) => (
+                        <li key={idx} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                          <span className="text-primary">•</span>{c}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </Section>
           )}
@@ -552,6 +612,10 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
                 <Field label="Questions Deadline" value={briefData.section9_timeline_key_dates.questionsDeadline} />
                 <Field label="Project Start Date" value={briefData.section9_timeline_key_dates.projectStartDate} />
                 <Field label="Project End Date" value={briefData.section9_timeline_key_dates.projectEndDate} />
+                <Field label="Fieldwork Start" value={briefData.section9_timeline_key_dates.fieldworkStartDate} />
+                <Field label="Fieldwork End" value={briefData.section9_timeline_key_dates.fieldworkEndDate} />
+                <Field label="Reporting Date" value={briefData.section9_timeline_key_dates.reportingDate} />
+                <Field label="Pitch / Presentations" value={briefData.section9_timeline_key_dates.pitchPresentations} />
                 <Field label="Contract Length" value={briefData.section9_timeline_key_dates.contractLength} />
                 <Field label="Project Duration" value={briefData.section9_timeline_key_dates.projectDuration} fullWidth />
               </Grid>
@@ -584,8 +648,23 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
               <Grid>
                 <Field label="Budget Range" value={briefData.section11_budget_cost.budgetRange} />
                 <Field label="Currency" value={briefData.section11_budget_cost.currency} />
+                <Field label="Budget Status" value={briefData.section11_budget_cost.budgetStatus} />
+                <Field label="Payment Terms" value={briefData.section11_budget_cost.paymentTerms} />
                 <Field label="Costing Template" value={briefData.section11_budget_cost.costingTemplate} fullWidth />
+                <Field label="Budget Review" value={briefData.section11_budget_cost.budgetReview} fullWidth />
               </Grid>
+              {briefData.section11_budget_cost.costingRequirements?.length > 0 && (
+                <div className="mt-3">
+                  <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Costing Requirements</h5>
+                  <ul className="space-y-1">
+                    {briefData.section11_budget_cost.costingRequirements.map((r: string, idx: number) => (
+                      <li key={idx} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                        <span className="text-primary">•</span>{r}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Section>
           )}
 
@@ -596,8 +675,21 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
                 <Field label="Format" value={briefData.section12_submission_requirements.format} />
                 <Field label="Max Pages" value={briefData.section12_submission_requirements.maxPages} />
                 <Field label="Submission Deadline" value={briefData.section12_submission_requirements.submissionDeadline} fullWidth />
+                <Field label="Submission Email" value={briefData.section12_submission_requirements.submissionEmail} fullWidth />
                 <Field label="Contact for Questions" value={briefData.section12_submission_requirements.contactForQuestions} fullWidth />
               </Grid>
+              {briefData.section12_submission_requirements.submissionInstructions?.length > 0 && (
+                <div className="mt-3">
+                  <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Submission Instructions</h5>
+                  <ul className="space-y-1">
+                    {briefData.section12_submission_requirements.submissionInstructions.map((inst: string, idx: number) => (
+                      <li key={idx} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                        <span className="text-primary">•</span>{inst}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </Section>
           )}
 
@@ -613,7 +705,31 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
                   ))}
                 </ul>
               )}
-              <Field label="Evaluation Process" value={briefData.section13_evaluation_criteria.evaluationProcess} fullWidth />
+              {Array.isArray(briefData.section13_evaluation_criteria.evaluationProcess) ? (
+                <div className="mb-3">
+                  <h5 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">Evaluation Process</h5>
+                  <ol className="space-y-1">
+                    {briefData.section13_evaluation_criteria.evaluationProcess.map((step: string, i: number) => (
+                      <li key={i} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
+                        <span className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-[10px] font-bold text-primary">{i + 1}</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : (
+                <Field label="Evaluation Process" value={briefData.section13_evaluation_criteria.evaluationProcess} fullWidth />
+              )}
+              {briefData.section13_evaluation_criteria.evaluationNotes && (
+                <div className="mt-2">
+                  <Field label="Evaluation Notes" value={briefData.section13_evaluation_criteria.evaluationNotes} fullWidth />
+                </div>
+              )}
+              {briefData.section13_evaluation_criteria.partnershipConsideration && (
+                <div className="mt-2">
+                  <Field label="Partnership Consideration" value={briefData.section13_evaluation_criteria.partnershipConsideration} fullWidth />
+                </div>
+              )}
             </Section>
           )}
 
@@ -1082,6 +1198,18 @@ export default function BriefModal({ isOpen, onClose, brief, opportunityId, rfpT
                   </ul>
                 </div>
               )}
+            </Section>
+          )}
+
+          {/* Extraction Notes */}
+          {briefData.notes && Object.values(briefData.notes).some(Boolean) && (
+            <Section title="Extraction Notes" icon={Info}>
+              <Grid>
+                {briefData.notes.redactionExtent && <Field label="Redaction Extent" value={briefData.notes.redactionExtent} fullWidth />}
+                {briefData.notes.templateDocumentation && <Field label="Template Documentation" value={briefData.notes.templateDocumentation} fullWidth />}
+                {briefData.notes.methodologicalFlexibility && <Field label="Methodological Flexibility" value={briefData.notes.methodologicalFlexibility} fullWidth />}
+                {briefData.notes.criticality && <Field label="Criticality" value={briefData.notes.criticality} fullWidth />}
+              </Grid>
             </Section>
           )}
 

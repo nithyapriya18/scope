@@ -10,6 +10,7 @@
     "lint": "eslint src --ext .ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.80.0",
     "@aws-sdk/client-bedrock-runtime": "^3.490.0",
     "@types/multer": "^2.0.0",
     "axios": "^1.6.5",
