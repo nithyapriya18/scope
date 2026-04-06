@@ -26,7 +26,9 @@ const upload = multer({
  */
 router.post('/', async (req, res) => {
   try {
-    let { userId, emailBody, emailSubject, clientName, rfpTitle } = req.body;
+    let { userId, emailBody, emailSubject, clientName, rfpTitle,
+          clientContact, brand, engagementType, clientRelationshipType,
+          therapeuticArea, geography } = req.body;
 
     if (!userId || !emailBody) {
       return res.status(400).json({ error: 'userId and emailBody are required' });
@@ -42,6 +44,10 @@ router.post('/', async (req, res) => {
       userId = demoUser.id;
     }
 
+    const geoArray: string[] | null = Array.isArray(geography) ? geography
+      : (typeof geography === 'string' && geography) ? geography.split(',').map((g: string) => g.trim()).filter(Boolean)
+      : null;
+
     // Create opportunity
     const result = await sql`
       INSERT INTO opportunities (
@@ -49,7 +55,13 @@ router.post('/', async (req, res) => {
         email_subject,
         email_body,
         client_name,
+        client_contact,
         rfp_title,
+        therapeutic_area,
+        geography,
+        brand,
+        engagement_type,
+        client_relationship_type,
         status,
         created_at,
         updated_at
@@ -58,7 +70,13 @@ router.post('/', async (req, res) => {
         ${emailSubject || null},
         ${emailBody},
         ${clientName || null},
+        ${clientContact || null},
         ${rfpTitle || 'Untitled RFP'},
+        ${therapeuticArea || null},
+        ${geoArray || null},
+        ${brand || null},
+        ${engagementType || null},
+        ${clientRelationshipType || null},
         'intake',
         now(),
         now()
@@ -233,19 +251,61 @@ Respond with a JSON object containing:
 });
 
 /**
- * POST /api/opportunities/upload
- * Create opportunity from PDF file upload
+ * Extract plain text from a single uploaded file.
+ * Cleans up the temp file on success or failure.
  */
-router.post('/upload', upload.single('file'), async (req, res) => {
+async function extractTextFromFile(file: Express.Multer.File): Promise<string> {
+  const ext = path.extname(file.originalname).toLowerCase();
+  let text = '';
+  try {
+    if (ext === '.pdf') {
+      const outputPath = `${file.path}.txt`;
+      execSync(`pdftotext "${file.path}" "${outputPath}"`, { timeout: 60000 });
+      text = fs.readFileSync(outputPath, 'utf-8');
+      fs.unlinkSync(outputPath);
+    } else if (ext === '.docx' || ext === '.doc') {
+      text = execSync(`pandoc "${file.path}" -f docx -t plain`, {
+        encoding: 'utf8', timeout: 60000, maxBuffer: 10 * 1024 * 1024,
+      }) as string;
+    } else if (ext === '.eml') {
+      const { simpleParser } = await import('mailparser');
+      const parsed = await simpleParser(fs.readFileSync(file.path));
+      const meta = [
+        parsed.from?.text ? `From: ${parsed.from.text}` : '',
+        parsed.subject ? `Subject: ${parsed.subject}` : '',
+        parsed.date ? `Date: ${parsed.date.toISOString()}` : '',
+      ].filter(Boolean).join('\n');
+      text = (meta ? meta + '\n\n' : '') + (parsed.text || parsed.html?.replace(/<[^>]+>/g, ' ') || '');
+    } else if (ext === '.msg') {
+      text = fs.readFileSync(file.path, 'utf-8');
+    } else {
+      throw new Error('Unsupported file type. Please upload PDF, DOCX, EML, or MSG files.');
+    }
+  } finally {
+    if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
+  }
+  return text;
+}
+
+/**
+ * POST /api/opportunities/upload
+ * Create opportunity from one or more uploaded documents.
+ * The primary RFP file (fileTypes[i] === 'rfp', or first file) drives intake extraction.
+ * Supplementary files (brief, concept_note) are appended as labelled sections.
+ */
+router.post('/upload', upload.array('files', 5), async (req, res) => {
   try {
     let { userId, rfpTitle, clientName, emailSubject, therapeuticArea, rfpDeadline } = req.body;
-    const file = req.file;
+    // fileTypes is sent as a repeated form field; may be a string or array
+    const rawTypes = req.body.fileTypes;
+    const fileTypeList: string[] = Array.isArray(rawTypes) ? rawTypes : rawTypes ? [rawTypes] : [];
+    const uploadedFiles = (req.files as Express.Multer.File[]) || [];
 
-    if (!userId || !file) {
-      return res.status(400).json({ error: 'userId and file are required' });
+    if (!userId || uploadedFiles.length === 0) {
+      return res.status(400).json({ error: 'userId and at least one file are required' });
     }
 
-    // Resolve non-UUID userId (e.g. 'demo-user') to actual DB user
+    // Resolve non-UUID userId
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!UUID_RE.test(userId)) {
       const sql0 = getSql();
@@ -254,79 +314,41 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       userId = demoUser.id;
     }
 
-    // Extract text from file based on type
-    let extractedText = '';
-    const ext = path.extname(file.originalname).toLowerCase();
+    // Identify primary (RFP) file — first file explicitly typed 'rfp', or the first file overall
+    const primaryIdx = fileTypeList.findIndex(t => t === 'rfp');
+    const primaryFile = uploadedFiles[primaryIdx >= 0 ? primaryIdx : 0];
+    const docTypeLabels: Record<string, string> = {
+      brief: 'REQUIREMENTS BRIEF', concept_note: 'CONCEPT NOTE', other: 'SUPPLEMENTARY DOCUMENT',
+    };
 
-    try {
-      if (ext === '.pdf') {
-        // Use pdftotext (from poppler-utils)
-        const outputPath = `${file.path}.txt`;
-        try {
-          execSync(`pdftotext "${file.path}" "${outputPath}"`, { timeout: 60000 });
-          extractedText = fs.readFileSync(outputPath, 'utf-8');
-          fs.unlinkSync(outputPath);
-        } catch (pdfErr) {
-          console.error('PDF extraction error:', pdfErr);
-          throw new Error('Failed to extract text from PDF');
+    // Extract text from all files; build combined body
+    let primaryText = '';
+    const supplementaryParts: string[] = [];
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const f = uploadedFiles[i];
+      const ftype = fileTypeList[i] || (i === 0 ? 'rfp' : 'other');
+      try {
+        const text = await extractTextFromFile(f);
+        if (f === primaryFile) {
+          primaryText = text;
+        } else if (text.trim()) {
+          const label = docTypeLabels[ftype] || 'SUPPLEMENTARY DOCUMENT';
+          supplementaryParts.push(`\n\n---\n[${label}: ${f.originalname}]\n\n${text}`);
         }
-      } else if (ext === '.docx' || ext === '.doc') {
-        // Use pandoc to convert Word to text
-        try {
-          extractedText = execSync(`pandoc "${file.path}" -f docx -t plain`, {
-            encoding: 'utf8',
-            timeout: 60000,
-            maxBuffer: 10 * 1024 * 1024 // 10MB buffer for large documents
-          });
-        } catch (pandocErr: any) {
-          console.error('Pandoc extraction error:', pandocErr.message);
-          throw new Error(`Failed to extract text from Word document: ${pandocErr.message}`);
-        }
-      } else if (ext === '.eml') {
-        try {
-          const { simpleParser } = await import('mailparser');
-          const raw = fs.readFileSync(file.path);
-          const parsed = await simpleParser(raw);
-          extractedText = parsed.text || parsed.html?.replace(/<[^>]+>/g, ' ') || '';
-          const emailMeta = [
-            parsed.from?.text ? `From: ${parsed.from.text}` : '',
-            parsed.subject ? `Subject: ${parsed.subject}` : '',
-            parsed.date ? `Date: ${parsed.date.toISOString()}` : '',
-          ].filter(Boolean).join('\n');
-          if (emailMeta) extractedText = emailMeta + '\n\n' + extractedText;
-        } catch (emlErr: any) {
-          console.error('EML extraction error:', emlErr.message);
-          throw new Error(`Failed to extract text from email: ${emlErr.message}`);
-        }
-      } else if (ext === '.msg') {
-        try {
-          extractedText = fs.readFileSync(file.path, 'utf-8');
-        } catch (msgErr: any) {
-          console.error('MSG extraction error:', msgErr.message);
-          throw new Error(`Failed to extract text from MSG file: ${msgErr.message}`);
-        }
-      } else {
-        fs.unlinkSync(file.path);
-        return res.status(400).json({ error: 'Unsupported file type. Please upload PDF, DOCX, EML, or MSG files.' });
+      } catch (err: any) {
+        // Clean up any remaining temp files and abort
+        uploadedFiles.slice(i).forEach(rf => { if (fs.existsSync(rf.path)) fs.unlinkSync(rf.path); });
+        return res.status(400).json({ error: err.message || 'Failed to extract text from file' });
       }
-
-      // Clean up temp file
-      if (fs.existsSync(file.path)) {
-        fs.unlinkSync(file.path);
-      }
-    } catch (extractError: any) {
-      console.error('File extraction error:', extractError.message);
-      if (fs.existsSync(file.path)) fs.unlinkSync(file.path);
-      return res.status(400).json({ error: extractError.message || 'Failed to extract text from file' });
     }
 
-    if (!extractedText.trim()) {
-      return res.status(400).json({ error: 'No text content found in file' });
+    if (!primaryText.trim()) {
+      return res.status(400).json({ error: 'No text content found in the primary RFP file' });
     }
 
+    const combinedBody = primaryText + supplementaryParts.join('');
     const sql = getSql();
 
-    // Create opportunity
     const result = await sql`
       INSERT INTO opportunities (
         user_id,
@@ -336,17 +358,23 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         rfp_title,
         therapeutic_area,
         rfp_deadline,
+        email_attachments,
         status,
         created_at,
         updated_at
       ) VALUES (
         ${userId},
-        ${emailSubject || file.originalname},
-        ${extractedText},
+        ${emailSubject || primaryFile.originalname},
+        ${combinedBody},
         ${clientName || null},
-        ${rfpTitle || file.originalname},
+        ${rfpTitle || primaryFile.originalname},
         ${therapeuticArea || null},
         ${rfpDeadline || null},
+        ${JSON.stringify(uploadedFiles.map((f, i) => ({
+          filename: f.originalname,
+          type: fileTypeList[i] || (i === 0 ? 'rfp' : 'other'),
+          uploadedAt: new Date().toISOString(),
+        })))}::jsonb,
         'intake',
         now(),
         now()
@@ -355,18 +383,15 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     `;
 
     const opportunity = result[0];
-
-    // Respond immediately — don't block on AI processing
     res.json({ opportunity });
 
-    // Run Intake Agent in background
     const intakeAgent = new IntakeAgent();
     intakeAgent.execute({
       opportunityId: opportunity.id,
       userId,
       data: {
-        rfpText: extractedText,
-        fileName: rfpTitle || file.originalname,
+        rfpText: combinedBody,
+        fileName: rfpTitle || primaryFile.originalname,
       },
     }).catch((err) => console.error('❌ Intake agent error:', err));
   } catch (error: any) {
@@ -888,7 +913,7 @@ router.get('/:id', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { rfpTitle, clientName, therapeuticArea, rfpDeadline } = req.body;
+    const { rfpTitle, clientName, therapeuticArea, rfpDeadline, geography } = req.body;
     const sql = getSql();
 
     // Validate opportunity exists
@@ -923,6 +948,18 @@ router.patch('/:id', async (req, res) => {
       updates.push(`rfp_deadline = $${params.length + 1}`);
       params.push(rfpDeadline ? new Date(rfpDeadline) : null);
     }
+
+    if (geography !== undefined) {
+      const geoArray = Array.isArray(geography) ? geography : [];
+      updates.push(`geography = $${params.length + 1}::jsonb`);
+      params.push(JSON.stringify(geoArray));
+    }
+
+    const { brand, engagementType, clientRelationshipType, clientContact } = req.body;
+    if (brand !== undefined) { updates.push(`brand = $${params.length + 1}`); params.push(brand || null); }
+    if (engagementType !== undefined) { updates.push(`engagement_type = $${params.length + 1}`); params.push(engagementType || null); }
+    if (clientRelationshipType !== undefined) { updates.push(`client_relationship_type = $${params.length + 1}`); params.push(clientRelationshipType || null); }
+    if (clientContact !== undefined) { updates.push(`client_contact = $${params.length + 1}`); params.push(clientContact || null); }
 
     if (updates.length === 0) {
       return res.status(400).json({

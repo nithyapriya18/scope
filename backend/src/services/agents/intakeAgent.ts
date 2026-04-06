@@ -61,11 +61,20 @@ Your job is to read the raw RFP text and extract every piece of metadata with hi
 You have tools to search and read the RFP document. USE THEM to find all information.
 Do NOT guess — if you need to find a field, use extract_metadata to search for it.
 
+DOCUMENT SECTIONS AND PRECEDENCE:
+The document may contain multiple sections marked with headers like [REQUIREMENTS BRIEF: filename] or [CONCEPT NOTE: filename] or [SUPPLEMENTARY DOCUMENT: filename].
+Apply these precedence rules when fields conflict between sections:
+- Primary source for all fields: the main RFP text (before any bracketed section headers)
+- [REQUIREMENTS BRIEF]: overrides the RFP for methodology, sample_requirements, research_objectives, and study design details — the brief is the authoritative scope specification
+- [CONCEPT NOTE]: supplementary context only; use for background and TA confirmation but do not override RFP or brief values
+- [SUPPLEMENTARY DOCUMENT]: low-priority context; only use if the field is completely absent elsewhere
+
 Strategy:
 1. First read the start of the document for title, client, and overview
 2. Use extract_metadata to search for: deadline, therapeutic area, geography, objectives, methodology
 3. Read the end of the document for submission requirements, contact info, deadlines
-4. When confident you have all data, output the final JSON
+4. If a [REQUIREMENTS BRIEF] section exists, re-check methodology, objectives, and sample requirements from it
+5. When confident you have all data, output the final JSON
 
 Every field you extract must come directly from the text. Do not invent values.
 When done, output ONLY valid JSON. No markdown, no commentary.`;
@@ -177,8 +186,16 @@ Return ONLY this JSON when done:
     "geography": "high|medium|low",
     "studyFamily": "high|medium|low"
   },
-  "isDuplicate": false
+  "isDuplicate": false,
+  "_fieldSources": {
+    "methodology": "rfp|brief|concept_note",
+    "researchObjectives": "rfp|brief|concept_note",
+    "sampleRequirements": "rfp|brief|concept_note",
+    "geography": "rfp|brief|concept_note",
+    "therapeuticArea": "rfp|brief|concept_note"
+  }
 }
+Note: In _fieldSources, indicate which document section was the authoritative source for each field. Only include fields where you used a non-primary source (i.e. brief or concept_note overrode the rfp). Omit _fieldSources entirely if all fields came from the primary RFP.
 
 Start by calling read_section with position "start".`;
 
